@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wsdl:definitions xmlns:http="http://schemas.xmlsoap.org/wsdl/http/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:s="http://www.w3.org/2001/XMLSchema" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:tns="http://www.ctl.com/webservices/rbs/" xmlns:tm="http://microsoft.com/wsdl/mime/textMatching/" xmlns:mime="http://schemas.xmlsoap.org/wsdl/mime/" targetNamespace="http://www.ctl.com/webservices/rbs/" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+  <wsdl:types>
+    <s:schema elementFormDefault="qualified" targetNamespace="http://www.ctl.com/webservices/rbs/">
+      <s:element name="Send">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="cXmlMsg" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SendResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="SendResult" type="tns:SendResult" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:complexType name="SendResult">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="1" name="CTL_RBS_SEND_RESULT_GROUP" type="tns:ArrayOfCTL_RBS_SEND_RESULT" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="ArrayOfCTL_RBS_SEND_RESULT">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="CTL_RBS_SEND_RESULT" type="tns:CTL_RBS_SEND_RESULT" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="CTL_RBS_SEND_RESULT">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="1" name="CTL_RBS_APPLICATION" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="CTL_RBS_RULEDOMAIN" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="CTL_RBS_CALLERID" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="CTL_RBS_CALLERMSGID" type="s:string" />
+          <s:element minOccurs="1" maxOccurs="1" name="CTL_RBS_RESULT" type="s:boolean" />
+          <s:element minOccurs="0" maxOccurs="1" name="CTL_RBS_RESULT_ID" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="CTL_RBS_RESULT_TEXT" type="s:string" />
+        </s:sequence>
+      </s:complexType>
+      <s:element name="SendAsString">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="cXmlMsg" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SendAsStringResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="SendAsStringResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SendResult" nillable="true" type="tns:SendResult" />
+      <s:element name="string" nillable="true" type="s:string" />
+    </s:schema>
+  </wsdl:types>
+  <wsdl:message name="SendSoapIn">
+    <wsdl:part name="parameters" element="tns:Send" />
+  </wsdl:message>
+  <wsdl:message name="SendSoapOut">
+    <wsdl:part name="parameters" element="tns:SendResponse" />
+  </wsdl:message>
+  <wsdl:message name="SendAsStringSoapIn">
+    <wsdl:part name="parameters" element="tns:SendAsString" />
+  </wsdl:message>
+  <wsdl:message name="SendAsStringSoapOut">
+    <wsdl:part name="parameters" element="tns:SendAsStringResponse" />
+  </wsdl:message>
+  <wsdl:message name="SendHttpGetIn">
+    <wsdl:part name="cXmlMsg" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="SendHttpGetOut">
+    <wsdl:part name="Body" element="tns:SendResult" />
+  </wsdl:message>
+  <wsdl:message name="SendAsStringHttpGetIn">
+    <wsdl:part name="cXmlMsg" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="SendAsStringHttpGetOut">
+    <wsdl:part name="Body" element="tns:string" />
+  </wsdl:message>
+  <wsdl:message name="SendHttpPostIn">
+    <wsdl:part name="cXmlMsg" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="SendHttpPostOut">
+    <wsdl:part name="Body" element="tns:SendResult" />
+  </wsdl:message>
+  <wsdl:message name="SendAsStringHttpPostIn">
+    <wsdl:part name="cXmlMsg" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="SendAsStringHttpPostOut">
+    <wsdl:part name="Body" element="tns:string" />
+  </wsdl:message>
+  <wsdl:portType name="IncomingQueueSoap">
+    <wsdl:operation name="Send">
+      <wsdl:input message="tns:SendSoapIn" />
+      <wsdl:output message="tns:SendSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="SendAsString">
+      <wsdl:input message="tns:SendAsStringSoapIn" />
+      <wsdl:output message="tns:SendAsStringSoapOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:portType name="IncomingQueueHttpGet">
+    <wsdl:operation name="Send">
+      <wsdl:input message="tns:SendHttpGetIn" />
+      <wsdl:output message="tns:SendHttpGetOut" />
+    </wsdl:operation>
+    <wsdl:operation name="SendAsString">
+      <wsdl:input message="tns:SendAsStringHttpGetIn" />
+      <wsdl:output message="tns:SendAsStringHttpGetOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:portType name="IncomingQueueHttpPost">
+    <wsdl:operation name="Send">
+      <wsdl:input message="tns:SendHttpPostIn" />
+      <wsdl:output message="tns:SendHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="SendAsString">
+      <wsdl:input message="tns:SendAsStringHttpPostIn" />
+      <wsdl:output message="tns:SendAsStringHttpPostOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="IncomingQueueSoap" type="tns:IncomingQueueSoap">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" style="document" />
+    <wsdl:operation name="Send">
+      <soap:operation soapAction="http://www.ctl.com/webservices/rbs/Send" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="SendAsString">
+      <soap:operation soapAction="http://www.ctl.com/webservices/rbs/SendAsString" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="IncomingQueueHttpGet" type="tns:IncomingQueueHttpGet">
+    <http:binding verb="GET" />
+    <wsdl:operation name="Send">
+      <http:operation location="/Send" />
+      <wsdl:input>
+        <http:urlEncoded />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="SendAsString">
+      <http:operation location="/SendAsString" />
+      <wsdl:input>
+        <http:urlEncoded />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="IncomingQueueHttpPost" type="tns:IncomingQueueHttpPost">
+    <http:binding verb="POST" />
+    <wsdl:operation name="Send">
+      <http:operation location="/Send" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="SendAsString">
+      <http:operation location="/SendAsString" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="IncomingQueue">
+    <documentation xmlns="http://schemas.xmlsoap.org/wsdl/">Contains Rule Based System services</documentation>
+    <wsdl:port name="IncomingQueueSoap" binding="tns:IncomingQueueSoap">
+      <soap:address location="http://203.115.205.218/RBS/WebServices/incoming/IncomingQueue.asmx" />
+    </wsdl:port>
+    <wsdl:port name="IncomingQueueHttpGet" binding="tns:IncomingQueueHttpGet">
+      <http:address location="http://203.115.205.218/RBS/WebServices/incoming/IncomingQueue.asmx" />
+    </wsdl:port>
+    <wsdl:port name="IncomingQueueHttpPost" binding="tns:IncomingQueueHttpPost">
+      <http:address location="http://203.115.205.218/RBS/WebServices/incoming/IncomingQueue.asmx" />
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

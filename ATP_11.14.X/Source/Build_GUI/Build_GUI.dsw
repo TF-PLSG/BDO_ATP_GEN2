@@ -1,0 +1,296 @@
+Microsoft Developer Studio Workspace File, Format Version 6.00
+# WARNING: DO NOT EDIT OR DELETE THIS WORKSPACE FILE!
+
+###############################################################################
+
+Project: "ArchiveLookup"=..\GUI\ArchiveLookup\ArchiveLookup.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name atptcp
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mutexlib
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name PTE
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name ptepci
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name ptetcp
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name Shmlib
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "Atp"=..\GUI\ATP\Atp.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name ATPL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name stipmgr
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name VoiceAuthorization
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DBFToolWindows
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "DBFToolWindows"=..\GUI\DBFToolWindows\DBFToolWindows.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name VoiceAuthorization
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "PTE"=..\Libraries\core_win95\pte\pte.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name Shmlib
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "PinDlg"=..\GUI\pindlg\PinDlg.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name atptcp
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "Shmlib"=..\Libraries\Application_Win95\Shmlib\Shmlib.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name mutexlib
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "TranPosSearch"=..\GUI\TranPosLookup\TranPosSearch.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name srvcmon
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "TranSearch"=..\GUI\TranLookup\TranSearch.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name srvcmon
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "VoiceAuthorization"=..\GUI\Voice\VoiceAuthorization.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name TranSearch
+    End Project Dependency
+}}}
+
+###############################################################################
+
+
+###############################################################################
+
+Project: "UserStatusControl"=..\GUI\UserStatusControl\UserStatusControl.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name TranSearch
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "atptcp"=..\Libraries\Application_Win95\atptcp\Atptcp.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name ptetcp
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "monitor"=..\GUI\Monitor\Monitor.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name PinDlg
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "mutexlib"=..\Libraries\Application_Win95\mutexlib\mutexlib.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name ptepci
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "ptepci"=..\Libraries\Application_Win95\ptepci\ptepci.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "ptetcp"=..\Libraries\core_win95\ptetcp\Ptetcp.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name PTE
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "srvcmon"=..\GUI\srvcmon\srvcmon.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name monitor
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "stipmgr"="..\GUI\STIP Manager\stipmgr.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name TranSearch
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Global:
+
+Package=<5>
+{{{
+}}}
+
+Package=<3>
+{{{
+}}}
+
+###############################################################################
+

@@ -1,0 +1,17 @@
+<?php
+define('DB_SERVER', '10.1.5.184');
+define('DB_USERNAME', 'EQUITABLE');
+define('DB_PASSWORD', 'equitable');
+define('DB_DATABASE', 'BDOOrcl19');
+$password="equitable";
+$username='EQUITABLE';
+//oci_connect($username, $password, '(DESCRIPTION = (ADDRESS = (PROTOCOL = TCP)(HOST = 192.168.3.14)(PORT = 1521)) (CONNECT_DATA = (SERVICE_NAME = ORCL) (SID = ORCL)))');
+//$conn= oci_connect(DB_USERNAME, DB_PASSWORD, DB_SERVER)
+//$database = (DESCRIPTION=(ADDRESS = (PROTOCOL = TCP)(HOST = 10.1.5.183)(PORT = 1539))(CONNECT_DATA=((SERVICE_NAME = ORCL)SID=ORCL)));
+$conn= oci_connect($username, $password, '(DESCRIPTION = (ADDRESS = (PROTOCOL = TCP)(HOST = 10.1.5.184)(PORT = 1521)) (CONNECT_DATA = (SERVICE_NAME = BDOOrcl19) (SID = BDOOrcl19)))');
+echo "success...";
+//database = oci_select_db(DB_DATABASE) or die(oci_error());
+$stid = oci_parse($conn, "SELECT * FROM UCF01"); 
+oci_execute($stid);
+ echo "<table border='1'>\n"; while ($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS)) {     echo "<tr>\n";     foreach ($row as $item) {         echo "    <td>" . ($item !== null ? htmlentities($item, ENT_QUOTES) : "&nbsp;") . "</td>\n";     }     echo "</tr>\n"; } echo "</table>\n";
+?>

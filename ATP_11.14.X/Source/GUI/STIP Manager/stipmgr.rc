@@ -1,0 +1,307 @@
+//Microsoft Developer Studio generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+#endif //_WIN32
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
+    "#define _AFX_NO_OLE_RESOURCES\r\n"
+    "#define _AFX_NO_TRACKER_RESOURCES\r\n"
+    "#define _AFX_NO_PROPERTY_RESOURCES\r\n"
+    "\r\n"
+    "#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)\r\n"
+    "#ifdef _WIN32\r\n"
+    "LANGUAGE 9, 1\r\n"
+    "#pragma code_page(1252)\r\n"
+    "#endif //_WIN32\r\n"
+    "#include ""res\\stipmgr.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
+    "#include ""afxres.rc""         // Standard components\r\n"
+    "#endif\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDR_MAINFRAME           ICON    DISCARDABLE     "res\\stipmgr.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_ABOUTBOX DIALOG DISCARDABLE  0, 0, 235, 55
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About stipmgr"
+FONT 8, "MS Sans Serif"
+BEGIN
+    ICON            IDR_MAINFRAME,IDC_STATIC,11,17,20,20
+    LTEXT           "stipmgr Version 11.1.0.0",IDC_STATIC_APPVERSION,40,10,
+                    119,8,SS_NOPREFIX
+    LTEXT           "Copyright (C) 2008 Hypercom Inc",IDC_STATIC,40,25,119,8
+    DEFPUSHBUTTON   "OK",IDOK,178,7,50,14,WS_GROUP
+END
+
+IDD_STIPMGR_DIALOG DIALOGEX 0, 0, 356, 282
+STYLE DS_LOCALEDIT | DS_3DLOOK | WS_MINIMIZEBOX | WS_POPUP | WS_VISIBLE | 
+    WS_CAPTION | WS_SYSMENU
+EXSTYLE WS_EX_APPWINDOW
+CAPTION "Stand In Processing"
+FONT 8, "Microsoft Sans Serif", 0, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "Exit",IDCANCEL,275,225,37,14
+    DEFPUSHBUTTON   "Resend",IDC_BUTTON_RESEND,103,226,35,14
+    DEFPUSHBUTTON   "Resend All",IDC_BUTTON_RESEND_ALL,159,226,44,14
+    LTEXT           "Choose Network Controller:",IDC_STATIC,14,15,95,15
+    LTEXT           "Card No.:",IDC_STATIC,15,30,55,13
+    LTEXT           "Merchant ID:",IDC_STATIC,15,45,64,13
+    LTEXT           "Transaction Date: (DDMMYYYY)",IDC_STATIC,15,57,106,12
+    EDITTEXT        IDC_EDIT_CARD_NUM,121,26,97,15,ES_AUTOHSCROLL | NOT 
+                    WS_TABSTOP
+    EDITTEXT        IDC_EDIT_TRAN_DATE,121,41,97,15,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT3,121,57,50,14,ES_AUTOHSCROLL
+    COMBOBOX        IDC_COMBO_NETWORKCONTROLLER,121,13,76,98,
+                    CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "",IDC_STATIC_LBL,"Static",SS_LEFTNOWORDWRAP | SS_SUNKEN,
+                    32,251,294,13
+    GROUPBOX        "",IDC_STATIC,25,241,308,28
+    CONTROL         "List3",IDC_LIST_RESEND,"SysListView32",LVS_REPORT | 
+                    LVS_SHOWSELALWAYS | LVS_OWNERDRAWFIXED | WS_BORDER | 
+                    WS_TABSTOP,15,85,328,122
+    DEFPUSHBUTTON   "Search",IDC_SEARCH_BUTTON,50,225,33,14
+    CONTROL         "         Resend All",IDC_CHECK,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,243,15,75,13
+    EDITTEXT        IDC_EDIT_COUNTER,243,31,20,14,ES_AUTOHSCROLL
+    LTEXT           "Repeat Counter",IDC_STATIC,273,33,55,11
+    DEFPUSHBUTTON   "Help",IDC_BUTTON_HELP,225,226,29,13
+    DEFPUSHBUTTON   "Next 10",IDC_BUTTON_NEXT10,243,51,35,13
+END
+
+IDD_DIALOG_HELP DIALOG DISCARDABLE  0, 0, 268, 178
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Help"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,24,145,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,191,146,50,14
+    LTEXT           "Application Name: STIP Manager",IDC_STATIC,20,16,132,10
+    LTEXT           "application Binary Name: stpmgr.exe",IDC_STATIC,19,31,
+                    129,13
+    LTEXT           "Application Version : 10.0.0.0",IDC_STATIC,20,47,102,13
+    LTEXT           "Resend All: For Resending all the transactions first select the check box provided on main window",
+                    IDC_STATIC,20,61,227,20
+    LTEXT           "Resend: Sends all Stand in transactions to Host when Host comes ONLINE",
+                    IDC_STATIC,21,83,222,17
+    LTEXT           "Search: Lists all stand In transactions from Database",
+                    IDC_STATIC,21,102,207,15
+    LTEXT           "Remove: Deletes selected row from database",IDC_STATIC,
+                    22,116,200,11
+    LTEXT           "Help: Describes the STIP GUI dialog box",IDC_STATIC,21,
+                    131,200,9
+END
+
+IDD_IDLE_LOGIN DIALOG DISCARDABLE  0, 0, 218, 118
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Stip Manager Idle Login"
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_EDIT_UID,98,22,95,14,ES_UPPERCASE | ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_PWD,98,48,95,16,ES_PASSWORD | ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,31,90,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,111,91,50,14
+    LTEXT           "PASSWORD",IDC_STATIC_PWD,21,50,70,16
+    LTEXT           "USERID",IDC_STATIC_UID,24,26,54,16
+END
+
+
+#ifndef _MAC
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 11,1,0,0
+ PRODUCTVERSION 11,1,0,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "Comments", "ATP_11.1.0\0"
+            VALUE "CompanyName", "\0"
+            VALUE "FileDescription", "stipmgr MFC Application\0"
+            VALUE "FileVersion", "11,1,0, 0\0"
+            VALUE "InternalName", "stipmgr\0"
+            VALUE "LegalCopyright", "ThoughtFocus Copyright © 2012\0"
+            VALUE "LegalTrademarks", "\0"
+            VALUE "OriginalFilename", "stipmgr.EXE\0"
+            VALUE "PrivateBuild", "\0"
+            VALUE "ProductName", "stipmgr Application\0"
+            VALUE "ProductVersion", "11, 1, 0, 0\0"
+            VALUE "SpecialBuild", "\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+#endif    // !_MAC
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO DISCARDABLE 
+BEGIN
+    IDD_ABOUTBOX, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 228
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 48
+    END
+
+    IDD_STIPMGR_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 4
+        RIGHTMARGIN, 353
+        TOPMARGIN, 6
+        BOTTOMMARGIN, 277
+    END
+
+    IDD_DIALOG_HELP, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 261
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 171
+    END
+
+    IDD_IDLE_LOGIN, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 211
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 111
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog Info
+//
+
+IDD_STIPMGR_DIALOG DLGINIT
+BEGIN
+    IDC_COMBO_NETWORKCONTROLLER, 0x403, 7, 0
+0x636e, 0x6976, 0x3273, "\000" 
+    IDC_COMBO_NETWORKCONTROLLER, 0x403, 7, 0
+0x706e, 0x736f, 0x3261, "\000" 
+    IDC_COMBO_NETWORKCONTROLLER, 0x403, 7, 0
+0x636e, 0x636a, 0x3262, "\000" 
+    IDC_COMBO_NETWORKCONTROLLER, 0x403, 7, 0
+0x636e, 0x636d, 0x3272, "\000" 
+    IDC_COMBO_NETWORKCONTROLLER, 0x403, 7, 0
+0x616e, 0x6d74, 0x3261, "\000" 
+    0
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    IDS_ABOUTBOX            "&About stipmgr..."
+    IDS_PRODUCT_VERSION     "ATP_11.0.0"
+END
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+#define _AFX_NO_SPLITTER_RESOURCES
+#define _AFX_NO_OLE_RESOURCES
+#define _AFX_NO_TRACKER_RESOURCES
+#define _AFX_NO_PROPERTY_RESOURCES
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE 9, 1
+#pragma code_page(1252)
+#endif //_WIN32
+#include "res\stipmgr.rc2"  // non-Microsoft Visual C++ edited resources
+#include "afxres.rc"         // Standard components
+#endif
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

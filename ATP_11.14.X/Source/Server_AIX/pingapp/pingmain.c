@@ -1,0 +1,935 @@
+/***************************************************************************
+ * 
+ * MODULE:      PINGMAIN.C
+ *  
+ * TITLE:       ATP Ping Services Utility
+ *  
+ * DESCRIPTION: This application logs into Xipc, gets a list of apps
+ *              to be pinged from a config file, then pings these apps
+ *              according to the configuration parameters in tf.ini.
+ *              Any apps that do not respond within the configured time
+ *              will be logged to ATP Monitor and syslog.
+ *
+ *              This application needs to run in the background at all
+ *              times.
+ *
+ * APPLICATION: Advanced Transaction Processor (ATP)
+ *
+ * AUTHOR:      D. Irby
+ *
+ * Copyright (c) 2007, Hypercom, Inc. All Rights Reserved.
+ *
+ ***************************************************************************/
+
+/***************************************************************************
+
+   REVISION HISTORY
+   ----------------
+
+   $Log$
+
+****************************************************************************/
+
+/***************************************************************************
+
+   Logic Flow
+   ----------
+   1.  Get configuration parameters
+       1.1  Get list of services to ping
+       1.2  Get amount of time allowed for an app to respond to a ping
+       1.3  Get delay time between pings
+       1.4  Get maximum number of time outs; will log msg after max reached
+
+   2.  Startup
+       2.1  Log into Xipc
+       2.2  Log startup message and version to syslog
+       2.3  Set ping status of all services to PING_SUCCESS
+       2.4  Set late ping counter for all services to zero
+       2.5  Get system time
+       2.6  Set ping time = system time + ping interval
+
+   3.  Loop indefinitely until user shuts down the application
+       3.1  Read queue - this is for shutdown and ping requests from user
+
+       3.2  Time to ping apps?
+            3.2.1  Loop through each configured service
+                   3.2.1.1  Build and send ping request to each service
+                   3.2.1.2  Set each service status to PING_WAIT
+                   3.2.1.3  Don't send request if status is PING_WAIT
+                   3.2.1.4  Don't send request if status is PING_LATE
+            3.2.2  Exit loop
+            3.2.3  Set time for next ping
+            3.2.4  Set late response time
+
+       3.3  Ping Response?
+            3.3.1  If service status is PING_WAIT,
+                      Set service status to PING_SUCCESS
+                      Set service late ping counter to zero
+            3.3.2  Else if service status is PING_LATE,
+                      Set service status to PING_SUCCESS
+                      Log message about receiving a late ping response
+                      Set message-logged bit to false
+            3.3.3  else
+                      Log message to show unexpected ping response
+
+       3.4  Time to check for late responses
+            3.4.1  Loop through each configured service
+                   3.4.1.1  If status is PING_WAIT,
+                               Set status to PING_LATE
+                   3.4.1.2  Else if status is PING_LATE
+                               Increment late ping counter
+                               If counter > max time out value,
+                                  Log message
+                                  Set message logged bit
+            3.4.2  Exit loop
+
+****************************************************************************/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include "basictyp.h"
+#include "pteipc.h"
+#include "ptetime.h"
+#include "ptesystm.h"
+#include "app_info.h"
+#include "equitdb.h"
+#include "ntutils.h"
+#include "txutils.h"
+#include "ping_constants.h"
+#include "ping_prototypes.h"
+
+/*+--------------------+
+  | Global Definitions |
+  +--------------------+*/
+
+CHAR   AppName[80];
+CHAR   AppQueName[MAX_APP_NAME_SIZE];
+CHAR   Version[] = "ATP_11.1.0";
+
+INT         numServices;
+PingStruct  pingList[MAX_SERVICES];
+
+INT    PingInterval;
+INT    PingWait;
+INT    PingMaxTimeOut;
+INT    PingDebug = PING_DEBUG_OFF;
+double PingTime;
+double PingWaitTime;
+
+extern INT  EndProcessSignalled;
+extern INT  MainProcessDone;
+
+/*****************************************************************************
+ *
+ * Function:     MainProcessor
+ *
+ * Description:  This function is the driver for the application.
+ *               It loops indefinitely, reading the Xipc queues and
+ *               checking the timer. It acts appropriately based on
+ *               these 2 factors.
+ *
+ * Input:        None
+ *
+ * Output:       None
+ *
+ * Return Value: None
+ *
+ * 
+ *   File
+ * Revision   Date   By   Description
+ * -------- -------- ---  -----------
+ *
+ *
+ *****************************************************************************/
+void MainProcessor()
+{
+   INT  retval;
+   CHAR errbuf[100];
+
+   /* ---------------------------- */
+   /* Get Configuration Parameters */
+   /* ---------------------------- */
+   GetAppName( AppName );
+   retval = getPingList();
+   if ( retval >= 0 )
+   {
+      getPingTimerConfig();
+
+      /* ------- */
+      /* Startup */
+      /* ------- */
+      retval = startup();
+      if ( retval >= 0 )
+      {
+         /* -------------------- */
+         /* Process Indefinitely */
+         /* -------------------- */
+         performPinging();
+      }
+   }
+   else
+   {
+      strcpy( errbuf, "Unable to get list of services to ping. Exiting." );
+      LogEvent( errbuf, ERROR_MSG );
+   }
+   return;
+}
+
+
+/*****************************************************************************
+ *
+ * Function:     getPingList
+ *
+ * Description:  This function gets the list of services to be pinged
+ *               from the tf.ini file.
+ *
+ * Input:        None
+ *
+ * Output:       pingList - (Global) Structure containing list of services
+ *
+ * Return Value: 0 = success
+ *              -1 = Unable to open the file
+ *              -2 = Cannot find the section name
+ *              -3 = Error occurred while copying an ID into the output
+ *                   list.  Could indicate 'size_of_list' is too small
+ *                   of a value to hold all the ID's being read.
+ *
+ *
+ *   File
+ * Revision   Date   By   Description
+ * -------- -------- ---  -----------
+ *
+ *
+ *****************************************************************************/
+INT getPingList()
+{
+   INT   retval = 0;
+   INT   i;
+   CHAR  filename[MAX_APP_NAME_SIZE] = "";
+   CHAR  tmpstr  [MAX_APP_NAME_SIZE] = "";
+
+
+   /* Determine directory and filename of the .ini file. */
+   GetPinnacleConfigDirectory( tmpstr );
+   sprintf( filename, "%stf.ini", tmpstr );
+
+   memset( &pingList, 0x00, sizeof(pingList) );
+   numServices = GetPrivateProfileList( filename,
+                                        PINGING_SECTION,
+                                       (pCHAR)&pingList,
+                                        sizeof(PingStruct) );
+   if ( numServices < 0 )
+   {
+      memset( tmpstr, 0x00, sizeof(tmpstr) );
+      switch( numServices )
+      {
+         case -1: sprintf( tmpstr, "Unable to open config file %s", filename );
+                  break;
+
+         case -2: sprintf( tmpstr,
+                          "Cannot find section %s in %s", 
+                           PINGING_SECTION, filename );
+                  break;
+
+         case -3: strcpy( tmpstr, "Error copying config parms into struct" );
+                  break;
+
+         default: sprintf( tmpstr,
+                          "Unknown error (%d) getting service list.",
+                           numServices );
+                  break;
+      }
+      LogEvent( tmpstr, ERROR_MSG );
+      retval = numServices;
+   }
+   else
+   {
+      if ( numServices == 0 )
+      {
+         LogEvent( "No services are configured for pinging.", INFO_MSG );
+      }
+      else
+      {
+         for( i=0; i<numServices; i++ )
+         {
+            sprintf( tmpstr,
+                    "%s is configured for pinging",
+                     pingList[i].appName );
+            LogEvent( tmpstr, INFO_MSG );
+         }
+      }
+   }
+
+   return( retval );
+}
+
+/*****************************************************************************
+ *
+ * Function:     getPingTimerConfig
+ *
+ * Description:  This function gets the ping configuration from tf.ini.
+ *               This configuration includes ping-interval and ping-timeout.
+ *
+ * Input:        None
+ *
+ * Output:       pingList - (Global) Structure containing list of services
+ *
+ * Return Value: 0 = success
+ *
+ *
+ *   File
+ * Revision   Date   By   Description
+ * -------- -------- ---  -----------
+ *
+ *
+ *****************************************************************************/
+INT getPingTimerConfig()
+{
+   INT   retval = 0;
+   DWORD rc;
+   CHAR  filename   [80];
+   CHAR  tmpstr     [80];
+
+   /* Get path to the tf.ini file. */
+   memset( tmpstr, 0x00, sizeof(tmpstr) );
+   GetPinnacleConfigDirectory(tmpstr);
+   sprintf(filename, "%stf.ini", tmpstr );
+
+   /*-------------------*/
+   /* Get Ping Interval */
+   /*-------------------*/
+   memset( tmpstr, 0x00, sizeof(tmpstr) );
+   rc = GetPrivateProfileString(
+             PINGING_SECTION,              /* points to section name         */
+            "PING_INTERVAL",               /* points to key name             */
+             PING_DEFAULT_INTERVAL,        /* Default string                 */
+             tmpstr,                       /* points to destination buffer   */
+             sizeof(tmpstr)-1,             /* size of destination buffer     */
+             filename                      /* points to ini filename         */
+   );
+
+   PingInterval = atoi( tmpstr );
+   if ( PingInterval == 0 )
+   {
+      LogEvent( "Pinging is turned OFF", INFO_MSG );
+   }
+   else if ( PingInterval < 0 )
+   {
+      sprintf(tmpstr, "Invalid Ping Interval: %d Pinging is OFF", PingInterval);
+      LogEvent( tmpstr, INFO_MSG );
+      PingInterval = 0;
+   }
+   else
+   {
+      /*---------------*/
+      /* Get Ping Wait */
+      /*---------------*/
+      memset( tmpstr, 0x00, sizeof(tmpstr) );
+      rc = GetPrivateProfileString(
+                PINGING_SECTION,           /* points to section name         */
+               "PING_WAIT",                /* points to key name             */
+                PING_DEFAULT_WAIT,         /* Default string                 */
+                tmpstr,                    /* points to destination buffer   */
+                sizeof(tmpstr)-1,          /* size of destination buffer     */
+                filename                   /* points to ini filename         */
+      );
+
+      PingWait = atoi( tmpstr );
+      if ( PingWait <= 0 )
+      {
+         memset( tmpstr, 0x00, sizeof(tmpstr) );
+         sprintf( tmpstr, "Invalid Ping Wait: %d  Pinging is OFF", PingWait );
+         LogEvent( tmpstr, INFO_MSG );
+         PingInterval = 0;
+      }
+      else
+      {
+         /*-----------------------*/
+         /* Get Ping MAX TIME OUT */
+         /*-----------------------*/
+         memset( tmpstr, 0x00, sizeof(tmpstr) );
+         rc = GetPrivateProfileString(
+                   PINGING_SECTION,        /* points to section name         */
+                  "PING_MAX_RETRIES",      /* points to key name             */
+                   PING_DEFAULT_MAX_TMOUT, /* Default string                 */
+                   tmpstr,                 /* points to destination buffer   */
+                   sizeof(tmpstr)-1,       /* size of destination buffer     */
+                   filename                /* points to ini filename         */
+         );
+
+         PingMaxTimeOut = atoi( tmpstr );
+         if ( PingMaxTimeOut <= 0 )
+         {
+            memset( tmpstr, 0x00, sizeof(tmpstr) );
+            sprintf( tmpstr,
+                    "Invalid Ping Max Time Out: %d  Using default: %s",
+                     PingMaxTimeOut, PING_DEFAULT_MAX_TMOUT );
+            LogEvent( tmpstr, INFO_MSG );
+         }
+         else
+         {
+            /*------------------*/
+            /* Get Debug Option */
+            /*------------------*/
+            memset( tmpstr, 0x00, sizeof(tmpstr) );
+            rc = GetPrivateProfileString(
+                      PINGING_SECTION,        /* points to section name         */
+                     "PING_DEBUG",            /* points to key name             */
+                      "0",                    /* Default string (OFF)           */
+                      tmpstr,                 /* points to destination buffer   */
+                      sizeof(tmpstr)-1,       /* size of destination buffer     */
+                      filename                /* points to ini filename         */
+            );
+
+            PingDebug = atoi( tmpstr );
+            if ( PingDebug == PING_DEBUG_ON )
+            {
+               PingDebug = PING_DEBUG_ON;
+               LogEvent( "Debug is ON", INFO_MSG );
+            }
+            else
+            {
+               PingDebug = PING_DEBUG_OFF;
+            }
+         }
+      }
+   }
+
+   return( retval );
+}
+
+
+/*****************************************************************************
+ *
+ * Function:     startup
+ *
+ * Description:  This function will initialize the ping structure and timer.
+ *               It will log the application into Xipc.
+ *               
+ *
+ * Input:        None
+ *
+ * Output:       None
+ *
+ * Return Value: 0 = success
+ *              -1 = Unable to log into Xipc
+ *
+ *
+ *   File
+ * Revision   Date   By   Description
+ * -------- -------- ---  -----------
+ *
+ *
+ *****************************************************************************/
+INT startup()
+{
+   INT    retval = 0;
+   INT    i;
+   CHAR   msgbuf[100]       = "";
+   CHAR   xipc_instance[30] = "";
+
+   GetXipcInstanceName( xipc_instance );
+
+   if( !pteipc_init_single_instance_app(AppName, xipc_instance) )
+   {
+      retval = -1;
+      memset( msgbuf, 0x00, sizeof(msgbuf) );
+      strcpy( msgbuf, "Err: unable to log into Xipc" );
+      LogEvent( msgbuf, ERROR_MSG );
+      MainProcessDone = 1;
+   }
+   else
+   {
+      memset( AppQueName, 0x00, sizeof(AppQueName) );
+      strcpy( AppQueName, AppName );
+      strcat( AppQueName, "A" );
+
+      if ( PingInterval > 0 )
+      {
+         /* Log startup message with application version. */
+         sprintf( msgbuf,
+                 "ATP Ping Service %s was started, version %s",
+                  AppName, Version );
+
+         TxUtils_Send_Msg_To_Operator( 1, msgbuf, 1, INFO_MSG,
+                                      "startup", 0, INFO_ERROR,
+                                       NULL_PTR, NULL_STR, NULL_STR );
+
+         sprintf( msgbuf,
+                 "Ping Configuration: Interval: %d, Wait: %d, Max Tmout: %d",
+                  PingInterval, PingWait, PingMaxTimeOut );
+
+         TxUtils_Send_Msg_To_Operator( 1, msgbuf, 1, INFO_MSG,
+                                      "startup", 0, INFO_ERROR,
+                                       NULL_PTR, NULL_STR, NULL_STR );
+
+         /* Initialize pingList structure */
+         for( i=0; i<numServices; i++ )
+         {
+            pingList[i].pingLateCtr   = 0;
+            pingList[i].pingMsgLogged = false;
+            pingList[i].pingStatus    = PING_SUCCESS;
+         }
+
+         /* Get starting ping time. */
+         PingTime = ptetime_get_time() + PingInterval;
+      }
+   }
+   return( retval );
+}
+
+
+/*****************************************************************************
+ *
+ * Function:     performPinging
+ *
+ * Description:  This is the main function that handles timers, pinging,
+ *               timeouts, etc.  This function is an indefinite loop that
+ *               constantly checks timers and reads the queues for ping
+ *               responses.
+ *
+ * Input:        None
+ *
+ * Output:       None
+ *
+ * Return Value: None
+ *
+ *
+ *   File
+ * Revision   Date   By   Description
+ * -------- -------- ---  -----------
+ *
+ *
+ *****************************************************************************/
+void performPinging( void )
+{
+   pPTE_MSG  p_msg;
+   LONG      ret_code;
+   CHAR      ErrorMsg[100] = "";
+   CHAR      buffer[256]   = "";
+   double    current_time;
+
+   /**************
+    * MAIN  LOOP *
+    **************/
+   while( !EndProcessSignalled )
+   {
+      /* You are blocked here waiting for a message on either app queue
+       * or control queue. If there is no message on either queue for 2
+       * seconds, the blocking call returns.
+       *
+       * The following line is used to get messages from the queue.
+       */
+      p_msg = pteipc_receive( application_que_name,
+                              control_que_name,
+                              2, &ret_code ); 
+
+      if ( NULL_PTR != p_msg )
+      {
+         /* We have a message from the queue. */
+         PingMsgHandler( p_msg );
+         free( p_msg );
+      }
+      else if ( QUE_ER_TIMEOUT == ret_code )
+      {
+         /* No message from queue. Check if it is time
+          * to ping or if any responses are overdue.
+          */
+         current_time = ptetime_get_time();
+
+         /* Check for Late Responses */
+         checkForLateResponse( current_time );
+
+         /* Send out pings, if time. */
+         issuePings( current_time );
+      }
+      else
+      {
+         pteipc_get_errormsg( ret_code, ErrorMsg );
+         sprintf( buffer, "Error on pteipc_receive %s", ErrorMsg );
+         TxUtils_Send_Msg_To_Operator( 1, buffer, 1, WARN_MSG,
+                                      "performPinging", 3, WARNING_ERROR,
+                                       NULL_PTR, NULL_STR, NULL_STR );
+      }
+   }
+
+   pteipc_shutdown_single_instance_app();
+   MainProcessDone = 1;
+   return;
+}
+
+
+/*****************************************************************************
+ *
+ * Function:     checkForLateResponse
+ *
+ * Description:  This function checks to see if we are past the wait time
+ *               of a ping.  If yes, are there any applications that have
+ *               not responded yet?
+ *
+ * Input:        current_time - System time
+ *
+ * Output:       None
+ *
+ * Return Value: None
+ *
+ *
+ *   File
+ * Revision   Date   By   Description
+ * -------- -------- ---  -----------
+ *
+ *
+ *****************************************************************************/
+void checkForLateResponse( double current_time )
+{
+   INT   i;
+   CHAR  buffer[100];
+
+   if ( current_time < (PingTime + PingWait) )
+   {
+      /* Responses are late. */
+      for( i=0; i<numServices; i++ )
+      {
+         if ( pingList[i].pingStatus == PING_WAIT )
+         {
+            /* This is the first late response; change status. */
+            pingList[i].pingStatus = PING_LATE;
+         }
+         else if ( pingList[i].pingStatus == PING_LATE )
+         {
+            /* This is not the first late response; increment counter. */
+            pingList[i].pingLateCtr++;
+            if ( pingList[i].pingLateCtr > PingMaxTimeOut )
+            {
+               /* Service is late more than the max allowed times. */
+               if ( pingList[i].pingMsgLogged == false )
+               {
+                  /* First time over max timeout. Log a message. */
+                  memset( buffer, 0x00, sizeof(buffer) );
+                  sprintf( buffer,
+                          "%s not responding to pings",
+                           pingList[i].appName );
+
+                  TxUtils_Send_Msg_To_Operator( 1, buffer, 1, WARN_MSG,
+                                               "checkForLateResponse",
+                                                3,WARNING_ERROR,
+                                                NULL_PTR, NULL_STR, NULL_STR );
+                  pingList[i].pingMsgLogged = true;
+               }
+               else if ( (pingList[i].pingLateCtr % 2) == 0 )
+               {
+                   /* Over max timeout, log msg every other ping. */
+                  memset( buffer, 0x00, sizeof(buffer) );
+                  sprintf( buffer,
+                          "%s not responding to pings",
+                           pingList[i].appName );
+
+                  TxUtils_Send_Msg_To_Operator( 1, buffer, 1, WARN_MSG,
+                                               "checkForLateResponse",
+                                                3,WARNING_ERROR,
+                                                NULL_PTR, NULL_STR, NULL_STR );
+               }
+            }
+         }
+      }
+   }
+   return;
+}
+
+
+/*****************************************************************************
+ *
+ * Function:     issuePings
+ *
+ * Description:  This function checks to see if it is time to ping each
+ *               application. If yes, pings are sent to those applications
+ *               that are not waiting for a response.
+ *
+ * Input:        current_time - System time
+ *
+ * Output:       None
+ *
+ * Return Value: None
+ *
+ *
+ *   File
+ * Revision   Date   By   Description
+ * -------- -------- ---  -----------
+ *
+ *
+ *****************************************************************************/
+void issuePings( double current_time )
+{
+   INT       i;
+   pPTE_MSG  p_msg_out, p_msg_in;
+	LONG      ret_code;
+   CHAR      buffer[256], tmpstr[256];
+   CHAR      qname[MAX_APP_NAME_SIZE];
+
+   if ( PingInterval > 0 )
+   {
+      if ( current_time > PingTime )
+      {
+         /* Time to send out pings. */
+         for( i=0; i<numServices; i++ )
+         {
+            if ( pingList[i].pingStatus == PING_SUCCESS )
+            {
+               /* Build a ping request message. */
+               p_msg_out = NULL_PTR;
+               p_msg_in  = NULL_PTR;
+               memset( qname, 0x00, sizeof(qname) );
+               strcpy( qname, pingList[i].appName );
+               strcat( qname, "C" );
+
+               p_msg_out = ptemsg_build_msg( MT_SYSTEM_REQUEST,
+                                             ST1_SYS_PING,
+                                             ST2_NO_VERSION,
+                                             qname,
+                                             AppQueName,
+                                             NULL_PTR,
+                                             0,
+                                             0 );
+
+               if( p_msg_out == NULL_PTR )
+               {
+                  strcpy(buffer, "Insufficient memory to ping request message");
+                  TxUtils_Send_Msg_To_Operator( 1, buffer, 1, WARN_MSG,
+                                               "issuePings",
+                                                3,WARNING_ERROR,
+                                                NULL_PTR, NULL_STR, NULL_STR );
+                  break;
+	            }
+               else
+               {
+                  ret_code = pteipc_send( p_msg_out, qname );
+                  if ( 0 > ret_code )
+                  {
+                     /* Unable to send Ping to application. */
+                     if ( ret_code != QUE_ER_NOTFOUND )
+                     {
+                        pteipc_get_errormsg( ret_code, tmpstr );
+                        sprintf( buffer,
+                                "Xipc error sending to que: %s. %s",
+                                 qname, tmpstr );
+                     }
+                     else
+                     {
+                        /* Queue does not exist. App might be stopped. */
+                        sprintf( buffer,
+                                "Ping NOT sent to %s, queue not found",
+                                 qname );
+                     }
+                     TxUtils_Send_Msg_To_Operator( 1, buffer, 1, WARN_MSG,
+                                                  "issuePings", 3,
+                                                   WARNING_ERROR, NULL_PTR,
+                                                   NULL_STR, NULL_STR );
+                  }
+                  else
+                  {
+                     pingList[i].pingStatus = PING_WAIT;
+                     if ( PingDebug == PING_DEBUG_ON )
+                     {
+                        sprintf( buffer, "Ping sent to %s", qname );
+                        TxUtils_Send_Msg_To_Operator( 1, buffer, 1, INFO_MSG,
+                                                     "issuePings",
+                                                      3,INFO_ERROR, NULL_PTR,
+                                                      NULL_STR, NULL_STR );
+                     }
+                  }
+                  free( p_msg_out );
+               }
+            }
+         }
+
+         /* Set wait time for a response; set time for next ping. */
+         PingTime     = ptetime_get_time();
+         PingWaitTime = PingTime + PingWait;
+         PingTime    += PingInterval;
+      }
+   }
+   return;
+}
+
+
+/*****************************************************************************
+ *
+ * Function:     PingMsgHandler
+ *
+ * Description:  This function acts as a switch for messages coming into
+ *               this application.  It will transfer control to the
+ *               appropriate functionality based on message type.
+ *
+ * Input:        p_msg_in - Incoming message
+ *
+ * Output:       None
+ *
+ * Return Value: None
+ *
+ *
+ *   File
+ * Revision   Date   By   Description
+ * -------- -------- ---  -----------
+ *
+ *
+ *****************************************************************************/
+void PingMsgHandler( pPTE_MSG p_msg_in )
+{
+   BYTE   msgtype;
+   CHAR   buffer[256];      
+
+   /* Determine message type so we know which module to send it to. */
+   msgtype = ptemsg_get_msg_type( p_msg_in );
+   switch( msgtype )
+   {
+      case MT_SYSTEM_REQUEST:
+
+               /* Startup, shutdown, ping from SrvcMgr all come here. */
+               ptesystm_system_msg_handler( p_msg_in );
+               break;
+
+      case MT_SYSTEM_REPLY:
+
+               /* Ping responses come here. */
+               if ( ST1_SYS_PING == ptemsg_get_msg_subtype1(p_msg_in) )
+               {
+                  if ( ST2_NO_VERSION == ptemsg_get_msg_subtype2(p_msg_in) )
+                  {
+                     processPingResponse( p_msg_in );
+                  }
+               }
+               break;
+
+      default :
+               sprintf( buffer,
+                       "Unknown msg type received: %d",
+                       (INT)msgtype );
+
+               TxUtils_Send_Msg_To_Operator( 1, buffer, 1, WARN_MSG,
+                                            "PingMsgHandler",
+                                             3,WARNING_ERROR,
+                                             NULL_PTR, NULL_STR, NULL_STR );
+               break;
+   }
+   return;
+}
+
+
+/*****************************************************************************
+ *
+ * Function:     processPingResponse
+ *
+ * Description:  This function handles a ping response from an application.
+ *               It will set the ping status to Ping Success for the
+ *               application that has responded.
+ *
+ * Input:        p_msg_in - Incoming message
+ *
+ * Output:       None
+ *
+ * Return Value: None
+ *
+ *
+ *   File
+ * Revision   Date   By   Description
+ * -------- -------- ---  -----------
+ *
+ *
+ *****************************************************************************/
+void processPingResponse( pPTE_MSG p_msg_in )
+{
+   INT   i;
+   INT   len;
+   CHAR  buffer[100];
+   pCHAR appname = NULL_PTR;
+
+   /* Get queue name and remove the queue letter (A or C). */
+   appname = ptemsg_get_msg_orig_queue( p_msg_in );
+   len = strlen( appname );
+   appname[len-1] = 0x00;
+
+   /* Look in the ping list for the application that sent the response. */
+   for( i=0; i<numServices; i++ )
+   {
+      if ( 0 == strcmp(appname, pingList[i].appName) )
+      {
+         /* Found it. */
+         if ( pingList[i].pingStatus == PING_WAIT )
+         {
+            pingList[i].pingStatus  = PING_SUCCESS;
+            pingList[i].pingLateCtr = 0;
+         }
+         else
+         {
+            memset( buffer, 0x00, sizeof(buffer) );
+            if ( pingList[i].pingStatus == PING_LATE )
+            {
+               pingList[i].pingStatus    = PING_SUCCESS;
+               pingList[i].pingLateCtr   = 0;
+               pingList[i].pingMsgLogged = false;
+
+               sprintf( buffer,
+                       "Received late ping response from %s",
+                        pingList[i].appName );
+            }
+            else
+            {
+               sprintf( buffer,
+                       "Received unexpected ping response from %s",
+                        pingList[i].appName );
+            }
+
+            TxUtils_Send_Msg_To_Operator( 1, buffer, 1, INFO_MSG,
+                                         "processPingResponse",
+                                          3,INFO_ERROR,
+                                          NULL_PTR, NULL_STR, NULL_STR );
+         }
+
+         if ( PingDebug == PING_DEBUG_ON )
+         {
+            sprintf( buffer, "Ping response from %s", appname );
+            TxUtils_Send_Msg_To_Operator( 1, buffer, 1, INFO_MSG,
+                                         "processPingResponse",
+                                          3,INFO_ERROR, NULL_PTR,
+                                          NULL_STR, NULL_STR );
+         }
+         break;
+      }
+   }
+   return;
+}
+
+
+/*****************************************************************************
+ *
+ * Function:     EndProcess
+ *
+ * Description:  This is the function used to clean up when the app is
+ *               being exited.  All clean up code goes in here.
+ *
+ * Input:        None
+ *
+ * Output:       None
+ *
+ * Return Value: None
+ *
+ *
+ *   File
+ * Revision   Date   By   Description
+ * -------- -------- ---  -----------
+ *
+ *
+ *****************************************************************************/
+void EndProcess()
+{
+   CHAR Buffer[100]  = "";
+
+   sprintf( Buffer, "Shutting down the %s Service, version %s",
+            AppName, Version );
+   LogEvent( Buffer, INFO_MSG );
+   return;
+}
+
+

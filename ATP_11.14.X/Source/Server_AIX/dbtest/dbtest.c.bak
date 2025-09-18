@@ -1,0 +1,514 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <time.h>
+#include <sys/timeb.h>
+#include <signal.h>
+
+#include "basictyp.h"
+#include "pte.h"
+#include "pteipc.h"
+#include "ptemsg.h"
+#include "ptestats.h"
+#include "ptesystm.h"
+#include "ptetimer.h"
+#include "ptetime.h"
+#include "ntutils.h"
+#include "logger.h"
+
+#include "dbcommon.h"
+#include "app_info.h"
+#include "equitdb.h"
+#include "dc_dbstruct.h"
+#include "tx_dbstruct.h"
+#include "dc_database.h"
+#include "nc_dbstruct.h"
+#include "memmnger.h"
+#include "dstimer.h"
+#include "txutils.h"
+#include "genutil.h"
+#include "timings.h"
+
+
+BYTE    result_code;
+TLF01   tlf01;
+BCH01 bch01;
+BCH10 bch10;
+BCH11 bch11;
+BCH20 bch20;
+UCF01 ucf01;
+UCF02 ucf02;
+ATP01 atp01;
+ATP02 atp02;
+CCF02P ccf02p;
+CCF03 ccf03p;
+ACF01 acf01;
+PAF01 paf01;
+OMC01 omc01;
+NCF01 ncf01;
+MCC01 mcc01;
+CHAR    app_name[256];
+int ierror =0;
+////TF praneeth updated module versions
+void DisplayVersions()
+{
+	printf("Qualified Modules version list:\n\n");
+	printf("Module: dcpiso		Version: ATP_5.18.0\n");
+	printf("Module: devds		Version: ATP_5.18.0\n");
+	printf("Module: dumpsql		Version: ATP_5.18.0\n");
+	printf("Module: fguard		Version: ATP_5.18.0\n");
+	printf("Module: mega		Version: ATP_5.18.0\n");
+	printf("Module: merchbatch	Version: ATP_5.18.0\n");
+	printf("Module: natma2		Version: ATP_5.18.0\n");
+	printf("Module: ncamaq		Version: ATP_5.18.0\n");
+	printf("Module: ncamex		Version: ATP_5.18.0\n");
+	printf("Module: nccirs		Version: ATP_5.18.0\n");
+	printf("Module: nceqit		Version: ATP_5.18.0\n");
+	printf("Module: ncjcb		Version: ATP_5.18.0\n");
+	printf("Module: ncjcb2		Version: ATP_5.18.0\n");
+	printf("Module: ncmcr2		Version: ATP_5.18.0\n");
+	printf("Module: ncmcrd		Version: ATP_5.18.0\n");
+	printf("Module: ncvis2		Version: ATP_5.18.0\n");
+	printf("Module: ncvisa		Version: ATP_5.18.0\n");
+	printf("Module: ncvsms		Version: ATP_5.18.0\n");
+	printf("Module: nega		Version: ATP_5.18.0\n");
+	printf("Module: netds		Version: ATP_5.18.0\n");
+	printf("Module: pingapp		Version: ATP_5.18.0\n");
+	printf("Module: qcheck		Version: ATP_5.18.0\n");
+	printf("Module: racal		Version: ATP_5.18.0\n");
+	printf("Module: repds		Version: ATP_5.18.0\n");
+	printf("Module: sbatch		Version: ATP_5.18.0\n");
+	printf("Module: settle		Version: ATP_5.18.0\n");
+	printf("Module: timerds		Version: ATP_5.18.0\n");
+	printf("Module: trands		Version: ATP_5.18.0\n");
+	printf("Module: txcntl		Version: ATP_5.18.0\n");
+	printf("Module: updatds		Version: ATP_5.18.0\n");
+}
+void format_date(pCHAR temp)
+{
+   struct timeb   time_structure;   // Time for ftime
+   time_t long_time_since_1970;     // Number of seconds since 01/01/1970 A.D. 12:00 A.M.
+   struct tm *current_time;         // Current time structure
+   CHAR   temp1[4] = "0";
+
+   ftime(&time_structure);
+   long_time_since_1970 = time_structure.time;
+   current_time = localtime(&long_time_since_1970);
+   current_time->tm_mon++;
+   if (current_time->tm_year >= 70)
+      current_time->tm_year += 1900;
+   else
+      current_time->tm_year += 2000;
+   itoa(current_time->tm_year, temp, 10);
+   itoa(current_time->tm_mon, temp1 + 1, 10);
+   if (strlen(temp1) == 2)
+      memcpy(temp + 4, temp1, 2);
+   else
+      memcpy(temp + 4, temp1 + 1, 2);
+   memset(temp1, 0, sizeof(temp1));
+   temp1[0] = '0';
+   itoa(current_time->tm_mday, temp1 + 1, 10);
+   if (strlen(temp1) == 2)
+      memcpy(temp + 6, temp1, 2);
+   else
+      memcpy(temp + 6, temp1 + 1, 2);
+   memset(temp1, 0, sizeof(temp1));
+   temp1[0] = '0';
+   itoa(current_time->tm_hour, temp1 + 1, 10);
+   if (strlen(temp1) == 2)
+      memcpy(temp + 8, temp1, 2);
+   else
+      memcpy(temp + 8, temp1 + 1, 2);
+   memset(temp1, 0, sizeof(temp1));
+   temp1[0] = '0';
+   itoa(current_time->tm_min, temp1 + 1, 10);
+   if (strlen(temp1) == 2)
+      memcpy(temp + 10, temp1, 2);
+   else
+      memcpy(temp + 10, temp1 + 1, 2);
+   memset(temp1, 0, sizeof(temp1));
+   temp1[0] = '0';
+   itoa(current_time->tm_sec, temp1 + 1, 10);
+   if (strlen(temp1) == 2)
+      memcpy(temp + 12, temp1, 2);
+   else
+      memcpy(temp + 12, temp1 + 1, 2);
+   return;
+}
+void EndProcess()
+{
+	char      ErrorMsg[100] = "";
+	DBTEST_disconnect(ErrorMsg);
+	printf("Database disconnect sucess:\n");
+}
+//void MainProcessor()
+INT main( INT argc, pCHAR argv[] )
+{
+	char ErrorMsg[256];
+	GetAppName(app_name);
+	printf("\n\nRunning dbtest ATP_5.18.0:\n");
+	if ( argc == 2 )
+	{
+      /* There is only one input parameter.  It needs to be '-v'. */
+      if ( 0 == strcasecmp(argv[1], "-v") )
+      {
+			DisplayVersions();
+      }
+      else
+      {
+          printf( "\n\nInvalid Input\n" );
+          printf("execute  dbtest -v to display versions of modules OR\n");
+          printf("execute  dbtest to Validate DB Tables\n");
+      }
+	  return 0;
+	}
+	else if (argc > 2)
+	{
+          printf( "\n\nInvalid Input\n" );
+          printf("execute  dbtest -v to display versions of modules OR\n");
+          printf("execute  dbtest to Validate DB Tables\n");
+	  return 0;
+	}
+	if (DBTEST_connect("equitable", "equitable", "equitable", "ORCL", ErrorMsg) == 0)
+	{
+		printf("Database connect sucess:\n");
+/***********************TLF01*************************************************/		
+		memset( &tlf01, 0x00, sizeof( tlf01 ) );
+		strcpy(tlf01.primary_key.transaction_id, "01234567890123456789");
+		strcpy(tlf01.card_num,"123456789123456");
+		if (0 != db_insert_tlf01( &tlf01, ErrorMsg ) )
+		{
+			ierror = 1;
+			printf("Table insertion failed:	TLF01::%s\n",ErrorMsg );
+		}
+		else
+		{
+			strcpy(tlf01.tpdu_id, "VISAPOS");
+			if (0 != db_update_tlf01( &tlf01, ErrorMsg ))
+			{
+				ierror = 1;
+				printf("Table update failed: TLF01::%s\n",ErrorMsg );
+			}
+		}
+/***********************TLF01_STIP*************************************************/
+		memset( &tlf01, 0x00, sizeof( tlf01 ) );
+		strcpy(tlf01.primary_key.transaction_id, "01234567890123456789");
+		strcpy(tlf01.card_num,"123456789123456");
+		if( 0 != db_insert_tlf01_stip(&tlf01,ErrorMsg))
+		{
+			ierror = 1;
+			printf("Table insertion failed:	TLF01_STIP::%s\n",ErrorMsg );
+		}
+		else
+		{
+			strcpy(tlf01.tpdu_id, "VISAPOS");
+			if (0 != db_update_tlf01_stip( &tlf01, ErrorMsg ))
+			{
+				ierror = 1;
+				printf("Table update failed: TLF01_STIP::%s\n",ErrorMsg );
+			}
+		}
+/***********************BCH01*************************************************/
+		memset( &bch01, 0x00, sizeof( bch01 ) );
+		strcpy(bch01.primary_key.device_id, "99999999");
+		strcpy(bch01.primary_key.batch_nbr, "999999");
+		strcpy(bch01.open_date, "99999999");
+		strcpy(bch01.open_time, "999999");
+		if( 0 != db_insert_bch01(&bch01,ErrorMsg))
+		{
+			ierror = 1;
+			printf("Table insertion failed:	 BCH01::%s\n",ErrorMsg );
+		}
+		else
+		{
+			strcpy(bch01.merchant_id, "999999999999999");
+			if (0 != db_update_bch01( &bch01, ErrorMsg ))
+			{
+				ierror = 1;
+				printf("Table update failed: BCH01::%s\n",ErrorMsg );
+			}
+		}
+/***********************BCH10*************************************************/
+		memset( &bch10, 0x00, sizeof( bch10 ) );
+		strcpy(bch10.primary_key.device_id, "99999999");
+		strcpy(bch10.primary_key.batch_nbr, "999999");
+		strcpy(bch10.primary_key.retrieval_ref_num,"999999999999");
+		strcpy(bch10.open_date, "99999999");
+		strcpy(bch10.open_time, "999999");
+		if( 0 != db_insert_bch10(&bch10,ErrorMsg))
+		{
+			ierror = 1;
+			printf("Table insertion failed: BCH10::%s\n",ErrorMsg );
+		}
+		else
+		{
+			strcpy(bch10.merchant_id, "999999999999999");
+			if (0 != db_update_bch10( &bch10, ErrorMsg ))
+			{
+				ierror = 1;
+				printf("Table update failed: BCH10::%s\n",ErrorMsg );
+			}
+		}
+/***********************BCH11*************************************************/
+
+		memset( &bch11, 0x00, sizeof( bch11 ) );
+		strcpy(bch11.primary_key.device_id, "99999999");
+		strcpy(bch11.primary_key.batch_nbr, "999999");
+		strcpy(bch11.primary_key.retrieval_ref_num,"999999999999");
+		strcpy(bch11.open_date, "99999999");
+		strcpy(bch11.open_time, "999999");
+		if( 0 != db_insert_bch11(&bch11,ErrorMsg))
+		{
+			printf("Table insertion failed:	BCH11::%s\n",ErrorMsg );
+		}
+		else
+		{
+			strcpy(bch11.merchant_id, "999999999999999");
+			if (0 != db_update_bch11( &bch11, ErrorMsg ))
+			{
+				printf("Table update failed: BCH11::%s\n",ErrorMsg );
+			}
+		}
+
+/***********************BCH20*************************************************/
+		memset( &bch20, 0x00, sizeof( bch20 ) );
+		strcpy(bch20.primary_key.device_id, "99999999");
+		strcpy(bch20.primary_key.batch_nbr, "999999");
+		strcpy(bch20.primary_key.retrieval_ref_num,"999999999999");
+		sprintf(bch20.merchant_id,"99999");
+
+		if( 0 != db_insert_bch20(&bch20,ErrorMsg))
+		{
+			ierror = 1;
+			printf("Table insertion failed:	BCH20::%s\n",ErrorMsg );
+		}
+		else
+		{
+			if (0 != db_update_bch20( &bch20, ErrorMsg ))
+			{
+				ierror = 1;
+				printf("Table update failed: BCH20::%s\n",ErrorMsg );
+			}
+		}
+/***********************UCF01*************************************************/
+		memset( &ucf01, 0x00, sizeof( ucf01 ) );
+		strcpy(ucf01.primary_key.name, "zzzzzz123456");
+		strcpy(ucf01.password, "zzzzzz123456");
+
+		if( 0 != db_insert_ucf01(&ucf01,ErrorMsg))
+		{
+			ierror = 1;
+			printf("Table insertion failed:	UCF01\n",ErrorMsg );
+		}
+		else
+		{
+			strcpy(ucf01.password, "yyyyyy123456");
+			if (0 != db_update_ucf01( &ucf01, ErrorMsg ))
+			{
+				ierror = 1;
+				printf("Table update failed: UCF01::%s\n",ErrorMsg );
+			}
+		}
+/***********************UCF02*************************************************/
+		memset( &ucf02, 0x00, sizeof( ucf02 ) );
+		strcpy(ucf02.primary_key.group_id, "zzzzzz123456");
+		strcpy(ucf02.date_added, "20101212");
+
+		if( 0 != db_insert_ucf02(&ucf02,ErrorMsg))
+		{
+			ierror = 1;
+			printf("Table insertion failed:	UCF02::%s\n",ErrorMsg );
+		}
+		else
+		{
+			strcpy(ucf02.date_added, "20111212");
+			if (0 != db_update_ucf02( &ucf02, ErrorMsg ))
+			{
+				ierror = 1;
+				printf("Table update failed: UCF02::%s\n",ErrorMsg );
+			}
+		}
+/***********************ATP01*************************************************/
+		memset( &atp01, 0x00, sizeof( atp01 ) );
+		strcpy(atp01.site_name,"testsite");
+		strcpy(atp01.tlf_log_date,"20101212");
+		if( 0 != db_insert_atp01(&atp01,ErrorMsg))
+		{
+			ierror = 1;
+			printf("Table insertion failed: ATP01::%s\n",ErrorMsg );
+		}
+		else
+		{
+			strcpy(atp01.tlf_log_date,"20111212");
+			if (0 != db_update_atp01( &atp01, ErrorMsg ))
+			{
+				ierror = 1;
+				printf("Table update failed: ATP01::%s\n",ErrorMsg );
+			}
+		}
+/***********************ATP02*************************************************/
+		memset( &atp02, 0x00, sizeof( atp02 ) );
+		strcpy(atp02.primary_key.workstation_id,"AAAAAAAAAA");
+		strcpy(atp02.workstation_status,"A");
+		if( 0 != db_insert_atp02(&atp02,ErrorMsg))
+		{
+			ierror = 1;
+			printf("Table insertion failed:	ATP02::%s\n",ErrorMsg );
+		}
+		else
+		{
+			strcpy(atp02.workstation_status,"D");
+			if (0 != db_update_atp02( &atp02, ErrorMsg ))
+			{
+				ierror = 1;
+				printf("Table update failed: ATP02::%s\n",ErrorMsg );
+			}
+		}
+/***********************CCF02p*************************************************/
+		memset( &ccf02p, 0x00, sizeof( ccf02p ) );
+		strcpy(ccf02p.primary_key.card_type,"C");
+		strcpy(ccf02p.primary_key.card_nbr,"999999999999999");
+		if( 0 != db_insert_ccf02p(&ccf02p,ErrorMsg))
+		{
+			ierror = 1;
+			printf("Table insertion failed: CCF02p::%s\n",ErrorMsg );
+		}
+		else
+		{
+			strcpy(ccf02p.status,"02");
+			if (0 != db_update_ccf02p( &ccf02p, ErrorMsg ))
+			{
+				ierror = 1;
+				printf("Table update failed: CCF02p::%s\n",ErrorMsg );
+			}
+		}
+/***********************CCF03p*************************************************/
+		memset( &ccf03p, 0x00, sizeof( ccf03p ) );
+		strcpy(ccf03p.primary_key.card_type,"C");
+		strcpy(ccf03p.primary_key.card_nbr,"999999999999999");
+
+		if( 0 != db_insert_ccf03p(&ccf03p,ErrorMsg))
+		{
+			ierror = 1;
+			printf("Table insertion failed:	CCF03p::%s\n",ErrorMsg );
+		}
+		else
+		{
+			strcpy(ccf03p.status,"02");
+			if (0 != db_update_ccf03p( &ccf03p, ErrorMsg ))
+			{
+				ierror = 1;
+				printf("Table update failed: CCF03p::%s\n",ErrorMsg );
+			}
+		}
+/***********************ACF01*************************************************/
+		memset( &acf01, 0x00, sizeof( acf01 ) );
+		strcpy(acf01.primary_key.account_type,"07");
+		strcpy(acf01.primary_key.account_nbr,"1111111111111111");
+		if( 0 != db_insert_acf01(&acf01,ErrorMsg))
+		{
+			ierror = 1;
+			printf("Table insertion failed:	ACF01::%s\n",ErrorMsg );
+		}
+		else
+		{
+			strcpy(acf01.status,"00");
+			if (0 != db_update_acf01( &acf01, ErrorMsg ))
+			{
+				ierror = 1;
+				printf("Table update failed: ACF01::%s\n",ErrorMsg );
+			}
+		}
+/***********************PAF01*************************************************/
+		memset( &paf01, 0x00, sizeof( paf01 ) );
+		strcpy(paf01.primary_key.primary_acct_nbr,"5151515151515151");
+		if( 0 != db_insert_paf01(&paf01,ErrorMsg))
+		{
+			ierror = 1;
+			printf("Table insertion failed:	PAF01::%s\n",ErrorMsg );
+		}
+		else
+		{
+			strcpy(paf01.account_name,"abcdefgh");
+			if (0 != db_update_paf01( &paf01, ErrorMsg ))
+			{
+				ierror = 1;
+				printf("Table update failed: PAF01::%s\n",ErrorMsg );
+			}
+		}
+/***********************OMC01*************************************************/
+		memset( &omc01, 0x00, sizeof( omc01 ) );
+		strcpy(omc01.primary_key.merchant_id,"000000000000001");
+		strcpy(omc01.primary_key.card_nbr,"4177777777777774");
+		strcpy(omc01.primary_key.max_repeat,"10");
+		strcpy(omc01.primary_key.expiry_date,"20120202");
+		strcpy(omc01.primary_key.peso_amt_limit,"500");
+		strcpy(omc01.primary_key.usd_amt_limit,"500");
+		if( 0 != db_insert_omc01(&omc01,ErrorMsg))
+		{
+			ierror = 1;
+			printf("Table insertion failed:	OMC01::%s\n",ErrorMsg );
+		}
+		else
+		{
+			strcpy(omc01.primary_key.repeated,"4");
+			if (0 != db_update_omc01( &omc01, ErrorMsg ))
+			{
+				ierror = 1;
+				printf("Table update failed: OMC01::%s\n",ErrorMsg );
+			}
+		}
+/***********************NCF01*************************************************/
+		memset( &ncf01, 0x00, sizeof( ncf01 ) );
+		strcpy(ncf01.primary_key.network_id,"natma5");
+		strcpy(ncf01.primary_key.network_type,"A");
+		strcpy(ncf01.name,"AMEXTEST123");
+
+		if( 0 != db_insert_ncf01(&ncf01,ErrorMsg))
+		{
+			ierror = 1;
+			printf("Table insertion failed:	NCF01::%s\n",ErrorMsg );
+		}
+		else
+		{
+			strcpy(ncf01.name,"AMEXTEST1234");
+			if (0 != db_update_ncf01( &ncf01, ErrorMsg ))
+			{
+				ierror = 1;
+				printf("Table update failed: NCF01::%s\n",ErrorMsg );
+			}
+		}
+/***********************MCC table*************************************************/
+	/*	memset( &mcc01, 0x00, sizeof( MCC01) );
+		strcpy(mcc01.primary_key.low,"9999");
+		strcpy(mcc01.primary_key.high,"0000");
+		strcpy(mcc01.allow,"1");
+
+		if( 0 != db_insert_mcc01(&mcc01,ErrorMsg))
+		{
+			ierror = 1;
+			printf("Table insertion failed:MCC01::%s\n",ErrorMsg );
+		}
+		else
+		{
+			strcpy(mcc01.primary_key.low,"9999");
+			if (0 != db_update_mcc01( &ncf01, ErrorMsg ))
+			{
+				ierror = 1;
+				printf("Table update failed: MCC01::%s\n",ErrorMsg );
+			}
+		}	*/	
+/***********************end of Tables*************************************************/
+		if(ierror ==0)
+		{
+			printf("Table: NO ERRORS\n");
+		}
+
+	}
+	else
+	{
+		printf("Database connect failed::%s\n",ErrorMsg );
+	}
+	EndProcess();
+	return 0;
+}
+

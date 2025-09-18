@@ -1,0 +1,32 @@
+<html>
+<body>
+<pre>
+<h1>Build Log</h1>
+<h3>
+--------------------Configuration: ptecom - Win32 Debug--------------------
+</h3>
+<h3>Command Lines</h3>
+Creating temporary file "C:\TEMP\RSP10F7.tmp" with contents
+[
+/nologo /MTd /W3 /GX /Z7 /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fo".\Debug/" /Fd".\Debug/" /FD /c 
+"N:\Pinnacle\pte\LIB\CORE\1_2_1\BUILD\common.c"
+"N:\Pinnacle\pte\LIB\CORE\1_2_1\BUILD\convert.c"
+"N:\Pinnacle\pte\LIB\CORE\1_2_1\BUILD\notify.c"
+]
+Creating command line "cl.exe @C:\TEMP\RSP10F7.tmp" 
+Creating command line "link.exe -lib /nologo /out:"Ptecom.lib"  .\Debug\tcp.obj .\Debug\serial.obj .\Debug\common.obj .\Debug\convert.obj .\Debug\notify.obj "
+<h3>Output Window</h3>
+Compiling...
+common.c
+convert.c
+notify.c
+Generating Code...
+Creating library...
+
+
+
+<h3>Results</h3>
+Ptecom.lib - 0 error(s), 0 warning(s)
+</pre>
+</body>
+</html>

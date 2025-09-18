@@ -1,0 +1,2 @@
+# use GNUmake 
+/usr/local/bin/make $1 MT=$1

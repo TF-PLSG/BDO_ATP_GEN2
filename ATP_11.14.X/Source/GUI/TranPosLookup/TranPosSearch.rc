@@ -1,0 +1,508 @@
+//Microsoft Developer Studio generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+#endif //_WIN32
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
+    "#define _AFX_NO_OLE_RESOURCES\r\n"
+    "#define _AFX_NO_TRACKER_RESOURCES\r\n"
+    "#define _AFX_NO_PROPERTY_RESOURCES\r\n"
+    "\r\n"
+    "#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)\r\n"
+    "#ifdef _WIN32\r\n"
+    "LANGUAGE 9, 1\r\n"
+    "#pragma code_page(1252)\r\n"
+    "#endif\r\n"
+    "#include ""res\\TranPosSearch.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
+    "#include ""afxres.rc""         // Standard components\r\n"
+    "#endif\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDR_MAINFRAME           ICON    DISCARDABLE     "res\\TranPosSearch.ico"
+IDR_TRANSETYPE          ICON    DISCARDABLE     "res\\TranPosSearchDoc.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDR_MAINFRAME MENU PRELOAD DISCARDABLE 
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&New\tCtrl+N",                ID_FILE_NEW
+        MENUITEM "&Open...\tCtrl+O",            ID_FILE_OPEN
+        MENUITEM "&Save\tCtrl+S",               ID_FILE_SAVE
+        MENUITEM "Save &As...",                 ID_FILE_SAVE_AS
+        MENUITEM SEPARATOR
+        MENUITEM "Recent File",                 ID_FILE_MRU_FILE1, GRAYED
+        MENUITEM SEPARATOR
+        MENUITEM "E&xit",                       ID_APP_EXIT
+    END
+    POPUP "&Edit"
+    BEGIN
+        MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
+        MENUITEM SEPARATOR
+        MENUITEM "Cu&t\tCtrl+X",                ID_EDIT_CUT
+        MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY
+        MENUITEM "&Paste\tCtrl+V",              ID_EDIT_PASTE
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&About TranPosSearch...",     ID_APP_ABOUT
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Accelerator
+//
+
+IDR_MAINFRAME ACCELERATORS PRELOAD MOVEABLE PURE 
+BEGIN
+    "N",            ID_FILE_NEW,            VIRTKEY, CONTROL
+    "O",            ID_FILE_OPEN,           VIRTKEY, CONTROL
+    "S",            ID_FILE_SAVE,           VIRTKEY, CONTROL
+    "Z",            ID_EDIT_UNDO,           VIRTKEY, CONTROL
+    "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL
+    "C",            ID_EDIT_COPY,           VIRTKEY, CONTROL
+    "V",            ID_EDIT_PASTE,          VIRTKEY, CONTROL
+    VK_BACK,        ID_EDIT_UNDO,           VIRTKEY, ALT
+    VK_DELETE,      ID_EDIT_CUT,            VIRTKEY, SHIFT
+    VK_INSERT,      ID_EDIT_COPY,           VIRTKEY, CONTROL
+    VK_INSERT,      ID_EDIT_PASTE,          VIRTKEY, SHIFT
+    VK_F6,          ID_NEXT_PANE,           VIRTKEY 
+    VK_F6,          ID_PREV_PANE,           VIRTKEY, SHIFT
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_ABOUTBOX DIALOG DISCARDABLE  0, 0, 217, 55
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About TranPosSearch"
+FONT 8, "MS Sans Serif"
+BEGIN
+    ICON            IDR_MAINFRAME,IDC_STATIC,11,17,20,20
+    LTEXT           "TranPosSearch Version 11.10.4",IDC_STATIC_APP_VERSION,
+                    40,10,119,8,SS_NOPREFIX
+    LTEXT           "Copyright © 2007, Hypercom Inc.",IDC_STATIC,40,25,119,8
+    DEFPUSHBUTTON   "OK",IDOK,178,7,32,14,WS_GROUP
+END
+
+IDD_TRANDETAILS DIALOG DISCARDABLE  0, 0, 536, 266
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "POS Transaction Details"
+FONT 8, "MS Sans Serif"
+BEGIN
+    PUSHBUTTON      "Close",IDCANCEL,453,206,60,16
+    EDITTEXT        IDC_TRAN_TYPE_FLD,98,3,135,14,ES_AUTOHSCROLL | 
+                    ES_READONLY
+    EDITTEXT        IDC_RETRIEVAL_REF_NUM_FLD,98,35,98,14,ES_AUTOHSCROLL | 
+                    ES_READONLY
+    EDITTEXT        IDC_PROCESSING_CODE_FLD,98,51,98,14,ES_AUTOHSCROLL | 
+                    ES_READONLY
+    EDITTEXT        IDC_CARD_NUMBER_FLD,98,67,98,14,ES_AUTOHSCROLL | 
+                    ES_READONLY
+    EDITTEXT        IDC_RESPONSE_CODE_FLD,98,83,98,14,ES_AUTOHSCROLL | 
+                    ES_READONLY
+    EDITTEXT        IDC_TERMINAL_ID_FLD,98,99,98,14,ES_AUTOHSCROLL | 
+                    ES_READONLY
+    EDITTEXT        IDC_MERCHANT_ID_FLD1,98,115,98,14,ES_AUTOHSCROLL | 
+                    ES_READONLY
+    EDITTEXT        IDC_SYSTEM_TRACE_NUMBER_FLD,98,131,98,14,ES_AUTOHSCROLL | 
+                    ES_READONLY
+    EDITTEXT        IDC_OPERATOR_ID_FLD,340,141,102,14,ES_AUTOHSCROLL | 
+                    ES_READONLY
+    EDITTEXT        IDC_TRAN_TIME_FLD,97,147,102,14,ES_AUTOHSCROLL | 
+                    ES_READONLY
+    EDITTEXT        IDC_TRAN_DATE_FLD,97,163,102,14,ES_AUTOHSCROLL | 
+                    ES_READONLY
+    EDITTEXT        IDC_AUTH_ID_RESPONSE_FLD,339,12,100,14,ES_AUTOHSCROLL | 
+                    ES_READONLY
+    EDITTEXT        IDC_RESPONSE_TEXT_FLD,169,204,247,19,ES_MULTILINE | 
+                    ES_AUTOVSCROLL | ES_READONLY
+    EDITTEXT        IDC_POS_ENTRY_MODE_FLD,339,28,100,14,ES_AUTOHSCROLL | 
+                    ES_READONLY
+    EDITTEXT        IDC_POS_CONDITION_CODE_FLD,339,44,100,14,ES_AUTOHSCROLL | 
+                    ES_READONLY
+    EDITTEXT        IDC_SYSTEM_DATE_FLD,339,60,101,14,ES_AUTOHSCROLL | 
+                    ES_READONLY
+    LTEXT           "Transaction Type:",IDC_STATIC,7,3,58,8
+    LTEXT           "Retrieval Reference Num:",IDC_STATIC,7,37,83,8
+    LTEXT           "Processing Code:",IDC_STATIC,7,56,68,8
+    LTEXT           "Card Number:",IDC_STATIC,7,71,52,8
+    LTEXT           "Response Code:",IDC_STATIC,7,85,60,8
+    LTEXT           "Terminal ID:",IDC_STATIC,7,103,50,8
+    LTEXT           "Merchant ID:",IDC_STATIC,7,119,57,8
+    LTEXT           "System Trace Audit Num:",IDC_STATIC,7,135,84,8
+    LTEXT           "Transaction Time:",IDC_STATIC,7,150,63,8
+    LTEXT           "Operator ID:",IDC_STATIC,264,144,40,8
+    LTEXT           "Transaction Date:",IDC_STATIC,7,165,67,8
+    LTEXT           "Auth ID Response:",IDC_STATIC,267,16,67,8
+    LTEXT           "Response Text:",IDC_STATIC,98,208,64,8
+    LTEXT           "POS Entry Mode:",IDC_STATIC,266,30,66,8
+    LTEXT           "POS Condition Code:",IDC_STATIC,266,46,68,8
+    LTEXT           "System Date:",IDC_STATIC,265,62,43,8
+    LTEXT           "",IDC_MESSAGE_LBL,15,239,507,13,SS_SUNKEN
+    GROUPBOX        "",IDC_STATIC,7,228,523,29
+    EDITTEXT        IDC_BIN_LOW,339,76,101,14,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Bin Low:",IDC_STATIC,266,76,29,8
+    CONTROL         "",IDC_HOST_PROCESSED,"Button",BS_AUTOCHECKBOX | NOT 
+                    WS_VISIBLE | WS_DISABLED | WS_TABSTOP,270,162,16,8
+    LTEXT           "Host Processed",IDC_STATIC,288,162,104,8,NOT WS_VISIBLE
+    LTEXT           "MessageType:",IDC_STATIC,8,21,48,8
+    EDITTEXT        IDC_MESSAGE_TYPE,98,19,98,14,ES_AUTOHSCROLL | 
+                    ES_READONLY
+    EDITTEXT        IDC_BIN_HIGH,340,92,101,14,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Bin High:",IDC_STATIC,266,92,30,8
+    EDITTEXT        IDC_TRAN_NII,97,178,102,14,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Nii:",IDC_STATIC,8,180,67,8
+    EDITTEXT        IDC_BIN_TYPE,340,109,102,14,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Bin Type:",IDC_STATIC,266,110,31,8
+    EDITTEXT        IDC_BIN_CARD_FAMILY,340,125,102,14,ES_AUTOHSCROLL | 
+                    ES_READONLY
+    LTEXT           "Card Family:",IDC_STATIC,265,129,39,8
+END
+
+IDD_TRAN_INQUIRY DIALOG DISCARDABLE  0, 0, 464, 343
+STYLE DS_MODALFRAME | WS_MINIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Transaction POS Lookup"
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_ACCOUNT_NBR_FLD,144,12,84,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_MERCHANT_ID_FLD,144,26,84,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_DEVICE_ID_FLD,144,40,84,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_DATE_FLD,144,54,40,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_DATE_END_FLD,144,68,40,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_TIME_FLD,144,82,40,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_TIME_END_FLD,144,96,40,14,ES_AUTOHSCROLL
+    CONTROL         "Search POS/EFT Transactions",IDC_POS_SEARCH_CHECK,
+                    "Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,
+                    333,4,74,10
+    CONTROL         "View EM&V Raw Data",IDC_EMV_RAW_RADIO,"Button",
+                    BS_AUTORADIOBUTTON | NOT WS_VISIBLE | WS_TABSTOP,344,17,
+                    86,10
+    CONTROL         "Search FGuard Transactions",IDC_FGUARD_SEARCH_CHECK,
+                    "Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,
+                    349,23,67,10
+    CONTROL         "View &All Transactions",IDC_VIEW_ALLRADIO,"Button",
+                    BS_AUTORADIOBUTTON | NOT WS_VISIBLE | WS_GROUP | 
+                    WS_TABSTOP,360,34,55,10
+    CONTROL         "View A&ccepted Transactions",IDC_VIEW_ACCEPTED_RADIO,
+                    "Button",BS_AUTORADIOBUTTON | NOT WS_VISIBLE,360,45,55,
+                    10
+    CONTROL         "View &Failed Transactions",IDC_VIEW_FAILED_RADIO,"Button",
+                    BS_AUTORADIOBUTTON | NOT WS_VISIBLE,360,55,65,10
+    CONTROL         "View &Raw Data",IDC_VIEW_FGRAW_RADIO,"Button",
+                    BS_AUTORADIOBUTTON | NOT WS_VISIBLE | WS_GROUP | 
+                    WS_TABSTOP,360,66,56,10
+    PUSHBUTTON      "Re&send Failed Transactions",IDC_RESEND_BUTTON,341,87,
+                    105,12,NOT WS_VISIBLE
+    PUSHBUTTON      "&Inquiry",IDC_INQUIRY_BUTTON,285,17,50,14,WS_GROUP
+    PUSHBUTTON      "&Next 10",IDC_NEXT_BUTTON,285,38,50,14
+    PUSHBUTTON      "&Details",IDC_DETAILS_BUTTON,285,60,50,14
+    CONTROL         "List1",IDC_LIST,"SysListView32",LVS_REPORT | 
+                    LVS_SHOWSELALWAYS | LVS_OWNERDRAWFIXED | WS_BORDER | 
+                    WS_TABSTOP,7,118,449,186
+    LTEXT           "",IDC_MESSAGE_LBL,16,316,420,13,SS_SUNKEN
+    LTEXT           "1st 6 digits of Card Number:",-1,13,15,94,8
+    LTEXT           "Merchant ID:",-1,13,29,42,8
+    LTEXT           "Device ID:",-1,13,43,35,8
+    LTEXT           "Transaction Date Start: (DDMMYYYY)",-1,13,57,121,8
+    LTEXT           "Transaction Date End: (DDMMYYYY)",-1,13,71,120,8
+    LTEXT           "Transaction Time Start: (HHMM)",-1,13,85,103,8
+    LTEXT           "Transaction Time End: (HHMM)",-1,13,99,101,8
+    GROUPBOX        "",-1,7,306,449,31
+    PUSHBUTTON      "Exit",IDC_BUTTON_EXIT,285,81,49,14
+    CONTROL         "Mask Card Numbers",IDC_MASK_CARD_NUMBER_CHK,"Button",
+                    BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,15,107,124,
+                    10
+END
+
+IDD_IDLE_LOGIN DIALOG DISCARDABLE  0, 0, 208, 127
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Translookup Idle Login"
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_UID,94,25,93,15,ES_UPPERCASE | ES_AUTOHSCROLL
+    EDITTEXT        IDC_PWD,94,53,92,16,ES_PASSWORD | ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,26,99,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,107,100,50,14
+    LTEXT           "PASSWORD",IDC_PASS,27,55,54,15
+    LTEXT           "USERID",IDC_USER,29,27,54,15
+END
+
+
+#ifndef _MAC
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 11,10,4,0
+ PRODUCTVERSION 11,10,4,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "Comments", "Version ATP_11.10.4 - Modified to allow multiple instances to run on the same client.\0"
+            VALUE "CompanyName", "Hypercom Corp.\0"
+            VALUE "FileDescription", "TranPosSearch MFC Application\0"
+            VALUE "FileVersion", "11, 10, 4, 0\0"
+            VALUE "InternalName", "TranPosSearch\0"
+            VALUE "LegalCopyright", "ThoughtFocus Copyright © 2012\0"
+            VALUE "LegalTrademarks", "\0"
+            VALUE "OriginalFilename", "TranPosSearch.EXE\0"
+            VALUE "PrivateBuild", "\0"
+            VALUE "ProductName", "Ascendent\0"
+            VALUE "ProductVersion", "11, 10, 4, 0\0"
+            VALUE "SpecialBuild", "\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+#endif    // !_MAC
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO DISCARDABLE 
+BEGIN
+    IDD_ABOUTBOX, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 210
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 48
+    END
+
+    IDD_TRANDETAILS, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 530
+        TOPMARGIN, 3
+        BOTTOMMARGIN, 259
+    END
+
+    IDD_TRAN_INQUIRY, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 456
+        VERTGUIDE, 255
+        TOPMARGIN, 4
+        BOTTOMMARGIN, 336
+    END
+
+    IDD_IDLE_LOGIN, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 201
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 120
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE PRELOAD DISCARDABLE 
+BEGIN
+    IDR_MAINFRAME           "TranPosSearch\n\nTranSe\n\n\nTranPosSearch.Document\nTranSe Document"
+END
+
+STRINGTABLE PRELOAD DISCARDABLE 
+BEGIN
+    AFX_IDS_APP_TITLE       "TranPosSearch"
+    AFX_IDS_IDLEMESSAGE     "Ready"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    ID_INDICATOR_EXT        "EXT"
+    ID_INDICATOR_CAPS       "CAP"
+    ID_INDICATOR_NUM        "NUM"
+    ID_INDICATOR_SCRL       "SCRL"
+    ID_INDICATOR_OVR        "OVR"
+    ID_INDICATOR_REC        "REC"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    ID_FILE_NEW             "Create a new document\nNew"
+    ID_FILE_OPEN            "Open an existing document\nOpen"
+    ID_FILE_CLOSE           "Close the active document\nClose"
+    ID_FILE_SAVE            "Save the active document\nSave"
+    ID_FILE_SAVE_AS         "Save the active document with a new name\nSave As"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    ID_APP_ABOUT            "Display program information, version number and copyright\nAbout"
+    ID_APP_EXIT             "Quit the application; prompts to save documents\nExit"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    ID_FILE_MRU_FILE1       "Open this document"
+    ID_FILE_MRU_FILE2       "Open this document"
+    ID_FILE_MRU_FILE3       "Open this document"
+    ID_FILE_MRU_FILE4       "Open this document"
+    ID_FILE_MRU_FILE5       "Open this document"
+    ID_FILE_MRU_FILE6       "Open this document"
+    ID_FILE_MRU_FILE7       "Open this document"
+    ID_FILE_MRU_FILE8       "Open this document"
+    ID_FILE_MRU_FILE9       "Open this document"
+    ID_FILE_MRU_FILE10      "Open this document"
+    ID_FILE_MRU_FILE11      "Open this document"
+    ID_FILE_MRU_FILE12      "Open this document"
+    ID_FILE_MRU_FILE13      "Open this document"
+    ID_FILE_MRU_FILE14      "Open this document"
+    ID_FILE_MRU_FILE15      "Open this document"
+    ID_FILE_MRU_FILE16      "Open this document"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    ID_NEXT_PANE            "Switch to the next window pane\nNext Pane"
+    ID_PREV_PANE            "Switch back to the previous window pane\nPrevious Pane"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    ID_WINDOW_SPLIT         "Split the active window into panes\nSplit"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    ID_EDIT_CLEAR           "Erase the selection\nErase"
+    ID_EDIT_CLEAR_ALL       "Erase everything\nErase All"
+    ID_EDIT_COPY            "Copy the selection and put it on the Clipboard\nCopy"
+    ID_EDIT_CUT             "Cut the selection and put it on the Clipboard\nCut"
+    ID_EDIT_FIND            "Find the specified text\nFind"
+    ID_EDIT_PASTE           "Insert Clipboard contents\nPaste"
+    ID_EDIT_REPEAT          "Repeat the last action\nRepeat"
+    ID_EDIT_REPLACE         "Replace specific text with different text\nReplace"
+    ID_EDIT_SELECT_ALL      "Select the entire document\nSelect All"
+    ID_EDIT_UNDO            "Undo the last action\nUndo"
+    ID_EDIT_REDO            "Redo the previously undone action\nRedo"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    AFX_IDS_SCSIZE          "Change the window size"
+    AFX_IDS_SCMOVE          "Change the window position"
+    AFX_IDS_SCMINIMIZE      "Reduce the window to an icon"
+    AFX_IDS_SCMAXIMIZE      "Enlarge the window to full size"
+    AFX_IDS_SCNEXTWINDOW    "Switch to the next document window"
+    AFX_IDS_SCPREVWINDOW    "Switch to the previous document window"
+    AFX_IDS_SCCLOSE         "Close the active window and prompts to save the documents"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    AFX_IDS_SCRESTORE       "Restore the window to normal size"
+    AFX_IDS_SCTASKLIST      "Activate Task List"
+    IDS_PRODUCT_VERSION     "ATP_11.10.4"
+END
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+#define _AFX_NO_SPLITTER_RESOURCES
+#define _AFX_NO_OLE_RESOURCES
+#define _AFX_NO_TRACKER_RESOURCES
+#define _AFX_NO_PROPERTY_RESOURCES
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE 9, 1
+#pragma code_page(1252)
+#endif
+#include "res\TranPosSearch.rc2"  // non-Microsoft Visual C++ edited resources
+#include "afxres.rc"         // Standard components
+#endif
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

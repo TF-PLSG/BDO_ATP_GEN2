@@ -1,0 +1,668 @@
+//Microsoft Developer Studio generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_ABOUTBOX DIALOG DISCARDABLE  0, 0, 235, 55
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About TPSR_GUI"
+FONT 8, "MS Sans Serif"
+BEGIN
+    ICON            IDI_TPSRICON,IDC_STATIC,11,17,20,20
+    LTEXT           "TPSR_GUI Version 1.0",IDC_STATIC,40,10,119,8,
+                    SS_NOPREFIX
+    LTEXT           "Copyright (C) 2011",IDC_STATIC,40,25,119,8
+    DEFPUSHBUTTON   "OK",IDOK,178,7,50,14,WS_GROUP
+END
+
+IDD_TPSR_GUI_DIALOG DIALOGEX 0, 0, 616, 262
+STYLE DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+EXSTYLE WS_EX_APPWINDOW
+CAPTION "Transaction Definition"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    EDITTEXT        IDC_PROFILE_NAME,127,16,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL
+    COMBOBOX        IDC_MSG_TYPE,127,37,121,72,CBS_DROPDOWNLIST | 
+                    CBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    EDITTEXT        IDC_BITMAP,127,56,121,14,ES_UPPERCASE | ES_AUTOHSCROLL | 
+                    ES_READONLY | ES_NUMBER,WS_EX_STATICEDGE
+    EDITTEXT        IDC_PROCESSING_CODE,127,78,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER,WS_EX_STATICEDGE
+    EDITTEXT        IDC_AMOUNT,127,98,121,14,ES_UPPERCASE | ES_AUTOHSCROLL | 
+                    ES_NUMBER,WS_EX_STATICEDGE
+    EDITTEXT        IDC_SYS_TRACE_NBR,127,118,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_READONLY | ES_NUMBER,
+                    WS_EX_STATICEDGE
+    EDITTEXT        IDC_POS_ENTRY_MODE,127,141,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER,WS_EX_STATICEDGE
+    EDITTEXT        IDC_NII,127,161,121,14,ES_UPPERCASE | ES_AUTOHSCROLL | 
+                    ES_NUMBER,WS_EX_STATICEDGE
+    EDITTEXT        IDC_POS_COND_CODE,127,181,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER,WS_EX_STATICEDGE
+    CONTROL         "",IDC_RETRIVAL_REF_NBR_CHECK,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,316,88,8,8
+    EDITTEXT        IDC_RETRIVAL_REF_NBR,433,85,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER | WS_DISABLED,
+                    WS_EX_STATICEDGE
+    CONTROL         "",IDC_AUTH_ID_RESP_CHECK,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,316,108,8,8
+    EDITTEXT        IDC_AUTH_ID_RESP,433,105,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER | WS_DISABLED,
+                    WS_EX_STATICEDGE
+    CONTROL         "",IDC_RESP_CODE_CHECK,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,316,128,8,8
+    EDITTEXT        IDC_RESP_CODE,433,125,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER | WS_DISABLED,
+                    WS_EX_STATICEDGE
+    CONTROL         "",IDC_PIN_DATA_CHECK,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,316,148,8,8
+    EDITTEXT        IDC_PIN_DATA,433,145,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER | WS_DISABLED,
+                    WS_EX_STATICEDGE
+    DEFPUSHBUTTON   "Save Profile",IDOK,476,206,34,31,BS_BITMAP
+    LTEXT           "Transaction Name",IDC_STATIC,56,18,59,8
+    LTEXT           "*Message Type (DE1)",IDC_STATIC,45,39,70,8
+    LTEXT           "*Bit Map",IDC_STATIC,87,58,28,8
+    LTEXT           "*Processing Code (DE3)",IDC_STATIC,38,81,77,8
+    LTEXT           "*Amount (DE4)",IDC_STATIC,67,101,48,8
+    LTEXT           "*Sys Trace No (DE11)",IDC_STATIC,44,121,71,8
+    LTEXT           "*POS Entry Mode (DE22)",IDC_STATIC,35,144,80,8
+    LTEXT           "*NII (DE24)",IDC_STATIC,78,164,37,8
+    LTEXT           "*POS Condition Code (DE25)",IDC_STATIC,23,184,92,8
+    LTEXT           "Retrival Ref No (DE37)",IDC_RETRIVAL_REF_STATIC,346,88,
+                    74,8,WS_DISABLED
+    LTEXT           "Auth ID Response (DE38)",IDC_AUTH_ID_RESP_STATIC,337,
+                    108,83,8,WS_DISABLED
+    LTEXT           "Response Code (DE39)",IDC_RESP_CODE_STATIC,344,128,76,8,
+                    WS_DISABLED
+    LTEXT           "PIN Data (DE52)",IDC_PIN_DATA_STATIC,366,148,54,8,
+                    WS_DISABLED
+    PUSHBUTTON      "Reset",IDRESET,515,206,34,31,BS_BITMAP
+    LTEXT           "(Max 32 Characters)",IDC_STATIC,259,18,64,8
+    CONTROL         "",IDC_TIME_LOCAL_CHECK,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,316,47,8,8
+    EDITTEXT        IDC_TIME_LOCAL,433,44,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER | WS_DISABLED,
+                    WS_EX_STATICEDGE
+    CONTROL         "",IDC_DATE_LOCAL_CHECK,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,316,67,8,8
+    EDITTEXT        IDC_DATE_LOCAL,433,64,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER | WS_DISABLED,
+                    WS_EX_STATICEDGE
+    LTEXT           "Time Local (DE12)",IDC_TIME_LOCAL_STATIC,360,47,60,8,
+                    WS_DISABLED
+    LTEXT           "Date Local (DE13)",IDC_DATE_LOCAL_STATIC,360,67,60,8,
+                    WS_DISABLED
+    LTEXT           "(Hrs/Min/Sec)",IDC_STATIC,557,47,46,8,WS_DISABLED
+    LTEXT           "(MM/DD)",IDC_STATIC,557,67,31,8,WS_DISABLED
+END
+
+IDD_TEST_PROFILE DIALOG DISCARDABLE  0, 0, 572, 304
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Test Setup"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "Add ->",IDADD,261,134,50,14
+    LTEXT           "Transactions",IDC_STATIC,157,118,42,8
+    COMBOBOX        IDC_TXNS,207,116,98,30,CBS_DROPDOWN | CBS_SORT | 
+                    WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Number of runs",IDC_STATIC,150,136,49,8
+    EDITTEXT        IDC_NO_OF_RUNS,207,133,40,14,ES_AUTOHSCROLL
+    LISTBOX         IDC_TESTLIST,327,112,94,79,LBS_SORT | 
+                    LBS_NOINTEGRALHEIGHT | LBS_MULTICOLUMN | WS_VSCROLL | 
+                    WS_TABSTOP
+    PUSHBUTTON      "Remove <-",IDREMOVE,262,156,50,14
+END
+
+IDD_SPLASH DIALOG DISCARDABLE  0, 0, 328, 62
+STYLE WS_POPUP
+FONT 8, "MS Sans Serif"
+BEGIN
+    LTEXT           "Static",IDC_STATUS,26,17,288,24,SS_CENTERIMAGE
+END
+
+IDD_CARD_DEV_MERCHANT DIALOGEX 0, 0, 572, 304
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Card and Device Merchant List"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    EDITTEXT        IDC_CARD_NBR_LIST_FILE,133,48,188,15,ES_AUTOHSCROLL,
+                    WS_EX_ACCEPTFILES | WS_EX_STATICEDGE
+    LTEXT           "*Card No List File",IDC_STATIC,64,52,55,8
+    PUSHBUTTON      "...",IDC_BROWSE_CARD_FILE,333,48,22,15
+    EDITTEXT        IDC_DEVICE_NBR_FILE_LIST,134,82,189,15,ES_AUTOHSCROLL,
+                    WS_EX_ACCEPTFILES | WS_EX_STATICEDGE
+    RTEXT           "*Device ID && Merchant ID Combination List File",
+                    IDC_STATIC,31,81,88,17
+    PUSHBUTTON      "...",IDC_BROWSE_DEVICE_FILE,333,82,22,15
+END
+
+IDD_TPS_GRAPH DIALOG DISCARDABLE  0, 0, 572, 304
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Dialog"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,500,7,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,500,24,50,14
+END
+
+
+#ifndef _MAC
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 7,0,0,0
+ PRODUCTVERSION 7,0,0,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "Comments", "ATP_9.1.0\0"
+            VALUE "CompanyName", "\0"
+            VALUE "FileDescription", "TPSR_GUI MFC Application\0"
+            VALUE "FileVersion", "9, 0, 0, 0\0"
+            VALUE "InternalName", "TPSR_GUI\0"
+            VALUE "LegalCopyright", "ThoughtFocus Copyright © 2012\0"
+            VALUE "LegalTrademarks", "\0"
+            VALUE "OriginalFilename", "TPSR_GUI.EXE\0"
+            VALUE "PrivateBuild", "\0"
+            VALUE "ProductName", "TPSR_GUI Application\0"
+            VALUE "ProductVersion", "9, 0, 0, 0\0"
+            VALUE "SpecialBuild", "\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+#endif    // !_MAC
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO DISCARDABLE 
+BEGIN
+    IDD_ABOUTBOX, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 228
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 48
+    END
+
+    IDD_TPSR_GUI_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 609
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 255
+    END
+
+    IDD_TEST_PROFILE, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 563
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 294
+    END
+
+    IDD_SPLASH, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 321
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 55
+    END
+
+    IDD_CARD_DEV_MERCHANT, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 562
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 297
+    END
+
+    IDD_TPS_GRAPH, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 550
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 195
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    IDS_ABOUTBOX            "&About TPSR_GUI..."
+    IDP_SOCKETS_INIT_FAILED "Windows sockets initialization failed."
+END
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) (unknown sub-lang: 0x10) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENN)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, 0x10
+#pragma code_page(1252)
+#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_POS_CONFIG DIALOG DISCARDABLE  0, 0, 572, 304
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "POS Config"
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_EDIT2,259,86,74,14,ES_AUTOHSCROLL
+    LTEXT           "Number of POS Connections",IDC_STATIC,150,89,92,8
+    EDITTEXT        IDC_EDIT3,259,111,74,14,ES_AUTOHSCROLL
+    LTEXT           "Starting STAN",IDC_STATIC,196,114,46,8
+    EDITTEXT        IDC_EDIT4,341,135,26,14,ES_AUTOHSCROLL
+    LTEXT           "TPS RATE",IDC_STATIC,206,138,36,8
+    COMBOBOX        IDC_COMBO1,259,136,74,50,CBS_DROPDOWNLIST | CBS_SORT | 
+                    WS_VSCROLL | WS_TABSTOP
+    EDITTEXT        IDC_EDIT5,395,135,26,14,ES_AUTOHSCROLL
+    LTEXT           "to",IDC_STATIC,377,138,8,8
+    EDITTEXT        IDC_EDIT6,259,159,74,14,ES_AUTOHSCROLL
+    LTEXT           "Test hours",IDC_STATIC,208,162,34,8
+END
+
+IDD_TPSR_MAIN DIALOG DISCARDABLE  0, 0, 572, 304
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "TPSR tool GUI"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "Run Test",IDRUN,177,81,61,39
+    PUSHBUTTON      "Stop Test",IDCANCEL,254,81,60,40,WS_DISABLED
+    LTEXT           "Transactions Sent",IDC_STATIC_SENT,212,192,58,8
+    LTEXT           "Responses Received",IDC_STATIC_RECV,201,209,69,8
+    EDITTEXT        IDC_TXNSENT,281,189,88,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_RESRECV,281,208,87,14,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "Reset Counters",IDRESETCOUNTER,333,81,61,39
+    LTEXT           "Static",IDC_TOOL_STATUS,182,151,215,13,SS_CENTERIMAGE
+    PUSHBUTTON      "Exit",IDC_EXIT,489,245,61,39,NOT WS_VISIBLE
+    PUSHBUTTON      "Show Console Window",IDC_SHOW_CONSOLE,281,233,87,21,NOT 
+                    WS_VISIBLE
+END
+
+IDD_DIALOG1 DIALOGEX 0, 0, 572, 304
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Dialog"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    EDITTEXT        IDC_PROFILE_NAME,118,20,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL
+    COMBOBOX        IDC_MSG_TYPE,118,61,121,72,CBS_DROPDOWNLIST | 
+                    CBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    EDITTEXT        IDC_BITMAP,118,80,121,14,ES_UPPERCASE | ES_AUTOHSCROLL | 
+                    ES_READONLY | ES_NUMBER,WS_EX_STATICEDGE
+    EDITTEXT        IDC_PROCESSING_CODE,118,102,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER,WS_EX_STATICEDGE
+    EDITTEXT        IDC_AMOUNT,118,122,121,14,ES_UPPERCASE | ES_AUTOHSCROLL | 
+                    ES_NUMBER,WS_EX_STATICEDGE
+    EDITTEXT        IDC_SYS_TRACE_NBR,118,142,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER,WS_EX_STATICEDGE
+    CONTROL         "",IDC_TIME_LOCAL_CHECK,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,17,165,8,8
+    EDITTEXT        IDC_TIME_LOCAL,118,162,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER | WS_DISABLED,
+                    WS_EX_STATICEDGE
+    CONTROL         "",IDC_DATE_LOCAL_CHECK,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,17,185,8,8
+    EDITTEXT        IDC_DATE_LOCAL,118,182,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER | WS_DISABLED,
+                    WS_EX_STATICEDGE
+    EDITTEXT        IDC_EXP_DATE,118,202,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER,WS_EX_STATICEDGE
+    EDITTEXT        IDC_POS_ENTRY_MODE,117,222,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER,WS_EX_STATICEDGE
+    EDITTEXT        IDC_NII,117,242,121,14,ES_UPPERCASE | ES_AUTOHSCROLL | 
+                    ES_NUMBER,WS_EX_STATICEDGE
+    EDITTEXT        IDC_POS_COND_CODE,117,262,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER,WS_EX_STATICEDGE
+    CONTROL         "",IDC_RETRIVAL_REF_NBR_CHECK,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,320,43,8,8
+    EDITTEXT        IDC_RETRIVAL_REF_NBR,433,40,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER | WS_DISABLED,
+                    WS_EX_STATICEDGE
+    CONTROL         "",IDC_AUTH_ID_RESP_CHECK,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,320,63,8,8
+    EDITTEXT        IDC_AUTH_ID_RESP,433,60,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER | WS_DISABLED,
+                    WS_EX_STATICEDGE
+    CONTROL         "",IDC_RESP_CODE_CHECK,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,320,83,8,8
+    EDITTEXT        IDC_RESP_CODE,433,80,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER | WS_DISABLED,
+                    WS_EX_STATICEDGE
+    CONTROL         "",IDC_TRACK1_DATA_CHECK,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,320,107,8,8
+    EDITTEXT        IDC_TRACK1_DATA,433,104,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER | WS_DISABLED,
+                    WS_EX_STATICEDGE
+    CONTROL         "",IDC_TRACK2_DATA_CHECK,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,320,127,8,8
+    EDITTEXT        IDC_TRACK2_DATA,433,124,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER | WS_DISABLED,
+                    WS_EX_STATICEDGE
+    CONTROL         "",IDC_PIN_DATA_CHECK,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,320,147,8,8
+    EDITTEXT        IDC_PIN_DATA,433,144,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER | WS_DISABLED,
+                    WS_EX_STATICEDGE
+    CONTROL         "",IDC_EMV_DATA_CHECK,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,320,167,8,8
+    EDITTEXT        IDC_EMV_DATA,433,164,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER | WS_DISABLED,
+                    WS_EX_STATICEDGE
+    CONTROL         "",IDC_PRIVATE1_CHECK,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,320,187,8,8
+    EDITTEXT        IDC_PRIVATE1,433,184,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER | WS_DISABLED,
+                    WS_EX_STATICEDGE
+    CONTROL         "",IDC_PRIVATE2_CHECK,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,320,207,8,8
+    EDITTEXT        IDC_PRIVATE2,433,204,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER | WS_DISABLED,
+                    WS_EX_STATICEDGE
+    CONTROL         "",IDC_PRIVATE3_CHECK,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,320,227,8,8
+    EDITTEXT        IDC_PRIVATE3,433,224,121,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL | ES_NUMBER | WS_DISABLED,
+                    WS_EX_STATICEDGE
+    DEFPUSHBUTTON   "Save Profile",IDOK,480,255,34,31,BS_BITMAP
+    LTEXT           "Transaction Name",IDC_STATIC,46,23,59,8
+    LTEXT           "Card Type",IDC_STATIC,71,43,34,8
+    LTEXT           "*Message Type (DE1)",IDC_STATIC,35,63,70,8
+    LTEXT           "*Bit Map",IDC_STATIC,77,83,28,8
+    LTEXT           "*Processing Code (DE3)",IDC_STATIC,28,105,77,8
+    LTEXT           "*Amount (DE4)",IDC_STATIC,57,125,48,8
+    LTEXT           "*Sys Trace No (DE11)",IDC_STATIC,34,145,71,8
+    LTEXT           "Time Local (DE12)",IDC_TIME_LOCAL_STATIC,45,165,60,8,
+                    WS_DISABLED
+    LTEXT           "Date Local (DE13)",IDC_DATE_LOCAL_STATIC,45,185,60,8,
+                    WS_DISABLED
+    LTEXT           "*Exp Date (DE14)",IDC_STATIC,48,205,57,8
+    LTEXT           "*POS Entry Mode (DE22)",IDC_STATIC,25,225,80,8
+    LTEXT           "*NII (DE24)",IDC_STATIC,68,245,37,8
+    LTEXT           "*POS Condition Code (DE25)",IDC_STATIC,13,265,92,8
+    LTEXT           "Retrival Ref No (DE37)",IDC_RETRIVAL_REF_STATIC,350,43,
+                    74,8,WS_DISABLED
+    LTEXT           "Auth ID Response (DE38)",IDC_AUTH_ID_RESP_STATIC,341,63,
+                    83,8,WS_DISABLED
+    LTEXT           "Response Code (DE39)",IDC_RESP_CODE_STATIC,348,83,76,8,
+                    WS_DISABLED
+    LTEXT           "Track 1 Data (DE45)",IDC_TRACK1_STATIC,357,107,67,8,
+                    WS_DISABLED
+    LTEXT           "Track 2 Data (DE35)",IDC_TRACK2_STATIC,357,127,67,8,
+                    WS_DISABLED
+    LTEXT           "PIN Data (DE52)",IDC_PIN_DATA_STATIC,370,147,54,8,
+                    WS_DISABLED
+    LTEXT           "EMV Data (DE55)",IDC_EMV_STATIC,366,167,58,8,
+                    WS_DISABLED
+    LTEXT           "Private Use (DE60)",IDC_PRIVATE1_STATIC,362,187,62,8,
+                    WS_DISABLED
+    LTEXT           "Private Use (DE62)",IDC_PRIVATE2_STATIC,362,207,62,8,
+                    WS_DISABLED
+    LTEXT           "Private Use (DE63)",IDC_PRIVATE3_STATIC,362,227,62,8,
+                    WS_DISABLED
+    LTEXT           "(Hrs/Min/Sec)",IDC_STATIC,243,165,46,8,WS_DISABLED
+    LTEXT           "(MM/DD)",IDC_STATIC,243,185,31,8,WS_DISABLED
+    LTEXT           "(YY/MM)",IDC_STATIC,244,205,30,8,WS_DISABLED
+    PUSHBUTTON      "Reset",IDRESET,519,255,34,31,BS_BITMAP
+    COMBOBOX        IDC_CARD_TYPE1,118,42,121,53,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    LTEXT           "(Max 32 Characters)",IDC_STATIC,249,23,64,8
+END
+
+IDD_STATISTIC_DIALOG DIALOG DISCARDABLE  0, 0, 248, 93
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Statistics"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,99,61,50,14
+    LTEXT           "Total Transactions Sent",IDC_STATIC,65,19,85,8
+    LTEXT           "Total Responses Received",IDC_STATIC,59,37,91,8
+    LTEXT           "Static",IDC_STATIC_TOTAL_SENT,161,19,18,8
+    LTEXT           "Static",IDC_STATIC_TOTAL_RECV,161,37,20,8
+END
+
+IDD_CARD_TRACK_DATA DIALOG DISCARDABLE  0, 0, 572, 304
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Input Card and Track Data"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,513,7,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,513,24,50,14
+    CONTROL         "",IDC_CARD_NUMBERS,"RICHEDIT",ES_MULTILINE | 
+                    ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN | 
+                    ES_NUMBER | WS_BORDER | WS_TABSTOP,42,52,163,217
+    CONTROL         "",IDC_TRACK_DATA,"RICHEDIT",ES_MULTILINE | 
+                    ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN | 
+                    WS_BORDER | WS_TABSTOP,241,53,163,217
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO DISCARDABLE 
+BEGIN
+    IDD_POS_CONFIG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 562
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 293
+    END
+
+    IDD_TPSR_MAIN, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 563
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 295
+    END
+
+    IDD_DIALOG1, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 563
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 286
+    END
+
+    IDD_STATISTIC_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 241
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 86
+    END
+
+    IDD_CARD_TRACK_DATA, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 563
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 295
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
+    "#define _AFX_NO_OLE_RESOURCES\r\n"
+    "#define _AFX_NO_TRACKER_RESOURCES\r\n"
+    "#define _AFX_NO_PROPERTY_RESOURCES\r\n"
+    "\r\n"
+    "#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)\r\n"
+    "#ifdef _WIN32\r\n"
+    "LANGUAGE 9, 1\r\n"
+    "#pragma code_page(1252)\r\n"
+    "#endif //_WIN32\r\n"
+    "#include ""res\\TPSR_GUI.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
+    "#include ""afxres.rc""         // Standard components\r\n"
+    "#endif\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_TPSRICON            ICON    DISCARDABLE     "res\\tpsr.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDB_SAVE                BITMAP  DISCARDABLE     "res\\save.bmp"
+IDB_REMOVE              BITMAP  DISCARDABLE     "res\\remove.bmp"
+IDB_RESET               BITMAP  DISCARDABLE     "res\\reset.bmp"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDR_MENU1 MENU DISCARDABLE 
+BEGIN
+    POPUP "FILE"
+    BEGIN
+        MENUITEM "Close",                       ID_FILE_CLOSE
+    END
+    POPUP "Settings"
+    BEGIN
+        MENUITEM "Pos Config",                  ID_MENU_POS_CONFIG
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog Info
+//
+
+IDD_POS_CONFIG DLGINIT
+BEGIN
+    IDC_COMBO1, 0x403, 6, 0
+0x6946, 0x6578, 0x0064, 
+    IDC_COMBO1, 0x403, 9, 0
+0x6156, 0x6972, 0x6261, 0x656c, "\000" 
+    0
+END
+
+#endif    // English (U.S.) (unknown sub-lang: 0x10) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+#define _AFX_NO_SPLITTER_RESOURCES
+#define _AFX_NO_OLE_RESOURCES
+#define _AFX_NO_TRACKER_RESOURCES
+#define _AFX_NO_PROPERTY_RESOURCES
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE 9, 1
+#pragma code_page(1252)
+#endif //_WIN32
+#include "res\TPSR_GUI.rc2"  // non-Microsoft Visual C++ edited resources
+#include "afxres.rc"         // Standard components
+#endif
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

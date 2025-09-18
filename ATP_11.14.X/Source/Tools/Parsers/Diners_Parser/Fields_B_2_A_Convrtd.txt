@@ -1,0 +1,7 @@
+Fields NUM:
+
+ Field 48  - Additional Data - Private
+ Field 52  - Pin Data
+ Field 55  - Ic Card Data
+ Field 96  - Message Security code
+ Field 128 - Auth Code

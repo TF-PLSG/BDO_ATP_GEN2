@@ -1,0 +1,4363 @@
+/******************************************************************************
+
+   Module: devds.c
+
+   Title: Transaction Server Dataserver Routines
+
+   Description: 
+
+   $Log:   N:\POS\PVCS6.6\EPICPORTZ\PTE\Equitable\devds\dc_ds.c  $
+
+   Rev 1.54   Jul 13 2009   TF-Ajay 
+   Updated version to 4.4.1.10
+   Added code to copy the STIP txn status from ncf30 
+
+      Rev 1.53   Jun 05 2007  DIrby
+   Added a function to get the most recent auth number from TLF01.
+   SCR 12299
+
+      Rev 1.52   Mar 02 2007 11:02:36   DIrby
+   Added support for every SQL to be stored into shared memory
+   in table SQL01 prior to being executed.
+   SCR 24081
+   
+      Rev 1.51   Jul 07 2006 11:00:08   dirby
+   Removed local definition of app_data_type in some of the functions.
+   This way, the global definition is used; this is needed by the
+   SQL timing functionality.
+   SCR 12299
+   
+      Rev 1.50   Jul 07 2006 08:09:16   dirby
+   Implemented functionality to gather statistics on database SQL calls.
+   SCR 12299
+   
+      Rev 1.49   May 09 2006 17:42:14   dirby
+   Fixed bug where original transactions (voids/reversals) were being
+   found, but because no EMV data was found with them, data server
+   returned 'Data Not Found'.
+   SCR 21189
+   
+      Rev 1.48   May 04 2006 16:28:30   dirby
+   Corrected some bugs in getting emv_raw data after selecting
+   from BCH10.
+   SCR 21042
+   
+      Rev 1.47   May 03 2006 18:13:04   dirby
+   Modified to get emv raw data on reversals and voids when
+   finding the original transaction.
+   SCR 21042
+   
+      Rev 1.46   Apr 05 2005 14:13:48   dirby
+   Updated version to 4.4.1.1
+   SCR 12785
+   
+      Rev 1.45   Mar 09 2005 08:13:10   dirby
+   Set 'updates_to_db_made' when inserting into BCH10 for settlement.
+   Need to do this because BCH01 gets updated and if BCH10 insert
+   fails, the BCH01 record needs to be rolled back, else the record
+   gets locked.
+   SCR 13391
+   
+      Rev 1.44   Oct 01 2004 13:45:52   dirby
+   1.  Updated version to 4.4.0.3
+   2.  Added a subtype2 under select TLF01 to get a reload confirm.
+   3.  Reworked the select TLF01 to use a switch statement based on
+       subtype2 so we don't need to get subtype2 from the pte message
+       over and over and over again as we work our way through many
+       'else if' statements.
+   SCR 12626
+   
+      Rev 1.43   Sep 21 2004 17:00:16   dirby
+   Updated version to 4.4.0.2
+   SCR 12506
+   
+      Rev 1.42   Jul 07 2004 17:02:30   dirby
+   Updated version to 4.4.0.1
+   SCR 1287
+   
+      Rev 1.41   May 27 2004 17:13:00   dirby
+   Updated version to 4.3.0.1
+   SCR 1380
+   
+      Rev 1.40   Mar 04 2004 18:26:32   dirby
+   Updated version to 4.2.0.6
+   Rewrote code to select BCH10 to be more efficient.
+   Added function call to look for a duplicate transaction.
+   SCR 1222
+   
+      Rev 1.39   Oct 06 2003 12:18:28   dirby
+   Updated version to 4.2.0.5
+   SCR 1220
+   
+      Rev 1.38   Oct 02 2003 09:56:18   lmitchel
+   Ver 4.2.0.4: SCR1220 Support new subtype2 ST2_DB_SELECT_BCH01_BY_BATCH_NBR to implement new Duplicate Batch Design.
+   
+      Rev 1.37   Apr 30 2003 14:26:20   dirby
+   Added a 'break' command after selects for BCH20.  For Voice
+   cancels of deferred txns, devds was returning an invalid data
+   type.
+   SCR 1109
+   
+      Rev 1.36   Mar 13 2003 15:02:52   dirby
+   Added function 'db_select_tlf01_for_visa_rejects' to get records
+   from TLF01 to reverse out responses to Visa that get rejected.
+   SCR 1034
+   
+      Rev 1.35   Feb 17 2003 09:49:06   dirby
+   Updated version to 4.2.0.1
+   SCR 955
+   
+      Rev 1.34   Aug 16 2002 17:31:50   dirby
+   Updated version to 4.1.1.1
+   SCR 255
+   
+      Rev 1.33   Jul 18 2002 15:01:48   dirby
+   Added functionality to support timing of queries and reporting
+   on any that take too long.  This is configurable in TF.INI.
+   SCR 818
+   
+      Rev 1.32   Jul 03 2002 14:28:30   dirby
+   Updated version to 4.0.3.1
+   SCR 803
+   
+      Rev 1.31   Jun 27 2002 14:36:30   dirby
+   1.  Updated version to 4.0.2.1
+   2.  Added functionality to display version when pinged.
+   SCR 799
+   
+      Rev 1.30   Nov 03 2001 10:55:30   dirby
+   Updated version to 4.0.0.1
+   
+      Rev 1.29   Jun 13 2001 15:03:06   dirby
+   Updated version to 3.2.3.1
+   
+      Rev 1.28   Jan 09 2001 14:16:42   dirby
+   Updated version number.  This marks the release where the production
+   stability issue has been resolved.  Some debug code has been removed and
+   added #ifndef around some Unix signal code so the data server will compile
+   on NT.
+   
+      Rev 1.27   Oct 16 2000 12:25:08   dirby
+   1.  Updated version number to 3.2.2.1 - TEST.
+   2.  Added code to support XipcSystemErrReport in the event of XIPC problems.
+   3.  Removed catching of OS signals CHILD and HangUP so the daemon process can catch them.
+   
+      Rev 1.26   Oct 05 2000 15:06:12   dirby
+   Updated the version number to '3.2.2.1 - TEST'.
+   This version is compiled with more diagnostic stuff
+   in daemon.c.
+   
+      Rev 1.25   Sep 01 2000 16:19:36   dirby
+   Added TrapFunction to catch Unix signals.  This will not compile under NT.
+   
+      Rev 1.24   Aug 31 2000 17:30:14   dirby
+   Appended "TEST" to the version number to account for some
+   daemon testing getting linked in.
+   
+      Rev 1.23   Aug 01 2000 17:25:30   dirby
+   Added populating ticket_nbr in BCH10.
+   
+      Rev 1.22   Jul 30 2000 15:36:58   dirby
+   Modified to display version number at startup and shutdown.
+   
+      Rev 1.21   Jun 27 2000 14:02:32   lmitchel
+   Equitable Issue #13 for deferred cancel transaction, check tlf01 for auth_number and term length
+   
+      Rev 1.20   Jan 25 2000 16:01:16   ddabberu
+   c++ comments removed
+   
+   
+      Rev 1.19   Jan 13 2000 10:14:36   sdasgupt
+   Fixed code to insert transaction_timestamp etc to bch10 and bch20
+   Function to retrieve BCH20 by STAN
+   
+      Rev 1.18   Dec 11 1999 18:03:40   sdasgupt
+   Added updates_to_db_made when BCH01 was inserted when not found
+   
+      Rev 1.17   Nov 24 1999 15:38:48   jxiao
+   add bch20 support, select bch10 by rrn and auth number
+   
+      Rev 1.16   Oct 05 1999 14:42:48   egable
+   Get the orginal auth_number from bch10 and
+   put it in the auth_tx that will be sent to the
+   terminal (voids and adjs) ER#1073, #1074,
+   #1076.
+   
+      Rev 1.15   17 Aug 1999 16:05:30   epriyev
+   call init_multi_instance() instead of init_single_instance() on startup
+   and shutdown instance accordingly,
+   fixed 3 warnings about not retruning values from every path in 
+   db functions.
+   
+      Rev 1.14   24 May 1999 15:30:02   epriyev
+   Added case auth_quasi_cash_responce into
+   process_all_data function.
+   Replaced printf with PRINT macro for debug
+   messages.
+   
+      Rev 1.13   May 07 1999 09:35:48   iarustam
+   Added db_select_bch10_by_auth_nbr and
+   db_select_bch10_by_original_transaction functions
+   
+   
+      Rev 1.12   May 05 1999 14:07:48   iarustam
+   Added bch11_gui_list
+   
+      Rev 1.11   Apr 13 1999 15:05:02   iarustam
+   Bug fixes
+   
+      Rev 1.10   13 Apr 1999 10:51:14   epriyev
+   replaced tx_key AUTH_CASH_ADVANCE with AUTH_CASH_ADVANCE_REPLY
+   in process_all_data  function
+   
+      Rev 1.9   Apr 01 1999 14:03:04   iarustam
+   Added new function for Voice Reversal
+   
+      Rev 1.8   Mar 30 1999 11:31:56   iarustam
+   Added new field to mcf01 and 
+   Added new function flf01_gui_dynamic
+   
+      Rev 1.7   26 Feb 1999 15:44:08   dirby
+   Added 'select_tlf01_by_terminal_id' functionality.
+   
+      Rev 1.6   Feb 19 1999 17:15:16   IGOLDFIE
+   Added select_tlf01_for_sales_completion
+   
+      Rev 1.5   Feb 17 1999 16:10:06   IGOLDFIE
+   Added 2 new function to select TLF01 record
+   
+      Rev 1.4   Feb 10 1999 11:17:04   IGOLDFIE
+   Added db_select_tlf01_saf function.
+   
+      Rev 1.3   Feb 05 1999 16:52:04   IGOLDFIE
+   Removed all ISO_MESSAGES. 
+   
+      Rev 1.2   Feb 04 1999 10:11:46   IGOLDFIE
+   Added db_get_tlf01_service_list,
+    db_get_bch01_service_list functions.
+   
+      Rev 1.1   Jan 29 1999 15:53:50   IGOLDFIE
+   1. removed all non-device control structures and
+   functions
+   2. Added 7 new fields to tlf01 structure and all
+   functions that work with it.
+   
+      Rev 1.0   25 Jan 1999 15:19:06   jhapitas
+   Initial revision
+   
+      Rev 1.0   17 Dec 1998 17:18:38   jhapitas
+   Initial Equitable Revision
+
+******************************************************************************/
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <time.h>
+#include <sys/timeb.h>
+#include <signal.h>
+
+#include "basictyp.h"
+#include "pte.h"
+#include "pteipc.h"
+#include "ptemsg.h"
+#include "ptestats.h"
+#include "ptesystm.h"
+#include "ptetimer.h"
+#include "ptetime.h"
+#include "ntutils.h"
+#include "logger.h"
+
+#include "dbcommon.h"
+#include "app_info.h"
+#include "equitdb.h"
+#include "dc_dbstruct.h"
+#include "dc_database.h"
+#include "memmnger.h"
+#include "dstimer.h"
+#include "txutils.h"
+#include "genutil.h"
+#include "timings.h"
+
+
+/*   GLOBAL VARIABLES    */
+extern CHAR ServiceName[];
+extern int volatile EndProcessSignalled;
+extern int volatile MainProcessDone;
+CHAR   oprmon_que_name[MAX_APP_NAME_SIZE];
+
+/* Function protype */
+BYTE process_alldata_msg( pPTE_MSG  );
+pPTE_MSG process_check_data_in_tables( pPTE_MSG );
+void process_db_cleanup( pPTE_MSG ); 
+void TrapFunction( INT signum );
+
+
+PRIVATE union
+{
+  
+  DCF01   dcf01;
+  BCH01   bch01;
+  BCH10   bch10;
+  MCF01   mcf01;
+  OCF01   ocf01;
+  OCF20   ocf20;
+  MCF20   mcf20;
+  TLF01   tlf01;
+  NMF01   nmf01;
+  NBF01   nbf01;
+  NGF01   ngf01;
+  NFI01   nfi01;
+  NFI02   nfi02;
+  NTF01   ntf01;
+  BCH11   bch11;
+  BCH20   bch20;
+
+} db_recs;
+
+PRIVATE union
+{
+   NGF01_LIST          Ngf01_List;
+   NFI01_LIST          Nfi01_List;
+   NBF01_LIST          Nbf01_List;
+   NMF01_LIST          Nmf01_List;
+   BCH10_LIST          Bch10_List;
+   BCH11_LIST          Bch11_List;
+   BCH01_LIST          Bch01_List;
+   TLF01_LIST          Tlf01_List;
+   BCH10_GUI_LIST      Bch10_Gui_List;
+   BCH11_GUI_LIST      Bch11_Gui_List;
+   BCH01_GUI_LIST      Bch01_Gui_List;
+   MCF01_GUI_LIST      Mcf01_Gui_List;
+   DCF01_GUI_LIST      Dcf01_Gui_List;
+   NBF01_GUI_LIST      Nbf01_Gui_List;
+   NGF01_GUI_LIST      Ngf01_Gui_List;
+   TLF01_GUI_LIST      Tlf01_Gui_List;
+   
+}db_lists;
+
+
+PRIVATE LONG         Bin_Count;
+PRIVATE LONG         Caf_Count;
+PRIVATE LONG         Faf_Count;
+PRIVATE LONG         Crf_Count;
+PRIVATE LONG         Csf_Count;
+PRIVATE BOOLEAN      Bin01InMem = false;
+PRIVATE BOOLEAN      Caf01InMem = false;
+PRIVATE BOOLEAN      Faf01InMem = false;
+PRIVATE BOOLEAN      Crf01InMem = false;
+PRIVATE BOOLEAN      Csf01InMem = false;
+PRIVATE BOOLEAN      OprMonInMem= false;  
+PRIVATE BOOLEAN      TranDetailInMem = false;
+PRIVATE LONG         MemSize;
+PRIVATE LONG         MemAvailable;
+
+PRIVATE BYTE         MsgSubtype2;
+PRIVATE BYTE         MsgSubtype1;
+PRIVATE BYTE         result_code;
+PRIVATE BOOLEAN      updates_to_db_made = false;
+PRIVATE CHAR         ErrorMsg  [100];
+        CHAR         AppName   [MAX_APP_NAME_SIZE];
+PRIVATE CHAR         last_trid [MAX_TRAN_ID_SIZE];
+PRIVATE pCHAR        reply_que;
+PRIVATE CHAR         orig_comm_inf[MAX_ORIG_INFO_SIZE];
+PRIVATE CHECKPOINT   checkpoint_rec;
+PRIVATE CHAR         AtpBuffer[30000];
+PRIVATE BYTE         app_data_type;
+PRIVATE CHAR         applnk_que_name[8]="applnkA";
+
+BOOLEAN   in_refeed_mode    = false;
+CHAR      Version[] = "ATP_5.18.0";    
+
+INT ds_timer_flag;
+INT ds_timer_value;
+
+/* Database Timing Measurements */
+TIMINGS_LIST  TimingStats;
+INT           DB_Timing_Flag; /* True = Do DB Timing Stats, False = don't do */
+INT           ForceReport;
+double        NextReportTime;
+CHAR          ReportTime[5];
+
+
+#ifdef _DEBUG
+   #define PRINT( X ) printf( X )
+#else
+   #define PRINT( X )
+#endif
+
+
+/*
+ * These defines control whether the dataserver is using logger-reply
+ * and whether it should be doing checkpointing.
+ *
+ * Possible combinations:
+ *    a) using logger-reply with checkpoints
+ *    b) using logger-reply without checkpoints
+ *    c) using neither.
+ *
+ * note: cannot use checkpoints without logger-reply!!!!!
+ *
+ */ 
+// 12-07-98 gabriel
+//#define USING_LOGGER_REPLY
+//#define USING_CHECKPOINTS
+
+#ifndef USING_LOGGER_REPLY
+   #undef USING_CHECKPOINTS
+#endif
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+LONG CreateTable(BYTE AppData)
+{
+   
+   char table_count[5];
+   char SectionName[13] = "";
+   INT  num_rec, rec_size;
+   
+   memset(ErrorMsg, 0, sizeof(ErrorMsg));
+   memset(table_count, 0, sizeof(table_count));
+   if(AppData == OPRMON_DATA)
+   {
+      return(CreateXipcTable(1, MAX_ORIG_INFO_SIZE, "MonitorTable"));
+   }
+   else
+      return(-1L);
+   return(CreateXipcTable(num_rec, rec_size, SectionName));
+}
+
+/*************************************************************************************/
+/*************************************************************************************/
+LONG  PopulateTable(BYTE  AppData)
+{
+   char  SectionName[13] = "";
+   LONG  TableSize;
+   
+   BYTE  OpMonFlag = 0;
+   pBYTE TableList;
+
+   if(AppData == OPRMON_DATA)
+   {
+       return(WriteTable("MonitorTable", MAX_ORIG_INFO_SIZE + 1, &OpMonFlag));
+   }
+   else
+      return(-1L);
+   return(WriteTable(SectionName, TableSize, TableList));
+}
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE  VerifyMem(LONG ReservedMem, LONG NeededMem)
+{
+   LONG Result;
+
+   Result = ReservedMem - NeededMem;
+   if (Result < 0)
+      return(MEM_ERR);
+   if( (Result * 100) < (ReservedMem * MEM_PERCENT))
+      return(MEM_ENOUGH);
+   return(MEM_OK);
+}
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+pPTE_MSG process_move_trans(pPTE_MSG p_msg_in)
+{
+   pBYTE          p_data;
+   pPTE_MSG_DATA  p_msg_data;
+   pPTE_MSG       p_msg_out;
+   pBYTE          p_current;
+
+
+   p_msg_out     = NULL_PTR;
+   p_msg_data    = ptemsg_get_pte_msg_data( p_msg_in );
+   p_data        = ptemsg_get_pte_msg_data_data( p_msg_data );
+   memcpy(AtpBuffer, p_data, sizeof(AUTH_TX));
+   p_current     = AtpBuffer + sizeof(AUTH_TX);
+   app_data_type = ptemsg_get_pte_msg_data_app_data_type( p_msg_data );
+   p_data = p_data  + sizeof(AUTH_TX);
+
+   switch( app_data_type )
+   {
+      case BCH10_DATA:
+
+         PRINT( "request to move bch10 records to bch11\n" );
+         result_code = db_move_bch10_to_bch11((pCHAR)p_data, ErrorMsg);
+         break;
+      case BCH11_DATA:
+
+         PRINT( "request to move bch11 records to bch10\n" );
+         result_code = db_move_bch11_to_bch10((pCHAR)p_data, ErrorMsg);
+         break;
+
+      default:
+
+         /* unknown app_data_type received. Log Event and return error message to client */
+         result_code = PTEMSG_INVALID_DATATYPE;
+         sprintf (ErrorMsg, "Unknown app_data_type for Move request from %s", reply_que);
+         break;
+   }
+   if( result_code == PTEMSG_OK )
+   {
+      updates_to_db_made = true;
+
+      p_msg_out = ptemsg_build_msg (MT_DB_REPLY,
+                                    ptemsg_get_msg_subtype1 (p_msg_in),
+                                    ptemsg_get_msg_subtype2 (p_msg_in),
+                                    reply_que,
+                                    application_que_name,
+                                    (pBYTE)AtpBuffer,
+                                    sizeof(AUTH_TX),
+                                    app_data_type);
+   
+
+      if (p_msg_out == NULL_PTR)
+      {
+         result_code = PTEMSG_INSUFFICIENT_MEMORY;
+         sprintf (ErrorMsg, "Insufficient Memory to build settle totals response to %s", reply_que);
+      }
+   }
+
+   return (p_msg_out);
+}
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+pPTE_MSG process_insert_msg( pPTE_MSG p_msg_in )
+{
+   pBYTE          p_data;
+   pPTE_MSG_DATA  p_msg_data;
+   pPTE_MSG       p_msg_out;
+   pBYTE          p_current;
+   
+   p_msg_out     = NULL_PTR;
+   p_msg_data    = ptemsg_get_pte_msg_data( p_msg_in );
+   p_data        = ptemsg_get_pte_msg_data_data( p_msg_data );
+   memcpy(AtpBuffer, p_data, sizeof(AUTH_TX));
+   p_current     = AtpBuffer + sizeof(AUTH_TX);
+   app_data_type = ptemsg_get_pte_msg_data_app_data_type( p_msg_data );
+   p_data = p_data + sizeof(AUTH_TX);
+
+   switch( app_data_type )
+   {
+      case BCH01_BCH10_TLF01_DATA:
+         PRINT( "request to insert tlf01, bch01, bch10 record\n" );
+         result_code = db_update_bch01_insert_bch10_insert_tlf01( ( pAUTH_TX)p_data, ErrorMsg );
+       
+		  break;
+
+      case TLF01_DATA:
+
+			 PRINT( "request to insert tlf01 record\n" );
+
+			 memset( &db_recs.tlf01, 0, sizeof( db_recs.tlf01 ) );
+			 memcpy( &db_recs.tlf01, ( pTLF01)p_data, sizeof( TLF01 ) );
+			 result_code = db_insert_tlf01( &db_recs.tlf01, ErrorMsg );
+			
+/*			 memset( &db_recs.tlf01_stip, 0, sizeof( db_recs.tlf01_stip ) );
+			 memcpy( &db_recs.tlf01_stip, ( pTLF01_STIP)p_data, sizeof( TLF01_STIP ) );*/
+
+			 if((strncmp(db_recs.tlf01.response_code,"00",2) == 0) && 
+			 (strncmp(db_recs.tlf01.product_codes[1].code,STANDIN,6)== 0)) /* Girija Y */
+		 {
+			 PRINT( "request to insert tlf01_stip record\n" );
+
+			 /* retrieve the data into a ocf20 structure and insert into database */
+			 
+			 result_code = db_insert_tlf01_stip( &db_recs.tlf01, ErrorMsg );
+		 }
+		
+         break;
+      
+      
+
+     case NFI01_DATA:
+
+         PRINT( "request to insert nfi01 record\n" );
+
+         /* retrieve the data into a ocf20 structure and insert into database */
+         memset( &db_recs.nfi01, 0, sizeof( db_recs.nfi01 ) );
+         memcpy( &db_recs.nfi01, ( pNFI01)p_data, sizeof( NFI01 ) );
+         result_code = db_insert_nfi01( &db_recs.nfi01, ErrorMsg );
+         break;
+
+      
+      case NBF01_DATA:
+
+         PRINT( "request to insert nbf01 record\n" );
+
+         /* retrieve the data into a ocf20 structure and insert into database */
+         memset( &db_recs.nbf01, 0, sizeof( db_recs.nbf01 ) );
+         memcpy( &db_recs.nbf01, ( pNBF01)p_data, sizeof( NBF01 ) );
+         result_code = db_insert_nbf01( &db_recs.nbf01, ErrorMsg );
+         break;
+
+      case NGF01_DATA:
+
+         PRINT( "request to insert ngf01 record\n" );
+
+         /* retrieve the data into a ocf20 structure and insert into database */
+         memset( &db_recs.ngf01, 0, sizeof( db_recs.ngf01 ) );
+         memcpy( &db_recs.ngf01, ( pNGF01)p_data, sizeof( NGF01 ) );
+         result_code = db_insert_ngf01( &db_recs.ngf01, ErrorMsg );
+         break;
+
+      case NTF01_DATA:
+
+         PRINT( "request to insert ntf01 record\n" );
+
+         /* retrieve the data into a ocf20 structure and insert into database */
+         memset( &db_recs.ntf01, 0, sizeof( db_recs.ntf01 ) );
+         memcpy( &db_recs.ntf01, ( pNTF01)p_data, sizeof( NTF01 ) );
+         result_code = db_insert_ntf01( &db_recs.ntf01, ErrorMsg );
+         break;
+
+      case BCH01_DATA:
+
+         PRINT( "request to insert bch01 record\n" );
+
+         /* retrieve the data into a ocf20 structure and insert into database */
+         memset( &db_recs.bch01, 0, sizeof( db_recs.bch01 ) );
+         memcpy( &db_recs.bch01, ( pBCH01)p_data, sizeof( BCH01 ) );
+         if(ptemsg_get_msg_subtype2 (p_msg_in) == ST2_DB_INSERT_BCH01_UPDATE_DCF01)
+            result_code = db_insert_bch01_update_dcf01( &db_recs.bch01, ErrorMsg );
+         else
+            result_code = db_insert_bch01( &db_recs.bch01, ErrorMsg );
+         break;
+
+      case NFI02_DATA:
+
+         PRINT( "request to insert nfi02 record\n" );
+
+         /* retrieve the data into a ocf20 structure and insert into database */
+         memset( &db_recs.nfi02, 0, sizeof( db_recs.nfi02 ) );
+         memcpy( &db_recs.nfi02, ( pNFI02)p_data, sizeof( NFI02 ) );
+         result_code = db_insert_nfi02( &db_recs.nfi02, ErrorMsg );
+         break;
+
+      
+      case MCF20_DATA:
+
+         PRINT( "request to insert mcf20 record\n" );
+
+         /* retrieve the data into a ocf20 structure and insert into database */
+         memset( &db_recs.mcf20, 0, sizeof( db_recs.mcf20 ) );
+         memcpy( &db_recs.mcf20, ( pMCF20 )p_data, sizeof( MCF20 ) );
+         result_code = db_insert_mcf20( &db_recs.mcf20, ErrorMsg );
+         break;
+
+      case OCF20_DATA:
+
+         PRINT( "request to insert ocf20 record\n" );
+
+         /* retrieve the data into a ocf20 structure and insert into database */
+         memset( &db_recs.ocf20, 0, sizeof( db_recs.ocf20 ) );
+         memcpy( &db_recs.ocf20, ( pOCF20 )p_data, sizeof( OCF20 ) );
+         result_code = db_insert_ocf20( &db_recs.ocf20, ErrorMsg );
+         break;
+
+      
+      case OCF01_DATA:
+
+         PRINT( "request to insert ocf01 record\n" );
+
+         /* retrieve the data into a mcf01 structure and insert into database */
+         memset( &db_recs.ocf01, 0, sizeof( db_recs.ocf01 ) );
+         memcpy( &db_recs.ocf01, ( pOCF01 )p_data, sizeof( OCF01 ) );
+         result_code = db_insert_ocf01( &db_recs.ocf01, ErrorMsg );
+         break;
+
+      
+      case MCF01_DATA:
+
+         PRINT( "request to insert mcf01 record\n" );
+
+         /* retrieve the data into a mcf01 structure and insert into database */
+         memset( &db_recs.mcf01, 0, sizeof( db_recs.mcf01 ) );
+         memcpy( &db_recs.mcf01, ( pMCF01 )p_data, sizeof( MCF01 ) );
+         result_code = db_insert_mcf01( &db_recs.mcf01, ErrorMsg );
+         break;
+
+      
+      case BCH10_DATA:
+
+         PRINT( "request to insert bch10 record\n" );
+
+         /* retrieve the data into a ucf01 structure and insert into database */
+         memset( &db_recs.bch10, 0, sizeof( db_recs.bch10 ) );
+         memcpy( &db_recs.bch10, ( pBCH10 )p_data, sizeof( BCH10 ) );
+         if(ptemsg_get_msg_subtype2 (p_msg_in) == ST2_DB_INSERT_BCH10_SETTLE )
+         {
+		 /* TF Phani- For Amex Cards we need to get DE31 value from TLF01->visa_tran_id*/
+		 /*	 if card number start with 3, then call below function to get TID
+		 */
+			if(db_recs.bch10.card_nbr[0] == '3')
+			 result_code = db_select_DE31_for_amex( &db_recs.bch10, ErrorMsg );
+          /*TF Phani-  if Card number belongs to Master card..retrive few deatils from TLF01
+			Which requires in EPOS file*/
+			  //else if((strncmp(db_recs.bch10.card_nbr,"5",1) == 0 || strncmp(db_recs.bch10.card_nbr,"4",1) == 0 ))
+			else if((db_recs.bch10.card_nbr[0] == '5') || (db_recs.bch10.card_nbr[0]=='4'))
+			 result_code = db_select_DE63_for_MC( &db_recs.bch10, ErrorMsg );
+
+			 updates_to_db_made = true;
+            result_code = db_insert_bch10_settle( &db_recs.bch10, ErrorMsg );
+         }
+         else
+            result_code = db_insert_bch10( &db_recs.bch10, ErrorMsg );
+         break;
+
+      
+       case DCF01_DATA:
+
+         PRINT( "request to insert ucf01 record\n" );
+
+         /* retrieve the data into a dcf01 structure and insert into database */
+         memset( &db_recs.dcf01, 0, sizeof( db_recs.dcf01 ) );
+         memcpy( &db_recs.dcf01, ( pDCF01 )p_data, sizeof( DCF01 ) );
+         result_code = db_insert_dcf01( &db_recs.dcf01, ErrorMsg );
+         break;
+
+      
+     default:
+
+         /* unknown app_data_type received. Log Event and return error message to client */
+         result_code = PTEMSG_INVALID_DATATYPE;
+         sprintf (ErrorMsg, "Unknown app_data_type for Insert request from %s", reply_que);
+         break;
+   }
+
+
+   if (result_code == PTEMSG_OK)
+   {
+      
+      updates_to_db_made = true;
+
+      p_msg_out = ptemsg_build_msg (MT_DB_REPLY,
+                                    ptemsg_get_msg_subtype1 (p_msg_in),
+                                    ptemsg_get_msg_subtype2 (p_msg_in),
+                                    reply_que,
+                                    application_que_name,
+                                    (pBYTE)AtpBuffer,
+                                    sizeof(AUTH_TX),
+                                    app_data_type);
+   
+      if (p_msg_out == NULL_PTR)
+      {
+         result_code = PTEMSG_INSUFFICIENT_MEMORY;
+         sprintf (ErrorMsg, "Insufficient Memory to build Insert response to %s", reply_que);
+      }
+   }
+
+   return (p_msg_out);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+pPTE_MSG process_update_msg( pPTE_MSG p_msg_in )
+{
+   pBYTE          p_data;
+   pPTE_MSG_DATA  p_msg_data;
+   pPTE_MSG       p_msg_out;
+   pBYTE          p_current;
+   LONG           data_length;
+   BCH10         bch10;
+
+   p_msg_out     = NULL_PTR;
+   p_msg_data    = ptemsg_get_pte_msg_data( p_msg_in );
+   p_data        = ptemsg_get_pte_msg_data_data( p_msg_data );
+   memcpy(AtpBuffer, p_data, sizeof(AUTH_TX));
+   p_current     = AtpBuffer + sizeof(AUTH_TX);
+   app_data_type = ptemsg_get_pte_msg_data_app_data_type( p_msg_data );
+   p_data = p_data + sizeof(AUTH_TX);
+   data_length = sizeof(AUTH_TX);
+   switch( app_data_type )
+   {
+
+      case TLF01_DATA:
+
+
+         /* retrieve the data into a ocf20 structure and update the database */
+         memset( &db_recs.tlf01, 0, sizeof( db_recs.tlf01 ) );
+         memcpy( &db_recs.tlf01, ( pTLF01 )p_data, sizeof( TLF01 ) );
+		 if( strncmp(db_recs.tlf01.originator_queue,"stpmgr",6) == 0)
+		 {
+			 PRINT( "Request to Update TLF01_STIP recoed\n" );
+			 result_code = db_update_tlf01_stip(&db_recs.tlf01,ErrorMsg);
+		 }
+		 else
+		 {
+			 PRINT( "request to update tlf01 record\n" );
+         result_code = db_update_tlf01( &db_recs.tlf01, ErrorMsg );
+		 }
+         break;
+
+      
+         
+      case NMF01_DATA:
+
+         PRINT( "request to update nmf01 record\n" );
+
+         
+         memset( &db_recs.nmf01, 0, sizeof( db_recs.nmf01 ) );
+         memcpy( &db_recs.nmf01, ( pNMF01 )p_data, sizeof( NMF01 ) );
+         result_code = db_update_nmf01( &db_recs.nmf01, ErrorMsg );
+         memcpy(AtpBuffer + sizeof(AUTH_TX), &db_recs.nmf01, sizeof(NMF01));
+         break;
+
+      
+         
+      case NFI02_DATA:
+
+         PRINT( "request to update nfi02 record\n" );
+
+         /* retrieve the data into a ocf20 structure and update the database */
+         memset( &db_recs.nfi02, 0, sizeof( db_recs.nfi02 ) );
+         memcpy( &db_recs.nfi02, ( pNFI02 )p_data, sizeof( NFI02 ) );
+         result_code = db_update_nfi02( &db_recs.nfi02, ErrorMsg );
+         break;
+
+      
+      case NBF01_DATA:
+
+         PRINT( "request to update nbf01 record\n" );
+
+         /* retrieve the data into a ocf20 structure and update the database */
+         memset( &db_recs.nbf01, 0, sizeof( db_recs.nbf01 ) );
+         memcpy( &db_recs.nbf01, ( pNBF01 )p_data, sizeof( NBF01 ) );
+         result_code = db_update_nbf01( &db_recs.nbf01, ErrorMsg );
+         break;
+
+      case NGF01_DATA:
+
+         PRINT( "request to update ngf01 record\n" );
+
+         /* retrieve the data into a ocf20 structure and update the database */
+         memset( &db_recs.ngf01, 0, sizeof( db_recs.ngf01 ) );
+         memcpy( &db_recs.ngf01, ( pNGF01 )p_data, sizeof( NGF01 ) );
+         result_code = db_update_ngf01( &db_recs.ngf01, ErrorMsg );
+         break;
+
+      
+      case MCF20_DATA:
+
+         PRINT( "request to update mcf20 record\n" );
+
+         /* retrieve the data into a ocf20 structure and update the database */
+         memset( &db_recs.mcf20, 0, sizeof( db_recs.mcf20 ) );
+         memcpy( &db_recs.mcf20, ( pMCF20 )p_data, sizeof( MCF20 ) );
+         result_code = db_update_mcf20( &db_recs.mcf20, ErrorMsg );
+         break;
+
+      case OCF20_DATA:
+
+         PRINT( "request to update ocf20 record\n" );
+
+         /* retrieve the data into a ocf20 structure and update the database */
+         memset( &db_recs.ocf20, 0, sizeof( db_recs.ocf20 ) );
+         memcpy( &db_recs.ocf20, ( pOCF20 )p_data, sizeof( OCF20 ) );
+         result_code = db_update_ocf20( &db_recs.ocf20, ErrorMsg );
+         break;
+
+     
+
+      case OCF01_DATA:
+
+         PRINT( "request to update ocf01 record\n" );
+
+         /* retrieve the data into a acf01 structure and update the database */
+         memset( &db_recs.ocf01, 0, sizeof( db_recs.ocf01 ) );
+         memcpy( &db_recs.ocf01, ( pOCF01 )p_data, sizeof( OCF01 ) );
+         result_code = db_update_ocf01( &db_recs.ocf01, ErrorMsg );
+         break;
+
+      
+      case MCF01_DATA:
+
+         PRINT( "request to update mcf01 record\n" );
+
+         /* retrieve the data into a bin01 structure and update the database */
+         memset( &db_recs.mcf01, 0, sizeof( db_recs.mcf01 ) );
+         memcpy( &db_recs.mcf01, ( pMCF01 )p_data, sizeof( MCF01 ) );
+         result_code = db_update_mcf01( &db_recs.mcf01, ErrorMsg );
+         break;
+
+      
+
+      case BCH01_DATA:
+
+         PRINT( "request to update bch01 record\n" );
+         memset( &db_recs.bch01, 0, sizeof( db_recs.bch01 ) );
+         memcpy( &db_recs.bch01, ( pBCH01 )p_data, sizeof( BCH01 ) );
+         if(MsgSubtype2 == ST2_DB_UPDATE_BCH01_GOOD_SETTLE)
+            result_code = db_update_bch01_good_settle( &db_recs.bch01, ErrorMsg );
+         else if(MsgSubtype2 == ST2_DB_UPDATE_BCH01_DELETE_BCH10)
+            result_code = db_update_bch01_delete_bch10( &db_recs.bch01, ErrorMsg );
+         else 
+            if(MsgSubtype2 == ST2_DB_UPDATE_MOVE_DELETE )
+               result_code = db_update_bch01_move_bch10tobch11_delete_bch10( &db_recs.bch01, ErrorMsg);
+         else
+            if(MsgSubtype2 == ST2_DB_UPDATE_BCH01_TO_CLOSE_BATCH)
+               result_code = db_update_bch01_to_close_batch( &db_recs.bch01, ErrorMsg  );
+         else
+            if(MsgSubtype2 == ST2_DB_UPDATE_BCH01_INSERT_BCH10)
+            {
+               p_data = p_data + sizeof(BCH01);
+               memset( &bch10, 0, sizeof( BCH10 ) );
+               memcpy( &bch10, ( pBCH10 )p_data, sizeof( BCH10 ) );
+               printf("bch10_device_id: %s bch01_device_id: %s\n", bch10.primary_key.device_id,db_recs.bch01.primary_key.device_id);
+               printf("bch10_open_date: %s bch01_open_date: %s\n", bch10.open_date,db_recs.bch01.open_date);
+               printf("bch10_open_time: %s bch01_open_time: %s\n", bch10.open_time,db_recs.bch01.open_time);
+               result_code = db_update_bch01_insert_bch10( &db_recs.bch01, &bch10,  ErrorMsg  );
+            }
+         else
+            result_code = db_update_bch01( &db_recs.bch01, ErrorMsg );
+         break;
+
+     
+
+      case DCF01_DATA:
+
+         PRINT( "request to update dcf01 record\n" );
+
+         /* retrieve the data into a ucf01 structure and update the database */
+         memset( &db_recs.dcf01, 0, sizeof( db_recs.dcf01 ) );
+         memcpy( &db_recs.dcf01, ( pDCF01 )p_data, sizeof( DCF01 ) );
+         result_code = db_update_dcf01( &db_recs.dcf01, ErrorMsg );
+         break;
+
+      case ALL_DATA:
+         PRINT( "request to update ALL_DATA record\n");
+         result_code = process_alldata_msg(p_msg_in );                 
+         break;
+
+/*	  case TLF01_STIP_DATA:
+		  PRINT( "request to update tlf01 record\n" );
+
+         /* retrieve the data into a ocf20 structure and update the database */
+ /*        memset( &db_recs.tlf01_stip, 0, sizeof( db_recs.tlf01_stip ) );
+         memcpy( &db_recs.tlf01_stip, ( pTLF01_STIP )p_data, sizeof( TLF01_STIP ) );
+		 result_code = db_update_tlf01_stip( &db_recs.tlf01_stip,ErrorMsg );
+		  break;*/
+
+      default:
+
+         /* unknown app_data_type received. Log Event and return error message to client */
+         result_code = PTEMSG_INVALID_DATATYPE;
+         sprintf (ErrorMsg, "Unknown app_data_type: %s for Update request from %s", app_data_type,reply_que);
+         break;
+   }
+
+
+   if (result_code == PTEMSG_OK)
+   {
+      
+      /*if((app_data_type == CAF01_DATA) && (Caf01InMem == true))
+      {
+         OffSet = FindMemRecord(p_data, sizeof(db_recs.caf01.primary_key), sizeof(CAF01), "Caf01Table");
+         if(OffSet >= 0L)
+            OffSet = UpdateMemRecord("Caf01Table", OffSet, sizeof(CAF01), p_data);
+      }*/     
+      
+      updates_to_db_made = true;
+      if(app_data_type == NMF01_DATA) 
+            data_length = sizeof(AUTH_TX) + sizeof(NMF01);
+
+       p_msg_out = ptemsg_build_msg (MT_DB_REPLY,
+                                    ptemsg_get_msg_subtype1 (p_msg_in),
+                                    ptemsg_get_msg_subtype2 (p_msg_in),
+                                    reply_que,
+                                    application_que_name,
+                                    (pBYTE)AtpBuffer,
+                                    data_length,
+                                    app_data_type);
+  
+   
+      if (p_msg_out == NULL_PTR)
+      {
+         result_code = PTEMSG_INSUFFICIENT_MEMORY;
+         sprintf (ErrorMsg, "Insufficient Memory to build Update response to %s", reply_que);
+      }
+   }
+
+   return (p_msg_out);
+}
+
+/*************************************************************************************/
+/*************************************************************************************/
+pPTE_MSG process_negative_file( pPTE_MSG p_msg_in ) 
+{
+   pBYTE          p_data = NULL_PTR;
+   pPTE_MSG_DATA  p_msg_data = NULL_PTR;
+   pBYTE          p_current = NULL_PTR;
+   CHAR           temp[150];
+   pPTE_MSG       p_msg_out = NULL_PTR;
+  
+
+   p_msg_out     = NULL_PTR;
+  
+   p_msg_data    = ptemsg_get_pte_msg_data( p_msg_in );
+   p_data        = ptemsg_get_pte_msg_data_data( p_msg_data );
+   memcpy(AtpBuffer, p_data, sizeof(AUTH_TX));
+   p_current     = AtpBuffer + sizeof(AUTH_TX);
+   app_data_type = ptemsg_get_pte_msg_data_app_data_type( p_msg_data );
+   p_data = p_data + sizeof(AUTH_TX);
+   printf("IN Process_negative_file. \n");
+
+   
+   if(ptemsg_get_msg_subtype1 (p_msg_in) ==  ST1_PROCESS_START)
+   {
+      PRINT( "Delete NMF01 = D and modify other recs. to have Action_code = P \n" );
+
+     if( (result_code = db_update_delete_nmf01_action_code((pNMF01) p_data,ErrorMsg ) ) == PTEMSG_OK )
+     {
+         memcpy(p_current, (pBYTE )p_data, sizeof( NMF01 ));
+         p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                    ptemsg_get_msg_subtype1 (p_msg_in),
+                                    ptemsg_get_msg_subtype2 (p_msg_in),
+                                    reply_que,
+                                    application_que_name,
+                                    (pBYTE)AtpBuffer,
+                                    sizeof(AUTH_TX) + sizeof(NMF01),
+                                    NMF01_DATA);
+
+         sprintf(temp, "NMF01 seq_nbr : %s\n", ((pNMF01)p_data)->primary_key.seq_nbr);
+         PRINT(temp);
+         if (p_msg_out == NULL_PTR)
+         {
+            result_code = PTEMSG_INSUFFICIENT_MEMORY;
+            sprintf (ErrorMsg, "Insufficient Memory to build Delete response to %s", reply_que);
+         }
+     }
+   }
+   else  if(ptemsg_get_msg_subtype1 (p_msg_in) ==  ST1_PROCESS_COMPLETE)
+   {
+      PRINT("Modify Action_code to R \n");
+      result_code = db_update_nmf01_action_code(ErrorMsg );
+   }
+      
+   
+   return(p_msg_out);
+}
+/*************************************************************************************/
+/* Function    :  process_db_cleanup
+   Parameters  :  pointer to a message of type pPTEMSG
+   Return      :  None  
+   Description :  Depending on the data type of the message( tlf01,ngf01 etc...), delete 
+                  all the records that are older than DATE (sent as p_data)in the
+                  corresponding table 
+   Authour     :  Nov 17th'98, Supriya.
+*/
+/*************************************************************************************/
+/*************************************************************************************/
+void process_db_cleanup( pPTE_MSG p_msg_in ) 
+{
+   pBYTE          p_data;
+   pPTE_MSG_DATA  p_msg_data;
+   pBYTE          p_current;
+  
+   p_msg_data    = ptemsg_get_pte_msg_data( p_msg_in );
+   p_data        = ptemsg_get_pte_msg_data_data( p_msg_data );
+   memcpy(AtpBuffer, p_data, sizeof(AUTH_TX));
+   p_current     = AtpBuffer + sizeof(AUTH_TX);
+   app_data_type = ptemsg_get_pte_msg_data_app_data_type( p_msg_data );
+   p_data = p_data + sizeof(AUTH_TX);
+
+   switch( app_data_type )
+   {
+      case TLF01_DATA:
+
+         PRINT( "request to delete tlf01 records less than date\n" );
+
+         result_code = db_delete_tlf01_by_date( ( pCHAR )p_data, ErrorMsg );
+         break;
+      case NFI01_DATA:
+
+         PRINT( "request to delete nfi01 records less than date\n" );
+
+         result_code = db_delete_nfi01_by_date( ( pCHAR )p_data, ErrorMsg );
+         break;
+
+      
+      case DRF01_DATA:
+
+         PRINT( "request to delete drf01 records less than date\n" );
+
+         result_code = db_delete_drf01_by_date( ( pCHAR )p_data, ErrorMsg );
+         break;
+
+      
+      case BCH01_DATA:
+         PRINT(" request to delete bch01, bch10, bch11 records by date \n");
+         
+         result_code =  db_delete_bchrecs_for_cleanup( (pCHAR )p_data, ErrorMsg );
+
+         break;
+      
+      default:
+         result_code = PTEMSG_INVALID_DATATYPE;
+         sprintf (ErrorMsg, "Unknown app_data_type for CleanUp request from %s", reply_que);
+         break;
+   }
+
+}
+/*************************************************************************************/
+/*************************************************************************************/
+pPTE_MSG process_delete_msg( pPTE_MSG p_msg_in ) 
+{
+   pBYTE          p_data;
+   pPTE_MSG_DATA  p_msg_data;
+   pPTE_MSG       p_msg_out;
+   pBYTE          p_current;
+  
+   p_msg_out     = NULL_PTR;
+   p_msg_data    = ptemsg_get_pte_msg_data( p_msg_in );
+   p_data        = ptemsg_get_pte_msg_data_data( p_msg_data );
+   memcpy(AtpBuffer, p_data, sizeof(AUTH_TX) );
+   p_current     = AtpBuffer + sizeof(AUTH_TX);
+   app_data_type = ptemsg_get_pte_msg_data_app_data_type( p_msg_data );
+   p_data = p_data + sizeof(AUTH_TX);
+
+   switch( app_data_type )
+   {
+      case TLF01_DATA:
+
+         PRINT( "request to delete tlf01 record\n" );
+		 if( ptemsg_get_msg_subtype2 (p_msg_in) == ST2_DB_SELECT_TLF01_STANDIN )
+		 {
+			 result_code = db_delete_tlf01_by_standin( ( pTLF01 )p_data, ErrorMsg);
+		 }
+         /* retrieve the clf01 name and delete record from the database */
+		 else
+		 {
+			result_code = db_delete_tlf01( ( pTLF01 )p_data, ErrorMsg );
+
+		 }
+         break;
+
+      
+       case NFI01_DATA:
+
+         PRINT( "request to delete nfi01 record\n" );
+
+         /* retrieve the nfi01 filename and delete record from the database */
+         result_code = db_delete_nfi01( ( pNFI01 )p_data, ErrorMsg );
+         break;
+
+      
+      case NBF01_DATA:
+
+         PRINT( "request to delete nbf01 record\n" );
+
+         /* retrieve the nbf01 name and delete record from the database */
+         result_code = db_delete_nbf01( ( pNBF01 )p_data, ErrorMsg );
+         break;
+
+      case NGF01_DATA:
+
+         PRINT( "request to delete ngf01 record\n" );
+
+         /* retrieve the ngf01 name and delete record from the database */
+         result_code = db_delete_ngf01( ( pNGF01 )p_data, ErrorMsg );
+         break;
+
+      case NTF01_DATA:
+
+        if(ptemsg_get_msg_subtype2 (p_msg_in) == ST2_DB_DELETE_ALL_NTF01_RECORDS)
+        {
+            PRINT( "request to delete all records in ntf01 table\n" );
+
+            result_code = db_delete_all_ntf01(  ErrorMsg );
+        }
+         break;
+
+      
+      case MCF20_DATA:
+
+         PRINT( "request to delete mcf20 record\n" );
+
+         /* retrieve the mcf20 name and delete record from the database */
+         result_code = db_delete_mcf20( ( pMCF20 )p_data, ErrorMsg );
+         break;
+
+      case OCF20_DATA:
+
+         PRINT( "request to delete ocf20 record\n" );
+
+         /* retrieve the ocf20 name and delete record from the database */
+         result_code = db_delete_ocf20( ( pOCF20 )p_data, ErrorMsg );
+         break;
+
+      
+
+      case OCF01_DATA:
+
+         PRINT( "request to delete ocf01 record\n" );
+
+         /* retrieve the ocf01 name and delete record from the database */
+         result_code = db_delete_ocf01( ( pOCF01 )p_data, ErrorMsg );
+         break;
+
+      
+      case MCF01_DATA:
+
+         PRINT( "request to delete mcf01 record\n" );
+
+         /* retrieve the mcf01 name and delete record from the database */
+         result_code = db_delete_mcf01( ( pMCF01 )p_data, ErrorMsg );
+         break;
+
+      
+      case BCH10_DATA:
+
+         PRINT( "request to delete bch10 record\n" );
+
+         /* retrieve the ucf01 name and delete record from the database */
+         result_code = db_delete_bch10( ( pBCH10 )p_data, ErrorMsg );
+         break;
+
+      
+      case DCF01_DATA:
+
+         PRINT( "request to delete dcf01 record\n" );
+
+         /* retrieve the ucf01 name and delete record from the database */
+         result_code = db_delete_dcf01( ( pDCF01 )p_data, ErrorMsg );
+         break;
+
+      
+      case NFI02_DATA:
+
+         PRINT( "request to delete nfi02 record\n" );
+
+         /* retrieve the ucf01 name and delete record from the database */
+         result_code = db_delete_nfi02( ( pNFI02 )p_data, ErrorMsg );
+         break;
+
+      default:
+
+         /* unknown app_data_type received. Log Event and return error message to client */
+         result_code = PTEMSG_INVALID_DATATYPE;
+         sprintf (ErrorMsg, "Unknown app_data_type for Delete request from %s", reply_que);
+         break;
+
+   }
+
+
+   if (result_code == PTEMSG_OK)
+   {
+      /* shared mem deletes moved to function PinnacleMsgHdlr */      
+      updates_to_db_made = true;
+
+      p_msg_out = ptemsg_build_msg (MT_DB_REPLY,
+                                    ptemsg_get_msg_subtype1 (p_msg_in),
+                                    ptemsg_get_msg_subtype2 (p_msg_in),
+                                    reply_que,
+                                    application_que_name,
+                                    (pBYTE)AtpBuffer,
+                                    sizeof(AUTH_TX),
+                                    app_data_type);
+   
+      if (p_msg_out == NULL_PTR)
+      {
+         result_code = PTEMSG_INSUFFICIENT_MEMORY;
+         sprintf (ErrorMsg, "Insufficient Memory to build Delete response to %s", reply_que);
+      }
+   }
+
+   return (p_msg_out);
+}
+
+/*************************************************************************************/
+/*************************************************************************************/
+pPTE_MSG process_select_msg( pPTE_MSG p_msg_in )
+{
+   pBYTE          p_data;
+   pPTE_MSG_DATA  p_msg_data;
+   pPTE_MSG       p_msg_out;
+   CHAR           temp[150];
+   pBYTE          p_current;
+   pGENERIC_KEYS  p_GenericKeys;
+   pAUTH_TX       auth_tx;
+   BYTE           subtype2;
+   BYTE           tranid[21];
+   EMV_RAW        emvraw;
+
+
+   p_msg_out     = NULL_PTR;
+   p_msg_data    = ptemsg_get_pte_msg_data( p_msg_in );
+   p_data        = ptemsg_get_pte_msg_data_data( p_msg_data );
+   memcpy(AtpBuffer, p_data, sizeof(AUTH_TX));
+   p_current     = AtpBuffer + sizeof(AUTH_TX);
+   app_data_type = ptemsg_get_pte_msg_data_app_data_type( p_msg_data );
+   
+   auth_tx = (pAUTH_TX)p_data;
+   p_data = p_data + sizeof(AUTH_TX);
+   switch( app_data_type )
+   {
+	  case BCH20_DATA:
+			if(ptemsg_get_msg_subtype2(p_msg_in) == ST2_DB_SELECT_BCH20_BY_AUTH_NUMBER_CARD_NBR)
+			{
+			   if( ( result_code = db_select_bch20_by_auth_nbr_card_nbr( ( pBCH20)p_data, &db_recs.bch20, ErrorMsg ) ) == PTEMSG_OK )
+			   {
+				   memcpy(p_current, (BYTE *)&db_recs.bch20, sizeof( db_recs.bch20 ));
+				   p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_recs.bch20),
+                                          BCH20_DATA);
+
+                   sprintf(temp, "select BCH20 by auth number & card nbr: %s\n", db_recs.bch20.auth_number);
+                   PRINT(temp);
+			   }
+			 }
+
+		   else if (ptemsg_get_msg_subtype2(p_msg_in) == ST2_DB_SELECT_BCH20_BY_AUTH_NUMBER)
+		   {
+			   if( ( result_code = db_select_bch20_by_auth_nbr( ( pBCH20)p_data, &db_recs.bch20, ErrorMsg ) ) == PTEMSG_OK )
+			   {
+				   memcpy(p_current, (BYTE *)&db_recs.bch20, sizeof( db_recs.bch20 ));
+				   p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_recs.bch20),
+                                          BCH20_DATA);
+
+                   sprintf(temp, "select BCH20 by auth number : %s\n", db_recs.bch20.auth_number);
+                   PRINT(temp);
+			   }
+		   }
+		   else if (ptemsg_get_msg_subtype2(p_msg_in) == ST2_DB_SELECT_BCH20_BY_STAN)
+		   {
+			   if( ( result_code = db_select_bch20_by_stan( ( pBCH20)p_data, &db_recs.bch20, ErrorMsg ) ) == PTEMSG_OK )
+			   {
+				   memcpy(p_current, (BYTE *)&db_recs.bch20, sizeof( db_recs.bch20 ));
+				   p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_recs.bch20),
+                                          BCH20_DATA);
+
+                   sprintf(temp, "select BCH20 by stan : %s\n", db_recs.bch20.auth_number);
+                   PRINT(temp);
+			   }
+		   }
+		   else if (ptemsg_get_msg_subtype2(p_msg_in) == ST2_DB_SELECT_BCH20_BY_RRN)
+		   {
+			   if( ( result_code = db_select_bch20_by_rrn( ( pBCH20)p_data, &db_recs.bch20, ErrorMsg ) ) == PTEMSG_OK )
+			   {
+				   memcpy(p_current, (BYTE *)&db_recs.bch20, sizeof( db_recs.bch20 ));
+				   p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_recs.bch20),
+                                          BCH20_DATA);
+
+                   sprintf(temp, "select BCH20 by rrn : %s\n", db_recs.bch20.auth_number);
+                   PRINT(temp);
+			   }
+		   }
+         break;
+
+      case TLF01_DATA:
+
+         subtype2 = ptemsg_get_msg_subtype2( p_msg_in );
+         switch( subtype2 )
+         {
+            case ST2_NONE:
+               result_code = db_select_tlf01( (pCHAR)p_data, &db_recs.tlf01, ErrorMsg );
+               break;
+
+            case ST2_DB_SELECT_TLF01_BY_RRN:
+               result_code = db_select_tlf01_by_rrn( (pTLF01)p_data, &db_recs.tlf01, ErrorMsg );
+               break;
+
+            case ST2_DB_SELECT_TLF01_BY_AUTH_NBR:
+               result_code = db_select_tlf01_by_auth_nbr( (pTLF01)p_data, &db_recs.tlf01, ErrorMsg );
+               break;
+
+            case ST2_DB_SELECT_TLF01_BY_STAN:
+               result_code = db_select_tlf01_by_stan( (pTLF01)p_data, &db_recs.tlf01, ErrorMsg );
+               break;
+
+            case ST2_DB_SELECT_TLF01_BY_TERMINAL_ID:
+               result_code = db_select_tlf01_by_terminal_id( (pTLF01)p_data, &db_recs.tlf01, ErrorMsg );
+               break;
+
+            case ST2_DB_SELECT_TLF01_BY_ORIGINAL_TRAN:
+               result_code = db_select_tlf01_by_original_tran( (pTLF01)p_data, &db_recs.tlf01, ErrorMsg );
+               break;
+
+            case ST2_DB_SELECT_TLF01_BY_REVERSED_TRAN:
+               result_code = db_select_tlf01_by_reversed_tran( (pTLF01)p_data, &db_recs.tlf01, ErrorMsg );
+               break;
+
+            case ST2_DB_SELECT_TLF01_FOR_SALES_COMPLETION:
+               result_code = db_select_tlf01_for_sales_completion( (pTLF01)p_data, &db_recs.tlf01, ErrorMsg );
+               break;
+
+            case ST2_DB_SELECT_TLF01_FOR_TERM_LENGTH:
+               result_code = db_select_tlf01_by_auth_term_nbr( (pTLF01)p_data, &db_recs.tlf01, ErrorMsg );
+               break;
+
+            case ST2_DB_SELECT_TLF01_FOR_VISA_REJECTS:
+               result_code = db_select_tlf01_for_visa_rejects( (pTLF01)p_data, &db_recs.tlf01, ErrorMsg );
+               break;
+
+            case ST2_DB_SELECT_TRAN_BY_CARD_NUM:
+               result_code = db_select_tlf01_for_void_reload( (pTLF01)p_data, &db_recs.tlf01, ErrorMsg );
+               break;
+
+            case ST2_DB_SELECT_LAST_AUTH_ID:
+               result_code = db_select_tlf01_last_auth_nbr( (pTLF01)p_data, &db_recs.tlf01, ErrorMsg );
+               break;
+         }
+
+         if( result_code == PTEMSG_OK )
+         {
+            memcpy(p_current, (BYTE *)&db_recs.tlf01, sizeof( db_recs.tlf01 ));
+            p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_recs.tlf01),
+                                          TLF01_DATA);
+         }
+
+         break;
+
+         case TLF01_SAF_DATA:
+
+         PRINT( "request to retrieve TLF01_SAF record\n" );
+
+         PRINT(p_data);
+         PRINT("\n");
+
+         if(ptemsg_get_msg_subtype2 (p_msg_in) == 0)
+         {
+            if( ( result_code = db_select_tlf01_saf( ( pTLF01)p_data, &db_recs.tlf01, ErrorMsg ) ) == PTEMSG_OK )
+            {
+               memcpy(p_current, (BYTE *)&db_recs.tlf01, sizeof( db_recs.tlf01));
+               p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_recs.tlf01),
+                                          TLF01_SAF_DATA);
+            }
+         }
+         break;
+
+
+      case NFI02_DATA:
+
+         if(ptemsg_get_msg_subtype2 (p_msg_in) == 0)
+         {
+            if( ( result_code = db_select_nfi02( ( pCHAR)p_data, &db_recs.nfi02, ErrorMsg ) ) == PTEMSG_OK )
+            {
+               memcpy(p_current, (BYTE *)&db_recs.nfi02, sizeof( db_recs.nfi02 ));
+               p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_recs.nfi02),
+                                          NFI02_DATA);
+            }
+         }
+         break;
+
+
+      case BCH10_DATA:
+
+         subtype2 = ptemsg_get_msg_subtype2(p_msg_in);
+         switch( subtype2 )
+         {
+            case ST2_DB_SELECT_BCH10_BY_RRN:
+
+                     result_code = db_select_bch10_by_rrn((pBCH10)p_data, &db_recs.bch10, ErrorMsg);
+
+                     if ( result_code == PTEMSG_OK )
+                     {
+                        /* Fetch any EMV data associated with this txn. */
+                        memset( &emvraw, 0x00, sizeof(EMV_RAW) );
+                        memset( tranid, 0x00, sizeof(tranid) );
+                        memcpy( tranid, db_recs.bch10.transaction_id, sizeof(tranid));
+                        result_code = db_select_emvraw(tranid,&emvraw,ErrorMsg);
+                        if ( result_code == PTEMSG_OK )
+                        {
+                           memcpy( auth_tx->EMV_details.emv_block,
+                                   emvraw.RAW_DATA,
+                                   atoi(emvraw.DATA_LENGTH) );
+
+                           memcpy( AtpBuffer, auth_tx, sizeof(AUTH_TX) );
+                        }
+                        else
+                        {
+                           /* Orig txn has been found, so even if
+                            * EMV data is not found, still return success.
+                            */
+                           result_code = PTEMSG_OK;
+                        }
+                     }
+                     break;
+
+            case ST2_DB_SELECT_TLF01_BY_AUTH_NBR:
+
+                     result_code = db_select_bch10_by_auth_nbr((pBCH10)p_data, &db_recs.bch10, ErrorMsg);
+                     break;
+
+            case ST2_DB_SELECT_TLF01_BY_ORIGINAL_TRAN:
+
+                     result_code = db_select_bch10_by_original_transaction((pBCH10)p_data, &db_recs.bch10, ErrorMsg);
+                     break;
+
+            case ST2_NONE:
+
+                     result_code = db_select_bch10((pBCH10)p_data, &db_recs.bch10, ErrorMsg);
+                     break;
+
+            case ST2_DB_SELECT_ACTIVE_BCH10:
+
+                     result_code = db_select_active_bch10((pBCH10)p_data, &db_recs.bch10, ErrorMsg);
+                     break;
+
+            case ST2_DB_SELECT_BCH10_BY_STAN:
+
+                     result_code = db_select_bch10_by_stan((pBCH10)p_data, &db_recs.bch10, ErrorMsg);
+
+                     if ( result_code == PTEMSG_OK )
+                     {
+                        /* Fetch any EMV data associated with this txn. */
+                        memset( &emvraw, 0x00, sizeof(EMV_RAW) );
+                        memset( tranid, 0x00, sizeof(tranid) );
+                        memcpy( tranid, db_recs.bch10.transaction_id, sizeof(tranid));
+                        result_code = db_select_emvraw(tranid,&emvraw,ErrorMsg);
+                        if ( result_code == PTEMSG_OK )
+                        {
+                           memcpy( auth_tx->EMV_details.emv_block,
+                                   emvraw.RAW_DATA,
+                                   atoi(emvraw.DATA_LENGTH) );
+
+                           memcpy( AtpBuffer, auth_tx, sizeof(AUTH_TX) );
+                        }
+                        else
+                        {
+                           /* Orig txn has been found, so even if
+                            * EMV data is not found, still return success.
+                            */
+                           result_code = PTEMSG_OK;
+                        }
+                     }
+                     break;
+
+            case ST2_DB_SELECT_BCH10_BY_BATCH_TID_STAN:
+
+                     p_GenericKeys = ( pGENERIC_KEYS )p_data;
+                     result_code = db_select_bch10_detail_by_batch_tid_stan( p_GenericKeys->key1,p_GenericKeys->key2,p_GenericKeys->key3, &db_recs.bch01, ErrorMsg);
+                     break;
+
+            case ST2_DB_SELECT_BCH10_BY_BATCH_NBR:
+
+                     result_code = db_select_bch10_by_batch_nbr((pCHAR)p_data, &db_recs.bch10, ErrorMsg);
+                     break;
+
+            case ST2_DB_SELECT_BCH10_DUPLICATE_TXN:
+
+                     result_code = db_select_bch10_duplicate_txn((pBCH10)p_data, &db_recs.bch10, ErrorMsg);
+                     break;
+         }
+
+         if ( result_code == PTEMSG_OK )
+         {
+            memcpy(p_current, (BYTE *)&db_recs.bch10, sizeof( db_recs.bch10 ));
+            p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          subtype2,
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_recs.bch10),
+                                          BCH10_DATA);
+         }
+         break;
+
+      case BCH11_DATA:
+         PRINT( "request to retrieve bch11 record\n" );
+
+         PRINT(p_data);
+         PRINT("\n");
+         if(ptemsg_get_msg_subtype2 (p_msg_in) ==  ST2_DB_SELECT_BCH11_BY_BATCH_NBR)
+         {
+            if( ( result_code = db_select_bch11_by_batch_nbr( ( pCHAR )p_data, &db_recs.bch11, ErrorMsg ) ) == PTEMSG_OK )
+            {
+               memcpy(p_current, (BYTE *)&db_recs.bch11, sizeof( db_recs.bch11 ));
+               p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                             ptemsg_get_msg_subtype1 (p_msg_in),
+                                             ptemsg_get_msg_subtype2 (p_msg_in),
+                                             reply_que,
+                                             application_que_name,
+                                             (pBYTE)AtpBuffer,
+                                             sizeof(AUTH_TX) + sizeof(db_recs.bch11),
+                                             BCH11_DATA);
+
+               sprintf(temp,"BCH11 device_id : %s merchant_id : %s sys_trace_audit_num: %s batch_nbr : %s\n", db_recs.bch11.primary_key.device_id,db_recs.bch11.merchant_id,db_recs.bch11.sys_trace_audit_num,db_recs.bch11.primary_key.batch_nbr);
+               PRINT(temp);
+            }
+         }
+         break;
+      
+         case NBF01_DATA:
+
+         PRINT( "request to retrieve nbf01 record\n" );
+
+         PRINT(p_data);
+         PRINT("\n");
+         if( ( result_code = db_select_nbf01( ( pCHAR)p_data, &db_recs.nbf01, ErrorMsg ) ) == PTEMSG_OK )
+         {
+            memcpy(p_current, (BYTE *)&db_recs.nbf01, sizeof( db_recs.nbf01 ));
+            p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_recs.nbf01),
+                                          NBF01_DATA);
+
+            sprintf(temp, "NBF01 low : %s High : %s\n", db_recs.nbf01.primary_key.low, db_recs.nbf01.primary_key.high);
+            PRINT(temp);
+         }
+         break;
+         case NGF01_DATA:
+
+         PRINT( "request to retrieve ngf01 record\n" );
+
+         PRINT(p_data);
+         PRINT("\n");
+         if( ( result_code = db_select_ngf01( ( pCHAR)p_data, &db_recs.ngf01, ErrorMsg ) ) == PTEMSG_OK )
+         {
+            memcpy(p_current, (BYTE *)&db_recs.ngf01, sizeof( db_recs.ngf01 ));
+            p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_recs.ngf01),
+                                          NGF01_DATA);
+
+            sprintf(temp, "NGF01 negative_group_id : %s\n", db_recs.ngf01.primary_key.negative_group_id);
+            PRINT(temp);
+         }
+         break;
+
+
+      
+      case MCF20_DATA:
+
+         PRINT( "request to retrieve mcf20 record\n" );
+
+         PRINT(p_data);
+         PRINT("\n");
+         if( ( result_code = db_select_mcf20( ( pCHAR)p_data, &db_recs.mcf20, ErrorMsg ) ) == PTEMSG_OK )
+         {
+            memcpy(p_current, (BYTE *)&db_recs.mcf20, sizeof( db_recs.mcf20 ));
+            p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_recs.mcf20),
+                                          MCF20_DATA);
+
+            sprintf(temp, "MCF20 organization_id : %s merchant_id : %s yyyymmdd : %s\n", db_recs.mcf20.primary_key.organization_id, db_recs.mcf20.primary_key.merchant_id, db_recs.mcf20.primary_key.yyyymmdd);
+            PRINT(temp);
+         }
+         break;
+
+      case OCF20_DATA:
+
+         PRINT( "request to retrieve ocf20 record\n" );
+
+         PRINT(p_data);
+         PRINT("\n");
+         if( ( result_code = db_select_ocf20( ( pCHAR)p_data, &db_recs.ocf20, ErrorMsg ) ) == PTEMSG_OK )
+         {
+            memcpy(p_current, (BYTE *)&db_recs.ocf20, sizeof( db_recs.ocf20 ));
+            p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_recs.ocf20),
+                                          OCF20_DATA);
+
+            sprintf(temp, "OCF20 organization_id : %s yyyymmdd : %s\n", db_recs.ocf20.primary_key.organization_id, db_recs.ocf20.primary_key.yyyymmdd);
+            PRINT(temp);
+         }
+         break;
+
+      
+      case OCF01_DATA:
+
+         PRINT( "request to retrieve ocf01 record\n" );
+
+         PRINT(p_data);
+         PRINT("\n");
+         if( ( result_code = db_select_ocf01( ( pCHAR)p_data, &db_recs.ocf01, ErrorMsg ) ) == PTEMSG_OK )
+         {
+            memcpy(p_current, (BYTE *)&db_recs.ocf01, sizeof( db_recs.ocf01 ));
+            p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_recs.ocf01),
+                                          OCF01_DATA);
+
+            sprintf(temp, "OCF01 organization_id : %s\n", db_recs.ocf01.primary_key.organization_id);
+            PRINT(temp);
+         }
+         break;
+
+      
+      case MCF01_DATA:
+
+         PRINT( "request to retrieve mcf01 record\n" );
+
+         PRINT(p_data);
+         PRINT("\n");
+         if( ( result_code = db_select_mcf01( ( pCHAR)p_data, &db_recs.mcf01, ErrorMsg ) ) == PTEMSG_OK )
+         {
+            memcpy(p_current, (BYTE *)&db_recs.mcf01, sizeof( db_recs.mcf01 ));
+            p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_recs.mcf01),
+                                          MCF01_DATA);
+
+            sprintf(temp, "MCF01 organization_id : %s merchant_id : %s\n", db_recs.mcf01.primary_key.organization_id, db_recs.mcf01.primary_key.merchant_id);
+            PRINT(temp);
+         }
+         break;
+
+     
+     case BCH01_DATA:
+
+         PRINT( "request to retrieve bch01 record\n" );
+
+         PRINT(p_data);
+         PRINT("\n");
+         if((ptemsg_get_msg_subtype2 (p_msg_in) == 0) ||
+			(ptemsg_get_msg_subtype2 (p_msg_in) == ST2_DB_SELECT_BCH01_BY_BATCH_NBR))
+         {
+            //if( ( result_code = db_select_bch01( ( pCHAR )p_data, &db_recs.bch01, ErrorMsg ) ) == PTEMSG_OK )
+			if( ( result_code = db_select_bch01_duplicate_batch_nbr( ( pCHAR )p_data, &db_recs.bch01, ErrorMsg ) ) == PTEMSG_OK )
+            {
+               memcpy(p_current, (BYTE *)&db_recs.bch01, sizeof( db_recs.bch01 ));
+               p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                             ptemsg_get_msg_subtype1 (p_msg_in),
+                                             ptemsg_get_msg_subtype2 (p_msg_in),
+                                             reply_que,
+                                             application_que_name,
+                                             (pBYTE)AtpBuffer,
+                                             sizeof(AUTH_TX) + sizeof(db_recs.bch01),
+                                             BCH01_DATA);
+
+               sprintf(temp, "BCH01 device_id : %s  batch_nbr : %s\n", db_recs.bch01.primary_key.device_id, db_recs.bch01.primary_key.batch_nbr);
+               PRINT(temp);
+            }
+         }
+         else if(ptemsg_get_msg_subtype2 (p_msg_in) ==  ST2_DB_SELECT_BCH01_BY_STATUS)
+         {
+            if( ( result_code = db_select_bch01_by_status( ( pBCH01 )p_data, &db_recs.bch01, ErrorMsg ) ) == PTEMSG_OK )
+            {
+               memcpy(p_current, (BYTE *)&db_recs.bch01, sizeof( db_recs.bch01 ));
+               p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                             ptemsg_get_msg_subtype1 (p_msg_in),
+                                             ptemsg_get_msg_subtype2 (p_msg_in),
+                                             reply_que,
+                                             application_que_name,
+                                             (pBYTE)AtpBuffer,
+                                             sizeof(AUTH_TX) + sizeof(db_recs.bch01),
+                                             BCH01_DATA);
+
+               sprintf(temp, "BCH01 device_id : %s  batch_nbr : %s\n", db_recs.bch01.primary_key.device_id, db_recs.bch01.primary_key.batch_nbr);
+               PRINT(temp);
+            }
+         }
+         else if(ptemsg_get_msg_subtype2 (p_msg_in) ==  ST2_DB_SELECT_BCH01_BY_DATE)
+         {
+            if( ( result_code = db_select_bch01_by_date( ( pBCH01 )p_data, &db_recs.bch01,ErrorMsg ) ) == PTEMSG_OK )
+            {
+               memcpy(p_current, (BYTE *)&db_recs.bch01, sizeof( db_recs.bch01 ));
+               p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                             ptemsg_get_msg_subtype1 (p_msg_in),
+                                             ptemsg_get_msg_subtype2 (p_msg_in),
+                                             reply_que,
+                                             application_que_name,
+                                             (pBYTE)AtpBuffer,
+                                             sizeof(AUTH_TX) + sizeof(db_recs.bch01),
+                                             BCH01_DATA);
+
+               sprintf(temp, "BCH01 device_id : %s  batch_nbr : %s open_date : %s open_time %s \n", db_recs.bch01.primary_key.device_id, db_recs.bch01.primary_key.batch_nbr, db_recs.bch01.open_date, db_recs.bch01.open_time);
+               PRINT(temp);
+            }
+         }
+         else if(ptemsg_get_msg_subtype2 (p_msg_in) ==  ST2_DB_RETURN_BCH01_DELETE_BCH10)
+         {
+            if( ( result_code = db_return_bch01_delete_bch10( ( pBCH01 )p_data, ErrorMsg ) ) == PTEMSG_OK )
+            {
+               memcpy(p_current, (BYTE *)p_data, sizeof( BCH01 ));
+               p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                             ptemsg_get_msg_subtype1 (p_msg_in),
+                                             ptemsg_get_msg_subtype2 (p_msg_in),
+                                             reply_que,
+                                             application_que_name,
+                                             (pBYTE)AtpBuffer,
+                                             sizeof(AUTH_TX) + sizeof(BCH01),
+                                             BCH01_DATA);
+
+               sprintf(temp, "BCH01 device_id : %s  batch_nbr : %s \n", ((pBCH10)p_data)->primary_key.device_id,((pBCH10)p_data)->primary_key.batch_nbr);
+               PRINT(temp);
+            }
+         }
+         else if(ptemsg_get_msg_subtype2 (p_msg_in) ==  ST2_DB_SELECT_BCH01_BY_STATUS_AND_TID)
+         {
+            if( ( result_code = db_select_bch01_by_status_and_tid( ( pBCH01 )p_data, &db_recs.bch01, ErrorMsg ) ) == PTEMSG_OK )
+            {
+               memcpy(p_current, (BYTE *)&db_recs.bch01, sizeof( db_recs.bch01 ));
+               p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                             ptemsg_get_msg_subtype1 (p_msg_in),
+                                             ptemsg_get_msg_subtype2 (p_msg_in),
+                                             reply_que,
+                                             application_que_name,
+                                             (pBYTE)AtpBuffer,
+                                             sizeof(AUTH_TX) + sizeof(db_recs.bch01),
+                                             BCH01_DATA);
+
+               sprintf(temp, "BCH01 device_id : %s  batch_nbr : %s\n", db_recs.bch01.primary_key.device_id, db_recs.bch01.primary_key.batch_nbr);
+               PRINT(temp);
+            }
+         }
+         else if(ptemsg_get_msg_subtype2 (p_msg_in) ==  ST2_DB_SELECT_OR_INSERT_BCH01_BY_STATUS)
+         {
+            result_code = db_select_or_insert_bch01_by_status( ( pBCH01 )p_data, &db_recs.bch01, ErrorMsg );
+            printf("result_code for sel_insert : %d", result_code);
+            if( result_code == PTEMSG_OK)
+            {
+               memcpy(p_current, (BYTE *)&db_recs.bch01, sizeof( db_recs.bch01 ));
+               p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                             ptemsg_get_msg_subtype1 (p_msg_in),
+                                             ptemsg_get_msg_subtype2 (p_msg_in),
+                                             reply_que,
+                                             application_que_name,
+                                             (pBYTE)AtpBuffer,
+                                             sizeof(AUTH_TX) + sizeof(db_recs.bch01),
+                                             BCH01_DATA);
+
+               sprintf(temp, "BCH01 device_id : %s  batch_nbr : %s\n", db_recs.bch01.primary_key.device_id, db_recs.bch01.primary_key.batch_nbr);
+               PRINT(temp);
+			   updates_to_db_made = true ; /* if the record had been inserted */
+            }
+            if(result_code == PTEMSG_NOT_FOUND)
+            {
+               PRINT( "request to insert bch01 record\n" );
+               memset( &db_recs.bch01, 0, sizeof( db_recs.bch01 ) );
+               strcpy(db_recs.bch01.primary_key.device_id ,auth_tx->TLF01_details.terminal_id);                                
+					strcpy(db_recs.bch01.primary_key.batch_nbr,"ACTIVE");
+              	strcpy(db_recs.bch01.batch_status,"A");
+
+               strcpy(db_recs.bch01.open_date ,auth_tx->TLF01_details.date_yyyymmdd);                                
+              	strcpy(db_recs.bch01.merchant_id,auth_tx->TLF01_details.merchant_id);
+              	if( strcmp(auth_tx->TLF01_details.organization_id, "GES") == 0 )
+                  strcpy(db_recs.bch01.visa_merchant_id,"GES");
+               else
+              	   strcpy(db_recs.bch01.visa_merchant_id,auth_tx->TLF01_details.visa_merchant_id);
+               strcpy(db_recs.bch01.open_time ,auth_tx->TLF01_details.time_hhmmss);                                
+               result_code = db_insert_bch01( &db_recs.bch01, ErrorMsg );
+               printf("\nreturn value after BCH01 insert: %d", result_code);
+               if ( result_code == PTEMSG_OK )
+                  p_msg_out = ptemsg_build_msg (MT_DB_REPLY,
+                                    ptemsg_get_msg_subtype1 (p_msg_in),
+                                    ptemsg_get_msg_subtype2 (p_msg_in),
+                                    reply_que,
+                                    application_que_name,
+                                    (pBYTE)AtpBuffer,
+                                    sizeof(AUTH_TX)+ sizeof(db_recs.bch01),
+                                    BCH01_DATA);
+               else
+                   result_code = PTEMSG_INSERT_FAILED;
+            }
+         }
+
+         break;
+
+      
+      case DCF01_DATA:
+
+         PRINT( "request to retrieve dcf01 record\n" );
+
+         PRINT(p_data);
+         PRINT("\n");
+         if( ( result_code = db_select_dcf01( ( pCHAR )p_data, &db_recs.dcf01, ErrorMsg ) ) == PTEMSG_OK )
+         {
+            memcpy(p_current, (BYTE *)&db_recs.dcf01, sizeof( db_recs.dcf01 ));
+            p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_recs.dcf01),
+                                          DCF01_DATA);
+
+            sprintf(temp, "DCF01 device_id : %s\n", db_recs.dcf01.primary_key.device_id);
+            PRINT(temp);
+         }
+         break;
+
+      
+
+      default:
+
+         /* unknown app_data_type received. Log Event and return error message to client */
+         result_code = PTEMSG_INVALID_DATATYPE;
+         sprintf (ErrorMsg, "Unknown app_data_type for Select request from %s", reply_que);
+         break;
+
+   }
+
+
+   if ((result_code == PTEMSG_OK) && (p_msg_out == NULL_PTR) )
+   {
+      result_code = PTEMSG_INSUFFICIENT_MEMORY;
+      sprintf (ErrorMsg, "Insufficient Memory to build Select response to %s", reply_que);
+   }
+
+   return (p_msg_out);
+}
+
+
+
+/****************************added *************************************/
+/****************************added *************************************/
+
+BYTE process_alldata_msg( pPTE_MSG p_msg_in )
+{
+	BYTE           app_data_type, result, temp_tx_key;
+   LONG           data_len;
+   pBYTE          p_data;
+   pPTE_MSG_DATA  p_msg_data;
+   pPTE_MSG       p_msg_out;
+   pBYTE          p_current;
+   pAUTH_TX		   auth_tx;
+   BCH10          bch10;
+   CHAR           primary_key[16] = "";
+   CHAR           transaction_id [21] = "";
+   CHAR           date_time[16] = "";
+   CHAR           actual_amt[13];
+   CHAR           adjust_amt[13];
+   
+   long           total, diff ;
+   CHAR           bch01_open_date[9]="";
+   CHAR           bch01_open_time[7]="";
+   int            cnt;
+   int            i;
+   
+
+   p_msg_out     = NULL_PTR;
+   p_msg_data    = ptemsg_get_pte_msg_data( p_msg_in );
+   p_data        = ptemsg_get_pte_msg_data_data( p_msg_data );
+   memcpy(AtpBuffer, p_data, sizeof(AUTH_TX));
+   p_current     = AtpBuffer + sizeof(AUTH_TX); 
+   data_len      = ptemsg_get_pte_msg_data_data_length( p_msg_data );
+   app_data_type = ptemsg_get_pte_msg_data_app_data_type( p_msg_data );
+   auth_tx = (pAUTH_TX)p_data;
+   
+   if (strcmp(auth_tx->TLF01_details.response_code ,"00") == 0)
+   {   
+      
+        
+      
+      
+      switch(auth_tx->TLF01_details.tx_key)
+       {
+         case AUTH_SALE_RESPONSE:
+         case AUTH_CASH_ADVANCE_RESPONSE:
+         case AUTH_SALES_COMPLETION_RESPONSE:
+         case AUTH_OFFLINE_SALE_RESPONSE:
+         case AUTH_QUASI_CASH_RESPONSE:
+            PRINT("In SALE_RESPONSE \n");
+
+            
+            //BCH01
+            strcpy(primary_key,auth_tx->TLF01_details.terminal_id);
+            strcpy(primary_key + sizeof(db_recs.tlf01.terminal_id), "ACTIVE");
+           
+            PRINT("Before BCH01");
+            //result_code = db_select_bch01(primary_key,&db_recs.bch01,ErrorMsg);
+            result_code = db_select_bch01(primary_key,&db_recs.bch01,ErrorMsg);
+            //printf("Result code for BCH01: %d",result_code);
+            
+            //create and Insert into BCH01, delete any ACTIVE trans. for this terminal 
+            if(result_code == PTEMSG_NOT_FOUND)
+				{
+               //Delete BCH10 if any ACTIVE
+               memset(&db_recs.bch10, 0, sizeof(BCH10));
+				   strcpy(db_recs.bch10.primary_key.device_id,auth_tx->TLF01_details.terminal_id);
+			   	strcpy(db_recs.bch10.primary_key.batch_nbr , "ACTIVE");
+               result = db_delete_active_bch10(&db_recs.bch10,ErrorMsg);
+               
+               memcpy(&db_recs.bch01,primary_key,sizeof(primary_key));
+
+               //check if CREDIT sale or DEBIT sale
+               if(auth_tx->bin_type =='D')
+               {
+                  strcpy(db_recs.bch01.total_debit_amt, auth_tx->TLF01_details.total_amount);
+                  if(atoi(db_recs.bch01.total_debit_amt) != 0)
+   						strcpy(db_recs.bch01.total_debit_cnt, "0001");
+               }
+               else if(auth_tx->bin_type == 'C')
+               {
+                  strcpy(db_recs.bch01.total_credit_amt, auth_tx->TLF01_details.total_amount);
+                  if(atoi(db_recs.bch01.total_credit_amt) != 0)
+   						strcpy(db_recs.bch01.total_credit_cnt, "0001");
+               }
+               genutil_format_date(date_time);
+               if(strlen(auth_tx->TLF01_details.date_yyyymmdd) != 0)
+   					strcpy(db_recs.bch01.open_date ,auth_tx->TLF01_details.date_yyyymmdd);
+               else
+               {
+                  memset(db_recs.bch01.open_date, 0, sizeof(db_recs.bch01.open_date));
+   					strncpy(db_recs.bch01.open_date ,date_time, 8);
+               }
+               if(strlen(auth_tx->TLF01_details.time_hhmmss) != 0)
+   					strcpy(db_recs.bch01.open_time ,auth_tx->TLF01_details.time_hhmmss);
+               else
+               {
+                  memset(db_recs.bch01.open_time, 0, sizeof(db_recs.bch01.open_time));
+   					strncpy(db_recs.bch01.open_time ,date_time + 8, 6);
+               }
+   				strcpy(bch01_open_time,db_recs.bch01.open_time );
+   				strcpy(bch01_open_date,db_recs.bch01.open_date );
+					strcpy(db_recs.bch01.batch_status,"A");
+					strcpy(db_recs.bch01.merchant_id,auth_tx->TLF01_details.merchant_id);
+               if( strcmp(auth_tx->TLF01_details.organization_id, "GES") == 0 )
+                  strcpy(db_recs.bch01.visa_merchant_id,"GES");
+               else
+              	   strcpy(db_recs.bch01.visa_merchant_id,auth_tx->TLF01_details.visa_merchant_id);
+
+               //copy values into temporary variables
+    
+               PRINT("Before Insert into BCH01");    
+					result_code = db_insert_bch01(&db_recs.bch01,ErrorMsg);
+               PRINT(ErrorMsg);
+               PRINT("\nAfter Insert into BCH01");
+
+					if(result_code != PTEMSG_OK)
+						return(PTEMSG_INSERT_FAILED);
+				}
+				else if(result_code == PTEMSG_OK)
+				{
+					if(auth_tx->bin_type=='D')
+               {
+                  total = atol(db_recs.bch01.total_debit_amt)+atol(auth_tx->TLF01_details.total_amount);
+                  sprintf(db_recs.bch01.total_debit_amt, "%012d",total);
+                  if(atol(db_recs.bch01.total_debit_amt) != 0L)
+                     cnt = atoi(db_recs.bch01.total_debit_cnt) + 1;
+                  sprintf(db_recs.bch01.total_debit_cnt, "%04d",cnt);
+               }
+               else
+                if(auth_tx->bin_type=='C')
+               {
+                  total=atol(db_recs.bch01.total_credit_amt)+atol(auth_tx->TLF01_details.total_amount);
+                  sprintf(db_recs.bch01.total_credit_amt, "%012d",total);
+                  if(atol(db_recs.bch01.total_credit_amt) != 0L)
+                     cnt = atoi(db_recs.bch01.total_credit_cnt) + 1;
+                  sprintf(db_recs.bch01.total_credit_cnt, "%04d",cnt);
+               }
+
+               //copy values into temporary variables
+   				strcpy(bch01_open_time,db_recs.bch01.open_time );
+   				strcpy(bch01_open_date,db_recs.bch01.open_date );
+
+               PRINT("Before update for BCH01");
+					if(result_code = db_update_bch01(&db_recs.bch01,ErrorMsg) != PTEMSG_OK)
+                         return(PTEMSG_UPDATE_FAILED);
+               PRINT("After update for BCH01");
+
+				}
+            else
+               return(PTEMSG_UPDATE_FAILED);
+				  //return(p_msg_out);
+              //PRINT("ERROR in BCH01 update/insert");  
+            memset(&db_recs.bch10, 0, sizeof(BCH10));
+   			//Insert into BCH10
+				strcpy(db_recs.bch10.primary_key.device_id,auth_tx->TLF01_details.terminal_id);
+				strcpy(db_recs.bch10.primary_key.batch_nbr , "ACTIVE");
+				strcpy(db_recs.bch10.primary_key.retrieval_ref_num,auth_tx->TLF01_details.retrieval_ref_num);
+
+            strcpy(db_recs.bch10.merchant_id,auth_tx->TLF01_details.merchant_id);
+				strcpy(db_recs.bch10.processing_code,auth_tx->TLF01_details.processing_code);
+				strcpy(db_recs.bch10.tran_amount,auth_tx->TLF01_details.total_amount);
+				strcpy(db_recs.bch10.response_code,auth_tx->TLF01_details.response_code);
+				strcpy(db_recs.bch10.auth_number,auth_tx->TLF01_details.auth_number);
+            strcpy(db_recs.bch10.tran_date,auth_tx->TLF01_details.date_yyyymmdd);
+            strcpy(db_recs.bch10.tran_time,auth_tx->TLF01_details.time_hhmmss);
+            strcpy(db_recs.bch10.transaction_id,auth_tx->TLF01_details.primary_key.transaction_id);
+            strcpy(db_recs.bch10.message_type,auth_tx->TLF01_details.message_type);
+            strcpy(db_recs.bch10.card_nbr,auth_tx->TLF01_details.card_num);
+            strcpy(db_recs.bch10.invoice_nbr,auth_tx->TLF01_details.invoice_number);
+            strcpy(db_recs.bch10.settle_file_prefix,auth_tx->BIN01_details.settle_file_prefix);
+            strcpy(db_recs.bch10.product_code,auth_tx->TLF01_details.product_code);
+            strcpy(db_recs.bch10.odometer,auth_tx->TLF01_details.odometer);
+            strcpy(db_recs.bch10.sys_trace_audit_num,auth_tx->TLF01_details.sys_trace_audit_num);
+            db_recs.bch10.tx_key = auth_tx->TLF01_details.tx_key;
+            db_recs.bch10.bin_type = auth_tx->bin_type;
+            for( i =0; i <20; i++)
+            {
+               strcpy(db_recs.bch10.product_codes[i].code,auth_tx->TLF01_details.product_codes[i].code);
+				   strcpy(db_recs.bch10.product_codes[i].quantity,auth_tx->TLF01_details.product_codes[i].quantity);
+				   strcpy(db_recs.bch10.product_codes[i].amount,auth_tx->TLF01_details.product_codes[i].amount);
+            }
+			strcpy(db_recs.bch10.product_codes[6].amount,auth_tx->TLF01_details.pos_condition_code );  //Girija GB
+             strcat(db_recs.bch10.product_codes[6].amount,auth_tx->TLF01_details.service_code );     //Girija GB
+            strcpy(db_recs.bch10.down_payment,auth_tx->TLF01_details.down_payment);
+            strcpy(db_recs.bch10.period,auth_tx->TLF01_details.period);
+            strcpy(db_recs.bch10.interest_rate,auth_tx->TLF01_details.interest_rate);
+            strcpy(db_recs.bch10.total_interest,auth_tx->TLF01_details.total_interest);
+            strcpy(db_recs.bch10.redemption_amount,auth_tx->TLF01_details.redemption_amount);
+            strcpy(db_recs.bch10.vehicle_number,auth_tx->TLF01_details.vehicle_number);
+            strcpy(db_recs.bch10.pos_entry_mode,auth_tx->TLF01_details.pos_entry_mode);
+            strcpy(db_recs.bch10.profile,auth_tx->TLF01_details.profile);
+            strcpy(db_recs.bch10.exp_date,auth_tx->TLF01_details.exp_date);
+            strcpy(db_recs.bch10.ticket_nbr,auth_tx->TLF01_details.ticket_nbr);
+            
+            strcpy(db_recs.bch10.cash_bonus,auth_tx->TLF01_details.cash_bonus);/*** added 01-29-99 by IG ***/
+            strcpy(db_recs.bch10.open_date,bch01_open_date);
+            strcpy(db_recs.bch10.open_time,bch01_open_time);
+             
+            PRINT("Before insert call to BCH10....");
+            if((result_code= db_insert_bch10(&db_recs.bch10,ErrorMsg))!= PTEMSG_OK)
+              return(PTEMSG_INSERT_FAILED);
+            PRINT("After insert into BCH10...");
+            break;            
+            
+            
+               
+            case AUTH_AUTHORIZATION_RESPONSE:
+                        
+                break;
+                
+            case AUTH_REFUND_RESPONSE:
+            case AUTH_OFFLINE_REFUND_RESPONSE:
+               //Subtract Debit or Credit totals for REFUND                
+               PRINT("\nIn AUTH_REFUND...");
+               strcpy(primary_key,auth_tx->TLF01_details.terminal_id);
+               strcpy(primary_key + sizeof(db_recs.tlf01.terminal_id),"ACTIVE");
+               memset(&db_recs.bch01,0,sizeof(BCH01));
+               PRINT("\nBefore select BCH01....");
+               result_code = db_select_bch01(primary_key,&db_recs.bch01,ErrorMsg);
+               if(result_code == PTEMSG_OK)                 
+				   {
+                  PRINT("\nAfter select BCH01 for REFUND....");
+					   if(auth_tx->bin_type=='D')
+                  {
+                  total = atol(db_recs.bch01.total_debit_refund_amt)+atol(auth_tx->TLF01_details.total_amount);
+                  sprintf(db_recs.bch01.total_debit_refund_amt, "%012d",total);
+                  if(atol(db_recs.bch01.total_debit_refund_amt) != 0L)
+                     cnt = atoi(db_recs.bch01.total_debit_refund_cnt) + 1;
+                  sprintf(db_recs.bch01.total_debit_refund_cnt, "%04d",cnt);
+                  }
+                  else
+                  if(auth_tx->bin_type=='C')
+                  {
+                  total = atol(db_recs.bch01.total_credit_refund_amt)+atol(auth_tx->TLF01_details.total_amount);
+                  sprintf(db_recs.bch01.total_credit_refund_amt, "%012d",total);
+                  if(atol(db_recs.bch01.total_credit_refund_amt) != 0L)
+                     cnt = atoi(db_recs.bch01.total_credit_refund_cnt) + 1;
+                  sprintf(db_recs.bch01.total_credit_refund_cnt, "%04d",cnt);
+                  }
+
+                 //copy values into temporary variables
+   				   strcpy(bch01_open_time,db_recs.bch01.open_time );
+   				   strcpy(bch01_open_date,db_recs.bch01.open_date );
+
+                  PRINT("\nBefore update BCH01....");
+                  if( strcmp(auth_tx->TLF01_details.organization_id, "GES") == 0 )
+                     strcpy(db_recs.bch01.visa_merchant_id,"GES");
+                  else
+              	      strcpy(db_recs.bch01.visa_merchant_id,auth_tx->TLF01_details.visa_merchant_id);
+
+					   if(result_code = db_update_bch01(&db_recs.bch01,ErrorMsg) != PTEMSG_OK)           
+                     return(PTEMSG_UPDATE_FAILED);
+                  PRINT("\nAfter update BCH01....");
+                   
+				   }
+               else if(result_code == PTEMSG_NOT_FOUND)
+				   {
+                  //Delete BCH10 if any ACTIVE
+                  memset(&db_recs.bch10, 0, sizeof(BCH10));
+				      strcpy(db_recs.bch10.primary_key.device_id,auth_tx->TLF01_details.terminal_id);
+			   	   strcpy(db_recs.bch10.primary_key.batch_nbr , "ACTIVE");
+                  result = db_delete_bch10(&db_recs.bch10,ErrorMsg);
+
+                  //create and Insert  BCH01
+                  memcpy(&db_recs.bch01,primary_key,sizeof(primary_key)); //copy the primary Key
+                  
+                  //check if CREDIT refund or DEBIT refund
+                  if(auth_tx->bin_type =='D')
+                  {
+                     strcpy(db_recs.bch01.total_debit_refund_amt, auth_tx->TLF01_details.total_amount);
+                     if(atoi(db_recs.bch01.total_debit_refund_amt) != 0)
+   						   strcpy(db_recs.bch01.total_debit_refund_cnt, "0001");
+                  }
+                  else if(auth_tx->bin_type == 'C')
+                  {
+                     strcpy(db_recs.bch01.total_credit_refund_amt, auth_tx->TLF01_details.total_amount);
+                     if(atoi(db_recs.bch01.total_credit_refund_amt) != 0)
+   						   strcpy(db_recs.bch01.total_credit_refund_cnt, "0001");
+                  }  
+                  genutil_format_date(date_time);
+                  if(strlen(auth_tx->TLF01_details.date_yyyymmdd) != 0)
+   					   strcpy(db_recs.bch01.open_date ,auth_tx->TLF01_details.date_yyyymmdd);
+                  else
+                  {
+                     memset(db_recs.bch01.open_date, 0, sizeof(db_recs.bch01.open_date));
+   					   strncpy(db_recs.bch01.open_date ,date_time, 8);
+                  }
+                  if(strlen(auth_tx->TLF01_details.time_hhmmss) != 0)
+   					   strcpy(db_recs.bch01.open_time ,auth_tx->TLF01_details.time_hhmmss);
+                  else
+                  {
+                     memset(db_recs.bch01.open_time, 0, sizeof(db_recs.bch01.open_time));
+   					   strncpy(db_recs.bch01.open_time ,date_time + 8, 6);
+                  }
+   				   strcpy(bch01_open_time,db_recs.bch01.open_time );
+   				   strcpy(bch01_open_date,db_recs.bch01.open_date );
+					   strcpy(db_recs.bch01.batch_status,"A");
+					   strcpy(db_recs.bch01.merchant_id,auth_tx->TLF01_details.merchant_id);
+                  if( strcmp(auth_tx->TLF01_details.organization_id, "GES") == 0 )
+                     strcpy(db_recs.bch01.visa_merchant_id,"GES");
+                  else
+              	      strcpy(db_recs.bch01.visa_merchant_id,auth_tx->TLF01_details.visa_merchant_id);
+    
+                  //copy values into temporary variables
+
+                  PRINT("Before Insert into BCH01");    
+					   result_code = db_insert_bch01(&db_recs.bch01,ErrorMsg);
+                  PRINT(ErrorMsg);
+                  PRINT("\nAfter Insert into BCH01");
+
+					   if(result_code != PTEMSG_OK)
+						   return(PTEMSG_INSERT_FAILED);
+				   }
+               else
+					   return(PTEMSG_INSERT_FAILED);
+                 //Insert REFUND transaction into BCH10 
+                  memset(&db_recs.bch10, 0, sizeof(BCH10));
+				      strcpy(db_recs.bch10.primary_key.device_id,auth_tx->TLF01_details.terminal_id);
+					   strcpy(db_recs.bch10.primary_key.batch_nbr , "ACTIVE");
+				      strcpy(db_recs.bch10.primary_key.retrieval_ref_num,auth_tx->TLF01_details.retrieval_ref_num);
+
+                  strcpy(db_recs.bch10.merchant_id,auth_tx->TLF01_details.merchant_id);
+				      strcpy(db_recs.bch10.processing_code,auth_tx->TLF01_details.processing_code);
+				      strcpy(db_recs.bch10.tran_amount,auth_tx->TLF01_details.total_amount);
+				      strcpy(db_recs.bch10.response_code,auth_tx->TLF01_details.response_code);
+				      strcpy(db_recs.bch10.auth_number,auth_tx->TLF01_details.auth_number);
+                  strcpy(db_recs.bch10.tran_date,auth_tx->TLF01_details.date_yyyymmdd);
+                  strcpy(db_recs.bch10.tran_time,auth_tx->TLF01_details.time_hhmmss);
+                  strcpy(db_recs.bch10.transaction_id,auth_tx->TLF01_details.primary_key.transaction_id);
+                  strcpy(db_recs.bch10.message_type,auth_tx->TLF01_details.message_type);
+                  strcpy(db_recs.bch10.card_nbr,auth_tx->TLF01_details.card_num);
+                  strcpy(db_recs.bch10.invoice_nbr,auth_tx->TLF01_details.invoice_number);
+                  strcpy(db_recs.bch10.settle_file_prefix,auth_tx->BIN01_details.settle_file_prefix);
+                  strcpy(db_recs.bch10.product_code,auth_tx->TLF01_details.product_code);
+                  strcpy(db_recs.bch10.odometer,auth_tx->TLF01_details.odometer);
+                  strcpy(db_recs.bch10.sys_trace_audit_num,auth_tx->TLF01_details.sys_trace_audit_num);
+                  db_recs.bch10.tx_key = auth_tx->TLF01_details.tx_key;
+                  db_recs.bch10.bin_type = auth_tx->bin_type;
+                  for( i =0; i <20; i++)
+                  {
+                     strcpy(db_recs.bch10.product_codes[i].code,auth_tx->TLF01_details.product_codes[i].code);
+				         strcpy(db_recs.bch10.product_codes[i].quantity,auth_tx->TLF01_details.product_codes[i].quantity);
+				         strcpy(db_recs.bch10.product_codes[i].amount,auth_tx->TLF01_details.product_codes[i].amount);
+                  }
+				  strcpy(db_recs.bch10.product_codes[6].amount,auth_tx->TLF01_details.pos_condition_code );  //Girija GB
+                 strcat(db_recs.bch10.product_codes[6].amount,auth_tx->TLF01_details.service_code );     //Girija GB
+
+                  strcpy(db_recs.bch10.down_payment,auth_tx->TLF01_details.down_payment);
+                  strcpy(db_recs.bch10.period,auth_tx->TLF01_details.period);
+                  strcpy(db_recs.bch10.interest_rate,auth_tx->TLF01_details.interest_rate);
+                  strcpy(db_recs.bch10.total_interest,auth_tx->TLF01_details.total_interest);
+                  strcpy(db_recs.bch10.redemption_amount,auth_tx->TLF01_details.redemption_amount);
+                  strcpy(db_recs.bch10.vehicle_number,auth_tx->TLF01_details.vehicle_number);
+                  strcpy(db_recs.bch10.pos_entry_mode,auth_tx->TLF01_details.pos_entry_mode);
+                  strcpy(db_recs.bch10.profile,auth_tx->TLF01_details.profile);
+                  strcpy(db_recs.bch10.exp_date,auth_tx->TLF01_details.exp_date);
+                  strcpy(db_recs.bch10.ticket_nbr,auth_tx->TLF01_details.ticket_nbr);
+                  strcpy(db_recs.bch10.open_date,bch01_open_date);
+                  strcpy(db_recs.bch10.open_time,bch01_open_time);
+				  
+                  PRINT("\nBefore Insert into BCH10 for REFUND...");
+                  if((result_code= db_insert_bch10(&db_recs.bch10,ErrorMsg))!= PTEMSG_OK)
+                    return(PTEMSG_INSERT_FAILED);
+                  PRINT("\nAfter Insert into BCH10 for REFUND...");              
+                         
+               
+             break;
+
+            case AUTH_VOID_SALE_RESPONSE:
+            case AUTH_VOID_REFUND_RESPONSE:
+            case AUTH_VOID_CASH_ADVANCE_RESPONSE:
+            case AUTH_SALE_ADJUSTMENT_RESPONSE: 
+            case AUTH_REFUND_ADJUSTMENT_RESPONSE: 
+               //Select original transaction in BCH10 and update
+               memset(&db_recs.bch10, 0, sizeof(BCH10));
+               memset(&bch10,0,sizeof(BCH10));
+               strcpy(bch10.primary_key.device_id,auth_tx->TLF01_details.terminal_id);
+					strcpy(bch10.primary_key.batch_nbr , "ACTIVE");
+               strcpy(bch10.primary_key.retrieval_ref_num,auth_tx->TLF01_details.orig_retrieval_ref_num);
+
+               if((result_code = db_select_active_bch10(&bch10,&db_recs.bch10,ErrorMsg)) == PTEMSG_OK)                 
+               {  
+                  PRINT("After select for bch10 for VOID\n");
+                  strcpy(db_recs.bch10.merchant_id,auth_tx->TLF01_details.merchant_id);
+                  strcpy(db_recs.bch10.processing_code,auth_tx->TLF01_details.processing_code);
+                  strcpy(actual_amt, db_recs.bch10.tran_amount);
+				      strcpy(db_recs.bch10.tran_amount,auth_tx->TLF01_details.total_amount);
+                  strcpy(adjust_amt, db_recs.bch10.tran_amount);
+				      strcpy(db_recs.bch10.response_code,auth_tx->TLF01_details.response_code);
+				      strcpy(auth_tx->TLF01_details.auth_number,db_recs.bch10.auth_number); // Orig auth # goes back to terminal
+                  strcpy(db_recs.bch10.tran_date,auth_tx->TLF01_details.date_yyyymmdd);
+                  strcpy(db_recs.bch10.tran_time,auth_tx->TLF01_details.time_hhmmss);
+                  strcpy(db_recs.bch10.transaction_id,auth_tx->TLF01_details.primary_key.transaction_id);
+                  strcpy(db_recs.bch10.message_type,auth_tx->TLF01_details.message_type);
+                  strcpy(db_recs.bch10.card_nbr,auth_tx->TLF01_details.card_num);
+                  strcpy(db_recs.bch10.invoice_nbr,auth_tx->TLF01_details.invoice_number);
+                  strcpy(db_recs.bch10.settle_file_prefix,auth_tx->BIN01_details.settle_file_prefix);
+                  strcpy(db_recs.bch10.product_code,auth_tx->TLF01_details.product_code);
+                  strcpy(db_recs.bch10.odometer,auth_tx->TLF01_details.odometer);
+                  strcpy(db_recs.bch10.sys_trace_audit_num,auth_tx->TLF01_details.sys_trace_audit_num);
+                  db_recs.bch10.tx_key = auth_tx->TLF01_details.tx_key;
+                  db_recs.bch10.bin_type = auth_tx->bin_type;
+                  for( i =0; i <20; i++)
+                  {
+                     strcpy(db_recs.bch10.product_codes[i].code,auth_tx->TLF01_details.product_codes[i].code);
+				         strcpy(db_recs.bch10.product_codes[i].quantity,auth_tx->TLF01_details.product_codes[i].quantity);
+				         strcpy(db_recs.bch10.product_codes[i].amount,auth_tx->TLF01_details.product_codes[i].amount);
+                  }
+				  strcpy(db_recs.bch10.product_codes[6].amount,auth_tx->TLF01_details.pos_condition_code );  //Girija GB
+                  strcat(db_recs.bch10.product_codes[6].amount,auth_tx->TLF01_details.service_code );     //Girija GB     
+                  strcpy(db_recs.bch10.down_payment,auth_tx->TLF01_details.down_payment);
+                  strcpy(db_recs.bch10.period,auth_tx->TLF01_details.period);
+                  strcpy(db_recs.bch10.interest_rate,auth_tx->TLF01_details.interest_rate);
+                  strcpy(db_recs.bch10.total_interest,auth_tx->TLF01_details.total_interest);
+                  strcpy(db_recs.bch10.redemption_amount,auth_tx->TLF01_details.redemption_amount);
+                  strcpy(db_recs.bch10.vehicle_number,auth_tx->TLF01_details.vehicle_number);
+                  strcpy(db_recs.bch10.pos_entry_mode,auth_tx->TLF01_details.pos_entry_mode);
+                  strcpy(db_recs.bch10.profile,auth_tx->TLF01_details.profile);
+                  strcpy(db_recs.bch10.exp_date,auth_tx->TLF01_details.exp_date); 
+                  strcpy(db_recs.bch10.ticket_nbr,auth_tx->TLF01_details.ticket_nbr); 
+                  
+                  strcpy(db_recs.bch10.cash_bonus,auth_tx->TLF01_details.cash_bonus);/*** added 01-29-99 by IG ***/
+                    
+                  
+                  PRINT("\nBefore update BCH10 for VOID....");
+                  if((result_code= db_update_bch10(&db_recs.bch10,ErrorMsg))!= PTEMSG_OK)
+                  {
+                      PRINT("After Update BCH10 for VOID....");
+                     return(PTEMSG_UPDATE_FAILED);   
+                  }
+                  else
+                  { 
+                     PRINT("After Update BCH10 for VOID....");
+                     //update totals in BCH01
+                     strcpy(primary_key,auth_tx->TLF01_details.terminal_id);
+                     strcpy(primary_key + sizeof(db_recs.tlf01.terminal_id),"ACTIVE");
+                     memset(&db_recs.bch01,0,sizeof(BCH01));
+                     PRINT("Before Select BCH01....");
+                     if(result_code = db_select_bch01(primary_key,&db_recs.bch01,ErrorMsg) == PTEMSG_OK)                 
+                     {
+                        PRINT("After Select BCH01....");                       
+                        if(auth_tx->bin_type =='D')
+                        {
+                           total = atol(db_recs.bch01.total_debit_amt) - atol(auth_tx->TLF01_details.total_amount);
+                           sprintf(db_recs.bch01.total_debit_amt, "%012d",total);
+                           cnt = atoi(db_recs.bch01.total_debit_cnt ) - 1;
+                           sprintf(db_recs.bch01.total_debit_cnt, "%04d",cnt);                        
+                        }
+                        else
+                        {
+                          if( (auth_tx->TLF01_details.tx_key == AUTH_VOID_SALE_RESPONSE)
+                               ||(auth_tx->TLF01_details.tx_key == AUTH_VOID_CASH_ADVANCE_RESPONSE) 
+                              )
+                          {
+                            total = atol(db_recs.bch01.total_void_credit_amt) + atol(auth_tx->TLF01_details.total_amount);
+                            sprintf(db_recs.bch01.total_void_credit_amt, "%012d",total); 
+                            cnt = atoi(db_recs.bch01.total_void_credit_cnt ) + 1;
+                            sprintf(db_recs.bch01.total_void_credit_cnt, "%04d",cnt); 
+                              
+                            total = atol(db_recs.bch01.total_credit_amt) - atol(auth_tx->TLF01_details.total_amount);
+                            sprintf(db_recs.bch01.total_credit_amt, "%012d",total);
+                            cnt = atoi(db_recs.bch01.total_credit_cnt ) - 1;
+                            sprintf(db_recs.bch01.total_credit_cnt, "%04d",cnt);         
+                          }
+                          else if(auth_tx->TLF01_details.tx_key == AUTH_VOID_REFUND_RESPONSE)
+                          {
+                            total = atol(db_recs.bch01.total_void_credit_refund_amt) + atol(auth_tx->TLF01_details.total_amount);
+                            sprintf(db_recs.bch01.total_void_credit_refund_amt, "%012d",total);                                                   
+                            cnt = atoi(db_recs.bch01.total_void_credit_refund_cnt ) + 1;
+                            sprintf(db_recs.bch01.total_void_credit_refund_cnt, "%04d",cnt);  
+                              
+                            total = atol(db_recs.bch01.total_credit_refund_amt) - atol(auth_tx->TLF01_details.total_amount);
+                            sprintf(db_recs.bch01.total_credit_refund_amt, "%012d",total);
+                            cnt = atoi(db_recs.bch01.total_credit_refund_cnt ) - 1;
+                            sprintf(db_recs.bch01.total_credit_refund_cnt, "%04d",cnt);      
+                          }
+                          else if(auth_tx->TLF01_details.tx_key == AUTH_SALE_ADJUSTMENT_RESPONSE)
+                          {
+                             diff = atol(actual_amt) - atol(adjust_amt);
+                             total = atol(db_recs.bch01.total_credit_amt) - ( diff );
+                             sprintf(db_recs.bch01.total_credit_amt, "%012d",total);                                                   
+                          }
+                          else if(auth_tx->TLF01_details.tx_key == AUTH_REFUND_ADJUSTMENT_RESPONSE)
+                          {
+                             diff = atol(actual_amt) - atol(adjust_amt);
+                             total = atol(db_recs.bch01.total_credit_refund_amt) - ( diff );
+                             sprintf(db_recs.bch01.total_credit_refund_amt, "%012d",total);                                                   
+                          }
+                        }
+                        
+                      PRINT("\nBefore update BCH01....");
+                      strcpy(db_recs.bch01.merchant_id,auth_tx->TLF01_details.merchant_id);
+                      if( strcmp(auth_tx->TLF01_details.organization_id, "GES") == 0 )
+                        strcpy(db_recs.bch01.visa_merchant_id,"GES");
+                      else
+              	         strcpy(db_recs.bch01.visa_merchant_id,auth_tx->TLF01_details.visa_merchant_id);
+					       if(result_code = db_update_bch01(&db_recs.bch01,ErrorMsg) != PTEMSG_OK)           
+                         return(PTEMSG_UPDATE_FAILED);
+                      PRINT("\nAfter update BCH01....");
+                   
+                     }
+                     else
+                     {
+                        PRINT("\nBCH01 select failed for VOID...");
+                      //  return(PTEMSG_SELECT_FAILED);
+                     }
+                  }
+               }
+               else
+               {
+                  //select BCH10 failed
+                  return(PTEMSG_NOT_FOUND);
+               }
+               break;
+  
+
+         case AUTH_REVERSAL_RESPONSE:
+                 
+               //If record exists in BCH10, then Update totals in BCH01
+               memset(&db_recs.bch10, 0, sizeof(BCH10));
+               memset(&bch10,0,sizeof(BCH10));
+               strcpy(bch10.primary_key.device_id,auth_tx->TLF01_details.terminal_id);
+					strcpy(bch10.primary_key.batch_nbr , "ACTIVE");
+               strcpy(bch10.sys_trace_audit_num,auth_tx->TLF01_details.sys_trace_audit_num);
+               strcpy(bch10.merchant_id,auth_tx->TLF01_details.merchant_id);
+
+               PRINT("BEFORE select BCH10......for REVERSAL");
+               if((result_code = db_select_bch10_by_stan(&bch10,&db_recs.bch10,ErrorMsg))==PTEMSG_OK)
+               {  PRINT("After Select BCH10 by STAN......\n");
+                  temp_tx_key = db_recs.bch10.tx_key;
+                  switch(db_recs.bch10.tx_key)
+                  {
+                     case AUTH_SALE_RESPONSE:
+                     case AUTH_REFUND_RESPONSE:
+                     case AUTH_CASH_ADVANCE_RESPONSE:
+                     case AUTH_OFFLINE_SALE_RESPONSE:
+                     case AUTH_AUTHORIZATION_RESPONSE:
+                     case AUTH_PRE_AUTHORIZATION_RESPONSE:
+			         case AUTH_QUASI_CASH_RESPONSE:
+                     
+          
+                        PRINT("Before update bch01 for Reversal.......");
+                        strcpy(primary_key,auth_tx->TLF01_details.terminal_id);
+                        strcpy(primary_key + sizeof(db_recs.tlf01.terminal_id),"ACTIVE");
+                        memset(&db_recs.bch01,0,sizeof(BCH01));
+                        if(result_code = db_select_bch01(primary_key,&db_recs.bch01,ErrorMsg) == PTEMSG_OK)                 
+                        {
+                           if (auth_tx->bin_type=='D')
+                           {
+                              if (temp_tx_key  == AUTH_REFUND_RESPONSE)
+                              {
+                                 total = atol(db_recs.bch01.total_debit_refund_amt) - atol(auth_tx->TLF01_details.total_amount);
+                                 sprintf(db_recs.bch01.total_debit_refund_amt, "%012d",total);
+                                 cnt = atoi(db_recs.bch01.total_debit_refund_cnt ) - 1;
+                                 sprintf(db_recs.bch01.total_debit_refund_cnt, "%04d",cnt); 
+                              }
+                              else
+                              {
+                                 total = atol(db_recs.bch01.total_debit_amt) - atol(auth_tx->TLF01_details.total_amount);
+                                 sprintf(db_recs.bch01.total_debit_amt, "%012d",total);
+                                 cnt = atoi(db_recs.bch01.total_debit_cnt ) - 1;
+                                 sprintf(db_recs.bch01.total_debit_cnt, "%04d",cnt); 
+                              }
+                           }
+                           else  
+                           if (auth_tx->bin_type=='C')
+                           {
+                              if (temp_tx_key  == AUTH_REFUND_RESPONSE)
+                              {
+                                 total = atol(db_recs.bch01.total_credit_refund_amt) - atol(auth_tx->TLF01_details.total_amount);
+                                 sprintf(db_recs.bch01.total_credit_refund_amt, "%012d",total);
+                                 cnt = atoi(db_recs.bch01.total_credit_refund_cnt ) - 1;
+                                 sprintf(db_recs.bch01.total_credit_refund_cnt, "%04d",cnt); 
+                              }
+                              else
+                              {
+                                 total = atol(db_recs.bch01.total_credit_amt) - atol(auth_tx->TLF01_details.total_amount);
+                                 sprintf(db_recs.bch01.total_credit_amt, "%012d",total);                                                   
+                                 cnt = atoi(db_recs.bch01.total_credit_cnt ) - 1;
+                                 sprintf(db_recs.bch01.total_credit_cnt, "%04d",cnt); 
+                              }
+                           }
+                           PRINT("\nBefore update BCH01....");
+
+                           if( strcmp(auth_tx->TLF01_details.organization_id, "GES") == 0 )
+                              strcpy(db_recs.bch01.visa_merchant_id,"GES");
+                           else
+              	               strcpy(db_recs.bch01.visa_merchant_id,auth_tx->TLF01_details.visa_merchant_id);
+					            if(result_code = db_update_bch01(&db_recs.bch01,ErrorMsg) != PTEMSG_OK)           
+                              return(PTEMSG_UPDATE_FAILED);
+                           PRINT("\nAfter update BCH01....");
+                   
+                        }
+                        else
+                        {
+                        //return(PTEMSG_SELECT_FAILED);
+                          PRINT("Select BCH01 failed...\n");
+                          return(PTEMSG_UPDATE_FAILED);
+                        }
+
+                        //Delete record from BCH10
+                        PRINT("Before delete BCH10...");
+                        if(db_delete_bch10_by_stan(&bch10,ErrorMsg) != PTEMSG_OK)
+                           return(PTEMSG_DELETE_FAILED);
+                        PRINT("After delete BCH10...\n");
+                        break;
+
+                     case AUTH_VOID_SALE_RESPONSE:
+                     case AUTH_VOID_REFUND_RESPONSE:
+                     case AUTH_VOID_CASH_ADVANCE_RESPONSE:
+                   
+                        
+                        // If reversal for void_sale happens, 
+                        //then reset the tx_key for the transaction in BCH10 to SALE from VOID_SALE
+                          
+                        strcpy(db_recs.bch10.merchant_id,auth_tx->TLF01_details.merchant_id);
+				            strcpy(db_recs.bch10.processing_code,auth_tx->TLF01_details.processing_code);
+				            strcpy(db_recs.bch10.tran_amount,auth_tx->TLF01_details.total_amount);
+				            strcpy(db_recs.bch10.response_code,auth_tx->TLF01_details.response_code);
+				            strcpy(db_recs.bch10.auth_number,auth_tx->TLF01_details.auth_number);
+                        strcpy(db_recs.bch10.tran_date,auth_tx->TLF01_details.date_yyyymmdd);
+                        strcpy(db_recs.bch10.tran_time,auth_tx->TLF01_details.time_hhmmss);
+                        strcpy(db_recs.bch10.transaction_id,auth_tx->TLF01_details.primary_key.transaction_id);
+                        strcpy(db_recs.bch10.message_type,auth_tx->TLF01_details.message_type);
+                        strcpy(db_recs.bch10.card_nbr,auth_tx->TLF01_details.card_num);
+                        strcpy(db_recs.bch10.invoice_nbr,auth_tx->TLF01_details.invoice_number);
+                        strcpy(db_recs.bch10.settle_file_prefix,auth_tx->BIN01_details.settle_file_prefix);
+                        strcpy(db_recs.bch10.product_code,auth_tx->TLF01_details.product_code);
+                        strcpy(db_recs.bch10.odometer,auth_tx->TLF01_details.odometer);
+                        strcpy(db_recs.bch10.sys_trace_audit_num,auth_tx->TLF01_details.sys_trace_audit_num);
+                        db_recs.bch10.bin_type = auth_tx->bin_type;
+                        for( i =0; i <20; i++)
+                        {
+                           strcpy(db_recs.bch10.product_codes[i].code,auth_tx->TLF01_details.product_codes[i].code);
+				               strcpy(db_recs.bch10.product_codes[i].quantity,auth_tx->TLF01_details.product_codes[i].quantity);
+				               strcpy(db_recs.bch10.product_codes[i].amount,auth_tx->TLF01_details.product_codes[i].amount);
+                        }
+                        strcpy(db_recs.bch10.down_payment,auth_tx->TLF01_details.down_payment);
+                        strcpy(db_recs.bch10.period,auth_tx->TLF01_details.period);
+                        strcpy(db_recs.bch10.interest_rate,auth_tx->TLF01_details.interest_rate);
+                         strcpy(db_recs.bch10.total_interest,auth_tx->TLF01_details.total_interest);
+                        strcpy(db_recs.bch10.redemption_amount,auth_tx->TLF01_details.redemption_amount);
+                        strcpy(db_recs.bch10.vehicle_number,auth_tx->TLF01_details.vehicle_number);
+                        strcpy(db_recs.bch10.pos_entry_mode,auth_tx->TLF01_details.pos_entry_mode);
+                        strcpy(db_recs.bch10.profile,auth_tx->TLF01_details.profile);
+                        strcpy(db_recs.bch10.exp_date,auth_tx->TLF01_details.exp_date);
+                        strcpy(db_recs.bch10.ticket_nbr,auth_tx->TLF01_details.ticket_nbr);
+						strcpy(db_recs.bch10.product_codes[6].amount,auth_tx->TLF01_details.pos_condition_code );  //Girija GB
+                        strcat(db_recs.bch10.product_codes[6].amount,auth_tx->TLF01_details.service_code );     //Girija GB
+
+                        //If for VOID_SALE change it back to SALE etc...
+                        if(db_recs.bch10.tx_key == AUTH_VOID_SALE_RESPONSE)
+                           db_recs.bch10.tx_key = AUTH_SALE_RESPONSE;
+                        else  if(db_recs.bch10.tx_key == AUTH_VOID_REFUND_RESPONSE)
+                                 db_recs.bch10.tx_key = AUTH_REFUND_RESPONSE;
+                        else  if(db_recs.bch10.tx_key == AUTH_VOID_CASH_ADVANCE_RESPONSE)
+                           db_recs.bch10.tx_key = AUTH_CASH_ADVANCE_RESPONSE;
+                        //update BCH10 to reflect VOID_SALE instead of SALE
+                        PRINT("Before update BCH10 (stan)for Reversal.......");
+                        if((result_code= db_update_bch10(&db_recs.bch10, ErrorMsg ))!= PTEMSG_OK)
+                           return(PTEMSG_UPDATE_FAILED);
+                        PRINT("After update BCH10....\n");
+
+                        PRINT("Before select bch01 for Reversal.......");
+                        strcpy(primary_key,auth_tx->TLF01_details.terminal_id);
+                        strcpy(primary_key + sizeof(db_recs.tlf01.terminal_id),"ACTIVE");
+                        memset(&db_recs.bch01,0,sizeof(BCH01));
+                        if( (result_code = db_select_bch01(primary_key,&db_recs.bch01,ErrorMsg) )== PTEMSG_OK)                 
+                        {
+                           PRINT("After select bch01 for Reversal......\n");
+                           if (auth_tx->bin_type=='D')
+                           {
+                              total = atol(db_recs.bch01.total_debit_amt) + atol(auth_tx->TLF01_details.total_amount);
+                              sprintf(db_recs.bch01.total_debit_amt, "%012d",total);
+                              cnt = atoi(db_recs.bch01.total_debit_cnt ) + 1;
+                              sprintf(db_recs.bch01.total_debit_cnt, "%04d",cnt);
+                           }
+                           else  
+                           if (auth_tx->bin_type=='C')
+                           {
+                              total = atol(db_recs.bch01.total_credit_amt) + atol(auth_tx->TLF01_details.total_amount);
+                              sprintf(db_recs.bch01.total_credit_amt, "%012d",total);
+                              cnt = atoi(db_recs.bch01.total_credit_cnt ) + 1;
+                              sprintf(db_recs.bch01.total_credit_cnt, "%04d",cnt);
+
+                              /* Deduct the void totals also */
+                              if(auth_tx->TLF01_details.tx_key == AUTH_VOID_SALE_RESPONSE)
+                              {
+                                 total =  atol(db_recs.bch01.total_void_credit_amt) - atol(auth_tx->TLF01_details.total_amount)  ;
+                                 sprintf(db_recs.bch01.total_void_credit_amt, "%012d",total);
+                                 cnt = atoi(db_recs.bch01.total_void_credit_cnt ) - 1;
+                                 sprintf(db_recs.bch01.total_void_credit_cnt, "%04d",cnt);                                                   
+                              }
+                              else if(auth_tx->TLF01_details.tx_key == AUTH_VOID_REFUND_RESPONSE)
+                              {
+                                 total = atol(db_recs.bch01.total_void_credit_refund_amt) - atol(auth_tx->TLF01_details.total_amount);
+                                 sprintf(db_recs.bch01.total_void_credit_refund_amt, "%012d",total); 
+                                 cnt = atoi(db_recs.bch01.total_void_credit_refund_cnt ) - 1;
+                                 sprintf(db_recs.bch01.total_void_credit_refund_cnt, "%04d",cnt);                                                   
+                              }
+
+                           }
+                           PRINT("\nBefore update BCH01....");
+
+                           if( strcmp(auth_tx->TLF01_details.organization_id, "GES") == 0 )
+                              strcpy(db_recs.bch01.visa_merchant_id,"GES");
+                           else
+              	               strcpy(db_recs.bch01.visa_merchant_id,auth_tx->TLF01_details.visa_merchant_id);
+                           strcpy(db_recs.bch01.merchant_id,auth_tx->TLF01_details.merchant_id);
+                           if(result_code = db_update_bch01(&db_recs.bch01,ErrorMsg) != PTEMSG_OK)           
+                               return(PTEMSG_UPDATE_FAILED);
+                           PRINT("\nAfter update BCH01....");
+                   
+                        }
+                        else
+                        //return(PTEMSG_SELECT_FAILED);
+                        PRINT("Select BCH01 failed...\n");
+    
+                       break;
+                     default:
+                        PRINT("Unknown Data type for Reversal..\n");
+                        return( PTEMSG_INVALID_DATATYPE);
+                        break;
+
+                  }//tx_key in BCH10
+               }//end_BCH10 exists
+ 
+              break;
+         default:
+            PRINT("\ndefault case for processing BCH recs ..\n");
+            result_code = PTEMSG_INVALID_DATATYPE;
+            sprintf (ErrorMsg, "Unknown type %c: for ALL_DATA request from TRANDS",auth_tx->TLF01_details.tx_key);
+            break;
+
+           } 
+           
+        }
+     return (PTEMSG_OK);
+
+}
+
+/*************************************************************************************/
+/*************************************************************************************/
+pPTE_MSG process_get_gui_list_msg( pPTE_MSG p_msg_in )
+{
+   LONG           data_len;
+   pBYTE          p_data;
+   pPTE_MSG_DATA  p_msg_data;
+   pPTE_MSG       p_msg_out;
+   pBYTE          p_current;
+
+
+   p_msg_out     = NULL_PTR;
+   p_msg_data    = ptemsg_get_pte_msg_data( p_msg_in );
+   p_data        = ptemsg_get_pte_msg_data_data( p_msg_data );
+   memcpy(AtpBuffer, p_data, sizeof(AUTH_TX) );
+   p_current     = AtpBuffer + sizeof(AUTH_TX);
+   data_len      = ptemsg_get_pte_msg_data_data_length( p_msg_data );
+   app_data_type = ptemsg_get_pte_msg_data_app_data_type( p_msg_data );
+   p_data		 = p_data + sizeof(AUTH_TX);
+
+   switch( app_data_type )
+   {
+      case TLF01_DATA:
+
+         PRINT( "request to retrieve tlf01 gui list\n" );
+         // copy the last ucf02.group_id retrieved into the structure 
+         if( ( result_code = db_get_tlf01_gui_list_dynamic( ( pTLF01_LIMITS )p_data, &db_lists.Tlf01_Gui_List, ErrorMsg ) ) == PTEMSG_OK )
+         {
+            memcpy(p_current, (BYTE *)&db_lists.Tlf01_Gui_List, sizeof( db_lists.Tlf01_Gui_List ));
+            p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_lists.Tlf01_Gui_List),
+                                          TLF01_DATA);
+         }
+         break;
+      case BCH01_DATA:
+
+         PRINT( "request to retrieve bch01 list\n" );
+         // copy the last ucf02.group_id retrieved into the structure 
+         if( ( result_code = db_get_bch01_gui_list( ( pBCH01 )p_data, &db_lists.Bch01_Gui_List, ErrorMsg ) ) == PTEMSG_OK )
+         {
+            memcpy(p_current, (BYTE *)&db_lists.Bch01_Gui_List, sizeof( db_lists.Bch01_Gui_List ));
+            p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_lists.Bch01_Gui_List),
+                                          BCH01_DATA);
+         }
+         break;
+
+      case NBF01_DATA:      
+         
+               PRINT( "request to retrieve nbf01 gui list\n" );
+               // copy the last ucf02.group_id retrieved into the structure 
+               if( ( result_code = db_get_nbf01_gui_list( ( pNBF01 )p_data, &db_lists.Nbf01_Gui_List, ErrorMsg ) ) == PTEMSG_OK )
+               {
+                  memcpy(p_current, (BYTE *)&db_lists.Nbf01_Gui_List, sizeof( db_lists.Nbf01_Gui_List ));
+                  p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_lists.Nbf01_Gui_List),
+                                          NBF01_DATA);
+               }
+         break;
+
+      case NGF01_DATA:
+
+          if(ptemsg_get_msg_subtype2 (p_msg_in) == ST2_DB_GET_NGF01_LIST_BY_BINRANGE)
+		   {
+            PRINT( "request to retrieve ngf01 list by binrange\n" );
+            // copy the last ucf02.group_id retrieved into the structure 
+            if( ( result_code = db_get_ngf01_list_by_binrange( ( pNGF01 )p_data, &db_lists.Ngf01_List, ErrorMsg ) ) == PTEMSG_OK )
+            {
+               memcpy(p_current, (BYTE *)&db_lists.Ngf01_List, sizeof( db_lists.Ngf01_List ));
+               p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_lists.Ngf01_List),
+                                          NGF01_DATA);
+            }
+         }
+         else
+         {
+            PRINT( "request to retrieve ngf01 list\n" );
+            // copy the last ucf02.group_id retrieved into the structure 
+            if( ( result_code = db_get_ngf01_gui_list( ( pCHAR )p_data, &db_lists.Ngf01_Gui_List, ErrorMsg ) ) == PTEMSG_OK )
+            {
+               memcpy(p_current, (BYTE *)&db_lists.Ngf01_Gui_List, sizeof( db_lists.Ngf01_Gui_List ));
+               p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_lists.Ngf01_Gui_List),
+                                          NGF01_DATA);
+            }
+          }
+
+         break;
+
+
+      case BCH10_DATA:
+
+         PRINT( "request to retrieve bch10 list\n" );
+         // copy the last ucf02.group_id retrieved into the structure 
+         if( ( result_code = db_get_bch10_gui_list( ( pBCH10 )p_data, &db_lists.Bch10_Gui_List, ErrorMsg ) ) == PTEMSG_OK )
+         {
+            memcpy(p_current, (BYTE *)&db_lists.Bch10_Gui_List, sizeof( db_lists.Bch10_Gui_List ));
+            p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_lists.Bch10_Gui_List),
+                                          BCH10_DATA);
+         }
+         break;
+
+     
+      case BCH11_DATA:
+
+         PRINT( "request to retrieve bch11 gui list\n" );
+         // copy the last ucf02.group_id retrieved into the structure 
+         if( ( result_code = db_get_bch11_gui_list( ( pBCH11 )p_data, &db_lists.Bch11_Gui_List, ErrorMsg ) ) == PTEMSG_OK )
+         {
+            memcpy(p_current, (BYTE *)&db_lists.Bch11_Gui_List, sizeof( db_lists.Bch11_Gui_List ));
+            p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_lists.Bch11_Gui_List),
+                                          BCH11_DATA);
+         }
+         break;
+
+      case DCF01_DATA:
+
+         PRINT( "request to retrieve dfc01 list\n" );
+         // copy the last caf01.name retrieved into the structure 
+         if( ( result_code = db_get_dcf01_gui_list( ( pCHAR )p_data, &db_lists.Dcf01_Gui_List, ErrorMsg ) ) == PTEMSG_OK )
+         {
+            memcpy(p_current, (BYTE *)&db_lists.Dcf01_Gui_List, sizeof( db_lists.Dcf01_Gui_List ));
+            p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_lists.Dcf01_Gui_List),
+                                          DCF01_DATA);
+         }
+         break;
+
+      case MCF01_DATA:
+
+         if(ptemsg_get_msg_subtype2 (p_msg_in) != ST2_DB_SELECT_BY_ORG_ID)
+         {
+            PRINT( "request to retrieve mfc01 list\n" );
+            // copy the last caf01.name retrieved into the structure 
+            if( ( result_code = db_get_mcf01_gui_list( ( pCHAR )p_data, 0, &db_lists.Mcf01_Gui_List, ErrorMsg ) ) == PTEMSG_OK )
+            {
+               memcpy(p_current, (BYTE *)&db_lists.Mcf01_Gui_List, sizeof( db_lists.Mcf01_Gui_List ));
+               p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                             ptemsg_get_msg_subtype1 (p_msg_in),
+                                             ptemsg_get_msg_subtype2 (p_msg_in),
+                                             reply_que,
+                                             application_que_name,
+                                             (pBYTE)AtpBuffer,
+                                             sizeof(AUTH_TX) + sizeof(db_lists.Mcf01_Gui_List),
+                                             MCF01_DATA);
+            }
+         }
+         else
+         {
+            PRINT( "request to retrieve mfc01 list\n" );
+            // copy the last caf01.name retrieved into the structure 
+            if( ( result_code = db_get_mcf01_gui_list( ( pCHAR )p_data, 1, &db_lists.Mcf01_Gui_List, ErrorMsg ) ) == PTEMSG_OK )
+            {
+               memcpy(p_current, (BYTE *)&db_lists.Mcf01_Gui_List, sizeof( db_lists.Mcf01_Gui_List ));
+               p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                             ptemsg_get_msg_subtype1 (p_msg_in),
+                                             ptemsg_get_msg_subtype2 (p_msg_in),
+                                             reply_que,
+                                             application_que_name,
+                                             (pBYTE)AtpBuffer,
+                                             sizeof(AUTH_TX) + sizeof(db_lists.Mcf01_Gui_List),
+                                             MCF01_DATA);
+            }
+         }
+         break;
+
+      default:
+
+         // unknown app_data_type received. Log Event and return error message to client
+         result_code = PTEMSG_INVALID_DATATYPE;
+         sprintf (ErrorMsg, "Unknown datatype for GetList request from %s", reply_que);
+         break;
+   }
+
+
+   if ((result_code == PTEMSG_OK) && (p_msg_out == NULL_PTR) )
+   {
+      result_code = PTEMSG_INSUFFICIENT_MEMORY;
+      sprintf (ErrorMsg, "Insufficient Memory to build GetAll response to %s", reply_que);
+   }
+
+   return (p_msg_out);
+}
+
+/*************************************************************************************/
+/*************************************************************************************/
+pPTE_MSG process_get_service_list_msg( pPTE_MSG p_msg_in )
+{
+   LONG           data_len;
+   pBYTE          p_data;
+   pPTE_MSG_DATA  p_msg_data;
+   pPTE_MSG       p_msg_out;
+   pBYTE          p_current;
+
+
+   p_msg_out     = NULL_PTR;
+   p_msg_data    = ptemsg_get_pte_msg_data( p_msg_in );
+   p_data        = ptemsg_get_pte_msg_data_data( p_msg_data );
+   memcpy(AtpBuffer, p_data, sizeof(AUTH_TX));
+   p_current     = AtpBuffer + sizeof(AUTH_TX);
+   data_len      = ptemsg_get_pte_msg_data_data_length( p_msg_data );
+   app_data_type = ptemsg_get_pte_msg_data_app_data_type( p_msg_data );
+   p_data = p_data + sizeof(AUTH_TX);
+
+   switch( app_data_type )
+   {
+
+      
+
+      case BCH10_DATA:
+
+         PRINT( "request to retrieve bch10 list\n" );
+         // copy the last ucf02.group_id retrieved into the structure 
+         if( ( result_code = db_get_bch10_service_list( ( pBCH10 )p_data, &db_lists.Bch10_List, ErrorMsg ) ) == PTEMSG_OK )
+         {
+            memcpy(p_current, (BYTE *)&db_lists.Bch10_List, sizeof( db_lists.Bch10_List ));
+            p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_lists.Bch10_List),
+                                          BCH10_DATA);
+         }
+         break;
+
+      case BCH11_DATA:
+
+         PRINT( "request to retrieve bch11 list\n" );
+         // copy the last ucf02.group_id retrieved into the structure 
+         if( ( result_code = db_get_bch11_service_list( ( pBCH11 )p_data, &db_lists.Bch11_List, ErrorMsg ) ) == PTEMSG_OK )
+         {
+            memcpy(p_current, (BYTE *)&db_lists.Bch11_List, sizeof( db_lists.Bch11_List ));
+            p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_lists.Bch11_List),
+                                          BCH11_DATA);
+         }
+         break;
+
+     case BCH01_DATA:
+
+         PRINT( "request to retrieve bch01 list\n" );
+        
+         if( ( result_code = db_get_bch01_service_list( ( pBCH01 )p_data, &db_lists.Bch01_List, ErrorMsg ) ) == PTEMSG_OK )
+         {
+            memcpy(p_current, (BYTE *)&db_lists.Bch01_List, sizeof( db_lists.Bch01_List ));
+            p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_lists.Bch01_List),
+                                          BCH01_DATA);
+         }
+         break;
+
+     case TLF01_DATA:
+
+         PRINT( "request to retrieve tlf01 list\n" );
+        
+         if( ( result_code = db_get_tlf01_service_list( ( pTLF01 )p_data, &db_lists.Tlf01_List, ErrorMsg ) ) == PTEMSG_OK )
+         {
+            memcpy(p_current, (BYTE *)&db_lists.Tlf01_List, sizeof( db_lists.Tlf01_List ));
+            p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_lists.Tlf01_List),
+                                          TLF01_DATA);
+         }
+         break;
+      
+     case NFI01_DATA:
+
+         PRINT( "request to retrieve nfi01 list\n" );
+         // copy the last ucf02.group_id retrieved into the structure 
+         if( ( result_code = db_get_nfi01_service_list( ( pNFI01 )p_data, &db_lists.Nfi01_List, ErrorMsg ) ) == PTEMSG_OK )
+         {
+            memcpy(p_current, (BYTE *)&db_lists.Nfi01_List, sizeof( db_lists.Nfi01_List ));
+            p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_lists.Nfi01_List),
+                                          NFI01_DATA);
+         }
+         break;
+     case NMF01_DATA:
+
+         PRINT( "request to retrieve nmf01 list\n" );
+         // copy the last ucf02.group_id retrieved into the structure 
+         if( ( result_code = db_get_nmf01_list( ( pNMF01_REQUEST )p_data, &db_lists.Nmf01_List, ErrorMsg ) ) == PTEMSG_OK )
+         {
+            memcpy(p_current, (BYTE *)&db_lists.Nmf01_List, sizeof( db_lists.Nmf01_List ));
+            p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + sizeof(db_lists.Nmf01_List),
+                                          NMF01_DATA);
+         }
+         break;
+     case NBF01_DATA:
+        
+         PRINT( "request to retrieve nbf01 service list\n" );
+         // copy the last ucf02.group_id retrieved into the structure 
+         if( ( result_code = db_get_nbf01_service_list( ( pNBF01 )p_data, &db_lists.Nbf01_List, ErrorMsg ) ) == PTEMSG_OK )
+         {
+            memcpy(p_current, (BYTE *)&db_lists.Nbf01_List, sizeof( db_lists.Nbf01_List ));
+            p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                    ptemsg_get_msg_subtype1 (p_msg_in),
+                                    ptemsg_get_msg_subtype2 (p_msg_in),
+                                    reply_que,
+                                    application_que_name,
+                                    (pBYTE)AtpBuffer,
+                                    sizeof(AUTH_TX) + sizeof(db_lists.Nbf01_List),
+                                    NBF01_DATA);
+         }
+         break;
+
+      default:
+
+         // unknown app_data_type received. Log Event and return error message to client
+         result_code = PTEMSG_INVALID_DATATYPE;
+         sprintf (ErrorMsg, "Unknown datatype for GetList request from %s", reply_que);
+         break;
+   }
+
+
+   if ((result_code == PTEMSG_OK) && (p_msg_out == NULL_PTR) )
+   {
+      result_code = PTEMSG_INSUFFICIENT_MEMORY;
+      sprintf (ErrorMsg, "Insufficient Memory to build GetAll response to %s", reply_que);
+   }
+
+   return (p_msg_out);
+}
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+pPTE_MSG process_get_count( pPTE_MSG p_msg_in )
+{
+   pPTE_MSG_DATA  p_msg_data;
+   pPTE_MSG       p_msg_out;
+   pBYTE          p_current;
+   pBYTE          p_data;
+   CHAR           table_count[5] = "";
+
+   p_msg_out     = NULL_PTR;
+   p_msg_data    = ptemsg_get_pte_msg_data( p_msg_in );
+   p_data        = ptemsg_get_pte_msg_data_data( p_msg_data );
+   memcpy(AtpBuffer, p_data, sizeof(AUTH_TX));
+   p_current     = AtpBuffer + sizeof(AUTH_TX);
+   app_data_type = ptemsg_get_pte_msg_data_app_data_type( p_msg_data );
+
+   switch( app_data_type )
+   {
+
+      
+      case NBF01_DATA:
+
+         PRINT( "request to retrieve nbf01 count\n" );
+         if( ( result_code = db_get_nbf01_count( table_count, ErrorMsg ) ) == PTEMSG_OK )
+         {
+            memcpy(p_current, table_count, strlen(table_count) + 1);
+            p_msg_out = ptemsg_build_msg( MT_DB_REPLY,
+                                          ptemsg_get_msg_subtype1 (p_msg_in),
+                                          ptemsg_get_msg_subtype2 (p_msg_in),
+                                          reply_que,
+                                          application_que_name,
+                                          (pBYTE)AtpBuffer,
+                                          sizeof(AUTH_TX) + strlen(table_count) + 1,
+                                          NBF01_DATA);
+         }
+         break;
+
+       
+     default:
+
+         // unknown app_data_type received. Log Event and return error message to client
+         result_code = PTEMSG_INVALID_DATATYPE;
+         sprintf (ErrorMsg, "Unknown datatype for GetList request from %s", reply_que);
+         break;
+   }
+
+
+   if ((result_code == PTEMSG_OK) && (p_msg_out == NULL_PTR) )
+   {
+      result_code = PTEMSG_INSUFFICIENT_MEMORY;
+      sprintf (ErrorMsg, "Insufficient Memory to build GetAll response to %s", reply_que);
+   }
+
+   return (p_msg_out);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+pPTE_MSG process_echo_msg ( pPTE_MSG p_msg_in )
+{
+   LONG           data_len;
+   pBYTE          p_data;
+   pPTE_MSG_DATA  p_msg_data;
+   pPTE_MSG       p_msg_out;
+
+
+   PRINT ("processing Echo request\n");
+
+   p_msg_data     = ptemsg_get_pte_msg_data              (p_msg_in);
+   p_data         = ptemsg_get_pte_msg_data_data         (p_msg_data);
+   data_len       = ptemsg_get_pte_msg_data_data_length  (p_msg_data);
+   app_data_type  = ptemsg_get_pte_msg_data_app_data_type(p_msg_data);
+
+
+   p_msg_out = ptemsg_build_msg (MT_DB_REPLY,
+                                 ptemsg_get_msg_subtype1 (p_msg_in),
+                                 ptemsg_get_msg_subtype2 (p_msg_in),
+                                 reply_que,
+                                 application_que_name,
+                                 p_data,
+                                 data_len,
+                                 app_data_type);
+
+   if (p_msg_out == NULL_PTR)
+   {
+      result_code = PTEMSG_INSUFFICIENT_MEMORY;
+      sprintf (ErrorMsg, "Insufficient Memory to build Echo response to %s", reply_que);
+   }
+
+   return (p_msg_out);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+pPTE_MSG process_db_request ( pPTE_MSG p_msg_in )
+{
+   pPTE_MSG       p_msg_out;
+   CHAR           query_start_time[20]="";
+   CHAR           query_end_time  [20]="";
+   CHAR           errbuf[120];
+   INT            ret_val;
+   double         start_time;
+   double         end_time;
+   double         duration;
+
+   MsgSubtype2 = ptemsg_get_msg_subtype2(p_msg_in);
+   MsgSubtype1 = ptemsg_get_msg_subtype1(p_msg_in);
+
+   memset(AtpBuffer, 0, sizeof(AtpBuffer));
+   if ( ds_timer_flag == DS_TIMER_ON )
+   {
+      /* The functionality to check the time of a query is turned on.
+       * Get the time before the query. Will check it after the query.
+       */
+      ptetime_get_strtime( query_start_time );
+   }
+
+   if ( DB_Timing_Flag == true )
+   {
+      /* The functionality to gather DB Query Timing Statistics is ON.
+       * Get system time, then do again after the query.  This is
+       * different than the above timings.  That one flags long queries;
+       * this one gather stats.
+       */
+      start_time = ptetime_get_time();
+   }
+
+   switch (ptemsg_get_msg_subtype1 (p_msg_in))
+   {
+      case ST1_DB_SELECT            : p_msg_out = process_select_msg       (p_msg_in);
+                                      break;
+      case ST1_DB_UPDATE            : p_msg_out = process_update_msg       (p_msg_in);
+                                      PRINT("returned from process_update_msg\n");                  
+                                      break;
+      case ST1_DB_INSERT            : p_msg_out = process_insert_msg       (p_msg_in);
+                                      break;
+      case ST1_DB_DELETE            : p_msg_out = process_delete_msg       (p_msg_in);
+                                      break;
+      case ST1_DB_GET_GUI_LIST      : p_msg_out = process_get_gui_list_msg (p_msg_in);
+                                      break;
+      case ST1_DB_GET_SERVICE_LIST  : p_msg_out = process_get_service_list_msg (p_msg_in);
+                                      break;
+                                       
+      case ST1_DB_ECHO              : p_msg_out = process_echo_msg         (p_msg_in);
+                                      break;
+      case ST1_DB_GET_COUNT         : p_msg_out = process_get_count        (p_msg_in);
+                                      break;
+      case ST1_DB_MOVE_TRANS        : p_msg_out = process_move_trans       (p_msg_in);
+                                      break;
+      case ST1_PROCESS_START        : p_msg_out = process_negative_file    (p_msg_in);
+                                      break;
+      case ST1_PROCESS_COMPLETE     : p_msg_out = process_negative_file    (p_msg_in);
+                                      break;
+      /*case ST1_DELETE_BY_DATE       : p_msg_out = process_db_cleanup       (p_msg_in);
+                                      break;*/
+      default:
+         p_msg_out   = NULL_PTR;
+         result_code = PTEMSG_INVALID_SUBTYPE1;
+         sprintf (ErrorMsg, "Unknown subtype1 for database request from %s", reply_que);
+         break;
+   }
+
+   if ( DB_Timing_Flag == true )
+   {
+      /* The functionality to gather DB Query Timing Statistics is ON.
+       * Start time has been obtained. Now get end time and calculate
+       * the duration and update the statistics.
+       */
+      end_time = ptetime_get_time();
+
+      duration = end_time - start_time;
+
+      update_timing_stats( MsgSubtype1, MsgSubtype2, app_data_type,
+                           (float)duration, &TimingStats );
+   }
+
+   if ( ds_timer_flag == DS_TIMER_ON )
+   {
+      /* The functionality to check the time of a query is turned on.
+       * See if the query exceeded desired time length.
+       */
+      ptetime_get_strtime( query_end_time );
+      memset( errbuf, 0x00, sizeof(errbuf) );
+      ret_val = compare_query_time_against_criteria( query_start_time,
+                                                     query_end_time,
+                                                     ds_timer_value,
+                                                     p_msg_in,
+                                                     AppName,
+                                                     errbuf );
+      if ( ret_val == false )
+      {
+         /* The query exceeded the time criteria.  Log informational message. */
+         LogEvent( errbuf, INFO_MSG );
+ 		 //TxUtils_Send_Msg_To_Operator( 1, errbuf, 1, WARN_MSG,"Process DB Request-Devds",4, INFO_ERROR, 0, 0, 0 );
+      }
+   }
+   return (p_msg_out);
+}
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+void process_monitor_request(pPTE_MSG p_msg_in )
+{
+   CHAR           monitor_flag[100]="";
+   pCHAR          orig_comm;
+   CHAR           MonAdd[100]="";
+   //pPTE_MSG       p_msg;
+   //LONG           ipc_rcode;
+   
+   memset(AtpBuffer, 0, sizeof(AtpBuffer));
+   switch (ptemsg_get_msg_subtype1 (p_msg_in))
+   {
+       case ST1_MONITOR_UP   : 
+         orig_comm = ptemsg_get_msg_orig_comms_info(p_msg_in);
+         WriteMemMonitorTable( (BYTE *)orig_comm );  
+         /*
+         if(ReadMemMonitorTable() != NULL)
+         {
+            strcpy(MonAdd, ReadMemMonitorTable());
+            p_msg = ptemsg_build_msg(MT_SYS_MONITOR, ST1_OPRMSG, 0,applnk_que_name, application_que_name, (pBYTE) "Dataserver ready", 16,0);
+            ptemsg_set_orig_comms_info(p_msg, MonAdd);
+            ipc_rcode = pteipc_send(p_msg, applnk_que_name);
+            free(p_msg);
+       
+         }
+         else
+            printf("Null value in MonAdd\n");*/
+         break;
+      case ST1_MONITOR_DOWN  :
+         WriteMemMonitorTable((BYTE *)monitor_flag); 
+         break;
+      default:
+         result_code = PTEMSG_INVALID_SUBTYPE1;
+         sprintf (ErrorMsg, "Unknown subtype1 for database request from %s", reply_que);
+         break;
+   }
+}
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+void process_logger_reply ( pPTE_MSG p_msg_in )
+{
+   pCHAR       p_msg_trid;
+
+
+   switch (ptemsg_get_msg_subtype1 (p_msg_in))
+   {
+      case ST1_LOG_REFEED_COMPLETE : 
+         in_refeed_mode = false;
+         p_msg_trid     = ptemsg_get_current_msg_tran_id (p_msg_in);
+
+         if (p_msg_trid [0] != '\0')
+         {
+            strncpy (checkpoint_rec.checkpoint_trid, p_msg_trid, sizeof(checkpoint_rec.checkpoint_trid));
+            strncpy (last_trid, p_msg_trid, sizeof(last_trid));
+
+            result_code = dbcommon_update_checkpoint (&checkpoint_rec, ErrorMsg);
+
+            if (result_code == PTEMSG_OK)
+            {
+               printf ("Refeed is complete; ready for normal database activity\n");
+               dbcommon_commit ();
+            }
+            else
+            {
+               dbcommon_rollback ();
+
+               //printf   ("%s\n",   ErrorMsg);
+               //LogEvent (ErrorMsg, ERROR_MSG); 
+               /*The following function writes the message both to the Sys.Monitor and EventLog */
+               TxUtils_Send_Msg_To_Operator(1, ErrorMsg, 1, ERROR_MSG, "process_logger_reply", 3, INFO_ERROR, NULL_PTR, NULL_PTR, NULL_PTR);
+
+
+               if (dbcommon_select_checkpoint (AppName, &checkpoint_rec, ErrorMsg) != PTEMSG_OK)
+               {
+                  //printf   ("%s\n",   ErrorMsg);
+                  //LogEvent (ErrorMsg, ERROR_MSG);
+                  /*The following function writes the message both to the Sys.Monitor and EventLog */
+                  TxUtils_Send_Msg_To_Operator(1, ErrorMsg, 1, ERROR_MSG, "process_logger_reply", 3, INFO_ERROR, NULL_PTR, NULL_PTR, NULL_PTR);
+
+               }
+            }
+         }
+                                     
+         break;
+      
+      default:
+         result_code = PTEMSG_INVALID_SUBTYPE1;
+         sprintf (ErrorMsg, "Unknown subtype1 for logger reply from %s", reply_que);
+
+         //printf   ("%s\n", ErrorMsg);
+         //LogEvent (ErrorMsg, WARN_MSG);
+         /*The following function writes the message both to the Sys.Monitor and EventLog */
+         TxUtils_Send_Msg_To_Operator(1, ErrorMsg, 1, WARN_MSG, "process_logger_reply", 2, WARNING_ERROR, NULL_PTR, NULL_PTR, NULL_PTR);
+         break;
+   }
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BOOLEAN perform_refeed ( pCHAR trid )
+{
+   CHAR     Buffer[256];
+
+
+   if (trid [0] != '\0')
+   {
+      /* send refeed command to TFLogger */
+      if (SendRefeedCmd (trid, ErrorMsg) == false)
+      {
+         sprintf  (Buffer, "Error sending refeed command to TFLogger: %s", ErrorMsg);
+         //printf   ("%s\n", Buffer);
+         //LogEvent (Buffer, ERROR_MSG);
+         /*The following function writes the message both to the Sys.Monitor and EventLog */
+         TxUtils_Send_Msg_To_Operator(1, ErrorMsg, 1, ERROR_MSG, "perform_refeed", 3, INFO_ERROR, NULL_PTR, NULL_PTR, NULL_PTR);
+         return (false);
+      }
+
+      in_refeed_mode = true;
+
+      PRINT ("refeed command sent to logger\n");
+   }
+
+   return (true);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE validate_last_trid ( pPTE_MSG p_msg_in )
+{
+   int         cmp_result;
+   LONG        ipc_rcode;
+   CHAR        temp_str [80];
+   pCHAR       p_msg_last_trid;
+   pPTE_MSG    p_msg_out;
+
+
+   /* 
+    * get a pointer to the msg last_trid.  if the pointer is null, error 
+    */
+   p_msg_last_trid = ptemsg_get_last_msg_tran_id (p_msg_in);
+
+   /*
+    * If the msg last_trid is empty, OK.  This is a request that came 
+    * directly from an application (select, etc).  If it is not empty,
+    * need to compare it with my last_trid.
+    */
+   if (p_msg_last_trid [0] != '\0')
+   {
+      if (last_trid [0] == '\0')
+      {
+         /*
+          * My last_trid is empty.  Update it from this message.
+          */
+         strncpy (last_trid, p_msg_last_trid, sizeof(last_trid));
+      }
+      else
+      {
+         /*
+          * My last_trid is not empty.  If it doesn't match the msg last_trid,
+          * we have an out of sequence error.  Need to initiate a refeed from
+          * my last_trid.
+          */
+         cmp_result = strncmp (last_trid, p_msg_last_trid, sizeof(last_trid));
+
+         if (cmp_result != 0)
+         {
+            perform_refeed (last_trid);
+
+            result_code = PTEMSG_INVALID_TRID;
+            sprintf  (ErrorMsg, "invalid last-trid received: %s.   expected: %s",
+                      p_msg_last_trid, last_trid); 
+         }
+      }
+   }
+   else
+   {
+      if (in_refeed_mode == true)
+      {
+         result_code = PTEMSG_IN_REFEED_MODE;
+         strcpy (ErrorMsg, 
+                 "In refeed mode; cannot accept application requests until complete");
+      }
+   }
+
+   if (result_code != PTEMSG_OK)
+   {
+      //printf   ("%s\n", ErrorMsg);
+      //LogEvent (ErrorMsg, WARN_MSG);
+      /*The following function writes the message both to the Sys.Monitor and EventLog */
+      TxUtils_Send_Msg_To_Operator(1, ErrorMsg, 1, WARN_MSG, "validate_last_trid", 3, WARNING_ERROR, NULL_PTR, NULL_PTR, NULL_PTR);
+       /*
+       * Try to create an error response message to send back to the 
+       * originating application.  If it is a memory related error, this
+       * may fail also (but I'll at least try).
+       */
+      reply_que = ptemsg_get_msg_orig_queue (p_msg_in);
+
+      p_msg_out = ptemsg_build_msg (MT_DB_REPLY,        
+                                    ptemsg_get_msg_subtype1 (p_msg_in),
+                                    ptemsg_get_msg_subtype2 (p_msg_in),
+                                    reply_que,
+                                    application_que_name,
+                                    (pBYTE) ErrorMsg,
+                                    strlen(ErrorMsg) + 1,
+                                    0);
+
+      if (p_msg_out == NULL_PTR)
+      {
+         sprintf  (ErrorMsg, "Insufficient Memory to build error response to %s", reply_que);
+         //printf   ("%s\n", ErrorMsg);
+         //LogEvent (ErrorMsg, WARN_MSG);   
+         /*The following function writes the message both to the Sys.Monitor and EventLog */
+         TxUtils_Send_Msg_To_Operator(1, ErrorMsg, 1, WARN_MSG, "validate_last_trid", 2, WARNING_ERROR, NULL_PTR, NULL_PTR, NULL_PTR);
+         return (result_code);
+      }
+
+      ptemsg_set_result_code (p_msg_out, result_code);
+      ptemsg_set_orig_comms_info( p_msg_out, orig_comm_inf );
+      /*
+       * Send the response.
+       */
+      ipc_rcode = pteipc_send (p_msg_out, reply_que);
+
+      free (p_msg_out);
+
+      if (ipc_rcode < 0)
+      {
+         //printf   ("%s\n", ErrorMsg);
+         //LogEvent (ErrorMsg, WARN_MSG );
+         /*The following function writes the message both to the Sys.Monitor and EventLog */
+         TxUtils_Send_Msg_To_Operator(1, ErrorMsg, 1, WARN_MSG, "validate_last_trid", 2, WARNING_ERROR, NULL_PTR, NULL_PTR, NULL_PTR);
+         pteipc_get_errormsg (ipc_rcode, temp_str);
+         sprintf (ErrorMsg, "error sending response to %s: %s", reply_que, temp_str);
+      }
+   }
+
+   return (result_code);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+void rollback_the_update ()
+{
+   if (updates_to_db_made == true)
+   {
+      /* first, rollback the database update(s) */
+      dbcommon_rollback ();
+
+      /* then rollback any timer requests (makes sure memory table matches db) */
+      dstimer_rollback ();
+
+      updates_to_db_made = false;
+   }
+}  /* rollback_the_update */
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+void commit_the_update ()
+{
+   if (updates_to_db_made == true)
+   {
+      /* commit the database update(s) */
+      dbcommon_commit ();
+
+      /* let the timer know a commit has occurred */
+      dstimer_commit ();
+
+      updates_to_db_made = false;
+   }
+}  /* rollback_the_update */
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE PinnacleMsgHandler ( pPTE_MSG p_msg_in )
+{
+   LONG        i;
+   LONG        num_messages;
+   LONG        ipc_rcode;
+   CHAR        temp_str [80];
+   pPTE_MSG    p_cur_msg;
+   pPTE_MSG    p_tmp_msg;
+   pPTE_MSG    p_chn_out;
+   pPTE_MSG    p_new_chn;
+   pBYTE       p_data;
+   pPTE_MSG_DATA  p_msg_data;
+   INT            ret_val;
+   INT            num_sql;
+   INT         refresh_flag = 0;  // If an error in update_mem_record or delete_mem_record,
+                              // delete all recs. in mem and recreate all tables over again 
+                              // from the database.
+
+   #ifdef USING_CHECKPOINTS
+      pCHAR       p_msg_trid;
+   #endif
+
+
+   ptestats_accumulate_msg_stats (p_msg_in);
+
+   result_code = PTEMSG_OK;
+
+   #ifdef USING_CHECKPOINTS
+      if ( (result_code = validate_last_trid (p_msg_in)) != PTEMSG_OK )
+         return (result_code);
+   #endif
+
+   p_cur_msg    = p_msg_in;
+   p_tmp_msg    = NULL_PTR;
+   p_chn_out    = NULL_PTR;
+   i            = 1;
+   num_messages = ptemsg_get_num_chained_messages (p_msg_in);
+   /* Added for UpdateMemRecord stuff */
+   p_msg_data    = ptemsg_get_pte_msg_data( p_msg_in );
+   p_data        = ptemsg_get_pte_msg_data_data( p_msg_data );
+   app_data_type = ptemsg_get_pte_msg_data_app_data_type( p_msg_data );
+   p_data = p_data + sizeof(AUTH_TX);
+
+
+   while ( (i <= num_messages) && (p_cur_msg != NULL_PTR) )
+   {
+      reply_que = ptemsg_get_msg_orig_queue (p_cur_msg);
+      strcpy(orig_comm_inf, ptemsg_get_msg_orig_comms_info( p_cur_msg ));
+      app_data_type = 0;
+  
+      switch( ptemsg_get_msg_type( p_cur_msg ) )
+      {
+         case MT_DB_REQUEST     : p_tmp_msg = process_db_request (p_cur_msg);
+                                  break;
+         case MT_TIMER_REQUEST  : p_tmp_msg = dstimer_process_request (p_cur_msg, &updates_to_db_made);       
+                                  break;
+
+         case MT_SYSTEM_REQUEST : ptesystm_system_msg_handler (p_cur_msg);
+                                  if ( ST1_SYS_PING == ptemsg_get_msg_subtype1(p_msg_in) )
+                                  {
+                                     if ( ST2_NO_VERSION != ptemsg_get_msg_subtype2(p_msg_in) )
+                                     {
+                                        /* When pinged, display application version on Monitor. */
+                                        sprintf( temp_str,
+                                                "Pinged -> Data Server: %s, version %s",
+                                                 ServiceName, Version );
+                                        TxUtils_Send_Msg_To_Operator( 1, temp_str, 1, INFO_MSG,
+                                                                     "PinnacleMsgHandler",
+                                                                      0, INFO_ERROR, 0, 0, 0 );
+
+                                        /* Get Database Timing Parameters to gather
+                                         * statistics about each query.
+                                         */
+                                        memset( ReportTime, 0x00, sizeof(ReportTime) );
+                                        memset( temp_str,   0x00, sizeof(temp_str)   );
+                                        ret_val = get_timing_parameters( &DB_Timing_Flag,
+                                                                          ReportTime, 
+                                                                         &ForceReport,
+                                                                          temp_str );
+                                        LogEvent( temp_str, INFO_MSG );
+
+                                        if ( DB_Timing_Flag == true )
+                                        {
+                                           /* Get the time for when the DB Timing
+                                            * Statistical Report is to be logged.
+                                            */
+                                           NextReportTime = set_next_report_time_at_startup( ReportTime );
+
+                                           if ( ForceReport == true )
+                                           {
+                                              /* User wants to log the stats
+                                               * right now.  Log them then
+                                               * reset the statistics.
+                                               */
+                                              num_sql = log_timing_statistics_report( &TimingStats );
+                                              memset( temp_str, 0x00, sizeof(temp_str) );
+                                              sprintf( temp_str,
+                                                      "%s logged stats for %d SQLs",
+                                                       AppName, num_sql );
+                                              LogEvent( temp_str, INFO_MSG );
+
+                                              reset_timing_stats( &TimingStats );
+                                           }
+                                        }
+                                     }
+                                  }
+                                  break;
+         case MT_LOGGER_REPLY   : process_logger_reply (p_cur_msg);
+                                  break;
+         case MT_SYS_MONITOR    : process_monitor_request (p_cur_msg);
+                                  break;
+         case MT_CLEANUP        : process_db_cleanup    (p_cur_msg);
+                                  break;
+/*         case MT_NEGATIVE_FILE  : p_tmp_msg = process_negative_file (p_cur_msg);
+                                  break;*/
+         default :
+            /*
+             * Received an unknown msg type.  If the request was destined for
+             * this dataserver, log an error because I can't process it.
+             * Otherwise, try to forward it on to the actual destination.
+             */
+            if ( (strncmp (ptemsg_get_msg_dest_queue (p_cur_msg),
+                           application_que_name, strlen(application_que_name)) == 0) ||
+                 (strncmp (ptemsg_get_msg_dest_queue (p_cur_msg),
+                           control_que_name,     strlen(control_que_name)    ) == 0)   )
+            {
+               result_code = PTEMSG_INVALID_MSGTYPE;
+               sprintf (ErrorMsg, "Unknown msgtype for request from %s", reply_que);
+            }
+            else
+            {
+               /*
+                * Forward the request to its destination (if not in refeed mode).
+                */
+               if (in_refeed_mode == false)
+               {
+                  sprintf (temp_str, "forwarding message to queue %s\n", 
+                           ptemsg_get_msg_dest_queue (p_cur_msg));
+                  PRINT (temp_str);
+
+                  ptemsg_set_orig_comms_info( p_cur_msg, orig_comm_inf );
+                  ipc_rcode = pteipc_send (p_cur_msg, ptemsg_get_msg_dest_queue (p_cur_msg));
+
+                  if (ipc_rcode < 0)
+                  {
+                     result_code = PTEMSG_COULD_NOT_FORWARD;
+                     pteipc_get_errormsg (ipc_rcode, temp_str);
+                     sprintf  (ErrorMsg, "error forwarding to queue %s: %s", 
+                               ptemsg_get_msg_dest_queue (p_cur_msg), temp_str);
+                  }
+               }
+            }
+
+            break;
+      }  /* switch msg_type */
+
+
+      if (result_code != PTEMSG_OK)
+         break;
+
+      if (p_tmp_msg != NULL_PTR)
+      {
+         result_code = ptemsg_get_result_code (p_tmp_msg);
+         
+         if (result_code != PTEMSG_OK)
+         {
+            free (p_chn_out);
+            p_chn_out = p_tmp_msg;
+            p_tmp_msg = NULL_PTR;
+            break;
+         }
+         
+         if (p_chn_out == NULL_PTR)
+         {
+            p_chn_out = p_tmp_msg;
+            p_tmp_msg = NULL_PTR;
+         }
+         else
+         {
+            p_new_chn = ptemsg_chain_message (p_chn_out, p_tmp_msg);
+
+            if (p_new_chn == NULL_PTR)
+            {
+               result_code = PTEMSG_INSUFFICIENT_MEMORY;
+               sprintf  (ErrorMsg, "Insufficient Memory to chain response to %s", reply_que);
+               break;
+            }
+            else
+            {
+               p_chn_out = p_new_chn;
+               p_tmp_msg = NULL_PTR;
+            }
+         }
+      }
+
+      if ((++i) <= num_messages)
+         p_cur_msg = ptemsg_get_chained_pte_msg (p_msg_in, i);
+   }  /* while */
+
+
+   /*
+    * Be sure to free up the temp message.
+    */
+   if (p_tmp_msg != NULL_PTR)
+   {
+      free (p_tmp_msg);
+      p_tmp_msg = NULL_PTR;
+   }
+
+   #ifdef USING_CHECKPOINTS
+      /*
+       * Update the checkpoint.
+       */
+      if (result_code == PTEMSG_OK)
+      {
+         p_msg_trid = ptemsg_get_current_msg_tran_id (p_msg_in);
+
+         if (p_msg_trid [0] != '\0')
+         {
+            strncpy (checkpoint_rec.checkpoint_trid, p_msg_trid, sizeof(checkpoint_rec.checkpoint_trid));
+            strncpy (last_trid, p_msg_trid, sizeof(last_trid));
+
+            result_code = dbcommon_update_checkpoint (&checkpoint_rec, ErrorMsg);
+         }
+      }
+   #endif
+
+   /*
+    * If there was an error, back out the changes.
+    * Otherwise commit the changes.
+    */
+   reply_que = ptemsg_get_msg_orig_queue (p_msg_in);
+
+   if (result_code != PTEMSG_OK)
+   {
+      rollback_the_update ();
+
+      if (p_chn_out != NULL_PTR)
+      {
+         free (p_chn_out);
+         p_chn_out = NULL_PTR;
+      }
+
+      /*
+       * Try to create an error response message to send back to the 
+       * originating application.  If it is a memory related error, this
+       * may fail also (but I'll at least try).
+       */
+      memcpy(AtpBuffer + sizeof(AUTH_TX) , ErrorMsg, strlen(ErrorMsg) + 1);
+      p_chn_out = ptemsg_build_msg (MT_DB_REPLY,        
+                                    ptemsg_get_msg_subtype1 (p_cur_msg),
+                                    ptemsg_get_msg_subtype2 (p_cur_msg),
+                                    reply_que,
+                                    application_que_name,
+                                    (pBYTE) AtpBuffer,
+                                    strlen(ErrorMsg) + 1 + sizeof(AUTH_TX) ,
+                                    app_data_type);
+
+      if (p_chn_out == NULL_PTR)
+      {
+         //printf   ("%s\n", ErrorMsg);
+         //LogEvent (ErrorMsg, WARN_MSG );
+         /*The following function writes the message both to the Sys.Monitor and EventLog */
+         TxUtils_Send_Msg_To_Operator(1, ErrorMsg, 1, WARN_MSG, "PinnacleMsgHandler", 2, WARNING_ERROR, NULL_PTR, NULL_PTR, NULL_PTR);
+         result_code = PTEMSG_INSUFFICIENT_MEMORY;
+         sprintf (ErrorMsg, "Insufficient Memory to build error response to %s", reply_que);
+      }
+   }
+   else
+   {
+      commit_the_update ();
+    
+      
+   }
+
+   if (p_chn_out != NULL_PTR)
+   {
+      /*
+       * If in refeed mode, don't send the response.
+       */
+      if (in_refeed_mode == true)
+         return (PTEMSG_OK);
+
+      /*
+       * If the result is OK, don't send the response if they don't want it.
+       */
+      if ( (result_code                                == PTEMSG_OK                 ) &&
+           (ptemsg_get_type_of_reply_needed (p_msg_in) == PTEMSG_REPLY_ONLY_IF_FAILS) )
+      {
+         free (p_chn_out);
+         return (PTEMSG_OK);
+      }
+
+      ptemsg_set_result_code (p_chn_out, result_code);
+      ptemsg_set_orig_comms_info( p_chn_out, orig_comm_inf );
+
+      /*
+       * Send the response.
+       */
+      ipc_rcode = pteipc_send (p_chn_out, reply_que);
+
+      free (p_chn_out);
+
+      if (ipc_rcode < 0)
+      {
+         //printf   ("%s\n", ErrorMsg);
+         //LogEvent (ErrorMsg, WARN_MSG );
+         /*The following function writes the message both to the Sys.Monitor and EventLog */
+         TxUtils_Send_Msg_To_Operator(1, ErrorMsg, 1, WARN_MSG, "PinnacleMsgHandler", 2, WARNING_ERROR, NULL_PTR, NULL_PTR, NULL_PTR);
+         result_code = PTEMSG_IPC_ERROR;
+         pteipc_get_errormsg (ipc_rcode, temp_str);
+         sprintf (ErrorMsg, "error sending response to %s: %s", reply_que, temp_str);
+      }
+   }
+   //Database errors (ex: select failed) are no more sent to Eventlog
+   /*if (result_code != PTEMSG_OK)
+   {
+      printf   ("%s\n", ErrorMsg);
+      LogEvent (ErrorMsg, WARN_MSG );
+   }*/
+
+   return (result_code);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BOOLEAN perform_startup ()
+{
+   CHAR     XipcInstanceName[12];
+   INT      ret_val;
+   CHAR     Buffer[300] = "";
+
+   memset (last_trid, 0, sizeof(last_trid));
+
+   /* Try to connect to the database */
+   if (dbcommon_connect ("equitable", "equitable", "equitable", "ORCL", ErrorMsg) != PTEMSG_OK)
+   {
+      printf   ( "%s", ErrorMsg );
+      //LogEvent ( ErrorMsg, ERROR_MSG );
+      /*The following function writes the message to both the Sys.Monitor and EventLog */
+      TxUtils_Send_Msg_To_Operator(1, ErrorMsg, 1, ERROR_MSG, "perform_startup", 4, FATAL_ERROR, NULL_PTR, NULL_PTR, NULL_PTR);
+      return (false);
+   }
+
+   printf ("Connected to ORACLE\n");
+
+
+   /* Try to initialise the xipc stuff */
+   GetAppName          (AppName);
+   GetXipcInstanceName (XipcInstanceName);
+
+#ifndef WIN32
+
+   /* Diagnostic code to trap the following signals. */
+   sigset( SIGALRM, TrapFunction );
+   sigset( SIGBUS,  TrapFunction );
+   sigset( SIGEMT,  TrapFunction );
+   sigset( SIGFPE,  TrapFunction );
+   sigset( SIGILL,  TrapFunction );
+   sigset( SIGIOT,  TrapFunction );
+   sigset( SIGKILL, TrapFunction );
+   sigset( SIGPIPE, TrapFunction );
+   sigset( SIGPOLL, TrapFunction );
+   sigset( SIGPWR,  TrapFunction );
+   sigset( SIGQUIT, TrapFunction );
+   sigset( SIGSEGV, TrapFunction );
+   sigset( SIGSYS,  TrapFunction );
+   sigset( SIGTRAP, TrapFunction );
+   sigset( SIGUSR1, TrapFunction );
+   sigset( SIGUSR2, TrapFunction );
+
+#endif
+
+   //12-07-98 gabriel multiple instance
+
+   //if (pteipc_init_single_instance_app (AppName, XipcInstanceName) == false)
+   if( !pteipc_init_multiple_instance_app( AppName, ServiceName, XipcInstanceName ) )
+   {     
+      //printf   ("Failed to Create XIPC queues");
+      //LogEvent ("Failed to create XIPC queues", ERROR_MSG);
+      /*The following function writes the message both to the Sys.Monitor and EventLog */
+      TxUtils_Send_Msg_To_Operator(1, "Failed to create XIPC queues", 1, ERROR_MSG, "perform_startup", 4, FATAL_ERROR, NULL_PTR, NULL_PTR, NULL_PTR);
+      //pteipc_shutdown_single_instance_app();
+      pteipc_shutdown_multiple_instance_app();
+      dbcommon_disconnect (ErrorMsg);
+      return (false);
+   }
+   
+   printf ("pteipc init successful\n");
+
+
+   #ifdef USING_LOGGER_REPLY
+      /* send restart command to TFLogger */
+      if (SendRestartCmd (ErrorMsg) == false)
+      {
+         //printf   ("Error sending restart command to TFLogger: %s\n", ErrorMsg);
+         //LogEvent ("Error sending restart command to TFLogger", ERROR_MSG);
+         /*The following function writes the message both to the Sys.Monitor and EventLog */
+         TxUtils_Send_Msg_To_Operator(1, "Error sending restart command to TFLogger", 1, ERROR_MSG, "perform_startup", 3, INFO_ERROR, NULL_PTR, NULL_PTR, NULL_PTR);
+         
+         dstimer_shutdown ();
+         //pteipc_shutdown_single_instance_app();
+         pteipc_shutdown_multiple_instance_app();
+         dbcommon_disconnect (ErrorMsg);
+         return (false);
+      }
+
+      printf ("restart command sent to logger\n");
+
+      #ifdef USING_CHECKPOINTS
+         /* get the checkpoint record from the database */
+         if (dbcommon_select_checkpoint (AppName, &checkpoint_rec, ErrorMsg) != PTEMSG_OK)
+         {
+            //printf   ("%s\n",   ErrorMsg);
+            //LogEvent (ErrorMsg, ERROR_MSG);
+            /*The following function writes the message both to the Sys.Monitor and EventLog */
+            TxUtils_Send_Msg_To_Operator(1, ErrorMsg, 1, ERROR_MSG, "perform_startup", 2, INFO_ERROR, NULL_PTR, NULL_PTR, NULL_PTR);
+
+            dstimer_shutdown ();
+            //pteipc_shutdown_single_instance_app();
+            pteipc_shutdown_multiple_instance_app();
+            dbcommon_disconnect (ErrorMsg);
+            return (false);
+         }
+
+         /* 
+          * refeed from my last known trid.
+          */
+         strncpy (last_trid, checkpoint_rec.checkpoint_trid, sizeof(last_trid));
+
+         if (perform_refeed (checkpoint_rec.checkpoint_trid) == false)
+         {
+            dstimer_shutdown ();
+            //pteipc_shutdown_single_instance_app();
+            pteipc_shutdown_multiple_instance_app();
+            dbcommon_disconnect (ErrorMsg);
+            return (false);
+         }
+      #endif
+   #endif
+
+   /* Get Timer Parameters to flag Queries that take too long. */
+   ret_val = get_dataserver_ini_timer_value( &ds_timer_flag, &ds_timer_value,
+                                             AppName,         Buffer );
+   if ( false == ret_val )
+   {
+      LogEvent( Buffer, WARN_MSG );
+   }
+   else if ( ds_timer_flag == DS_TIMER_ON )
+   {
+      sprintf( Buffer,
+              "%s:Data Server timing to flag long queries is turned on, value is %d",
+               AppName, ds_timer_value );
+      LogEvent( Buffer, INFO_MSG );
+   }
+
+   /* Get Database Timing Parameters to gather statistics about each query. */
+   memset( ReportTime, 0x00, sizeof(ReportTime) );
+   memset( Buffer,     0x00, sizeof(Buffer)     );
+   ret_val = get_timing_parameters( &DB_Timing_Flag, ReportTime, &ForceReport, Buffer );
+   LogEvent( Buffer, INFO_MSG );
+
+   /* Get the time for when the DB Timing Statistical Report is to be logged. */
+   if ( DB_Timing_Flag == true )
+   {
+      reset_timing_stats( &TimingStats );
+      NextReportTime = set_next_report_time_at_startup( ReportTime );
+   }
+   return (true);
+}
+/*************************************************************************************/
+/*************************************************************************************/
+
+#ifndef WIN32
+
+void TrapFunction( INT signum )
+{
+   CHAR Buffer[100];
+
+   XIPC_TRAP_FUNCTION_TEST( TrapFunction, signum );
+
+   memset( Buffer, 0x00, sizeof(Buffer) );
+   sprintf( Buffer, "%s:  Caught signal %d", AppName, signum );
+   LogEvent( Buffer, ALERT_MSG );
+}
+
+#endif
+
+void MainProcessor()
+{
+   LONG     ipc_rcode, xipc_code;
+   pPTE_MSG p_msg;
+   CHAR     Buffer[256];
+   CHAR     MonAdd[100]="";
+   INT      rt;
+   INT      num_sql;
+   INT      err_ctr = 0;
+   CHAR     strError[512] = {0} ;
+	
+   GetAppName( AppName );
+   #ifdef _DEBUG
+      pteipc_trace_on();
+   #endif
+   sprintf( Buffer,
+           "Starting the Service: %s, version %s",
+            AppName, Version );
+   LogEvent( Buffer, INFO_MSG );
+	printf( "%s\n", Buffer );
+   if (perform_startup () == false)
+   {
+      MainProcessDone = 1;
+	     sprintf( Buffer,
+           "Shutting down the Service: %s, version %s",
+            AppName, Version );
+		  LogEvent( Buffer, INFO_MSG );
+			printf( "%s\n", Buffer );
+
+      return;
+   }
+
+   MemSize = GetMemorySize();
+   MemAvailable = MemSize;
+   if(MemAvailable > 0L)
+   {
+      xipc_code = CreateTable(OPRMON_DATA);
+      if(xipc_code > 0L)
+      {
+         MemAvailable = MemAvailable - xipc_code;
+         xipc_code = PopulateTable(OPRMON_DATA);
+        if(xipc_code >= 0L)
+            OprMonInMem = true;
+         else
+            OprMonInMem = false;
+      }
+   }
+
+   if(MemAvailable > 0L)
+   {
+      xipc_code = CreateTable(BIN01_DATA);
+      if(xipc_code > 0L)
+      {
+         MemAvailable = MemAvailable - xipc_code;
+         xipc_code = PopulateTable(BIN01_DATA);
+         if(xipc_code >= 0L)
+            Bin01InMem = true;
+         else
+            Bin01InMem = false;
+      }
+   }
+   if(MemAvailable > 0L)
+   {
+      xipc_code = CreateTable(CAF01_DATA);
+      if(xipc_code > 0L)
+      {
+         MemAvailable = MemAvailable - xipc_code;
+         xipc_code = PopulateTable(CAF01_DATA);
+         if(xipc_code >= 0L)
+            Caf01InMem = true;
+         else
+            Caf01InMem = false;
+      }
+   }
+   if(MemAvailable > 0L)
+   {
+      xipc_code = CreateTable(FAF01_DATA);
+      if(xipc_code > 0L)
+      {
+         MemAvailable = MemAvailable - xipc_code;
+         xipc_code = PopulateTable(FAF01_DATA);
+         if(xipc_code >= 0L)
+            Faf01InMem = true;
+         else
+            Faf01InMem = false;
+      }
+   }
+   if(MemAvailable > 0L)
+   {
+      xipc_code = CreateTable(CRF01_DATA);
+      if(xipc_code > 0L)
+      {
+         MemAvailable = MemAvailable - xipc_code;
+         xipc_code = PopulateTable(CRF01_DATA);
+         if(xipc_code >= 0L)
+            Crf01InMem = true;
+         else
+            Crf01InMem = false;
+      }
+   }
+   if(MemAvailable > 0L)
+   {
+      xipc_code = CreateTable(CSF01_DATA);
+      if(xipc_code > 0L)
+      {
+         MemAvailable = MemAvailable - xipc_code;
+         xipc_code = PopulateTable(CSF01_DATA);
+         if(xipc_code >= 0L)
+            Csf01InMem = true;
+         else
+            Csf01InMem = false;
+      }
+   }
+   if(MemAvailable > 0L)
+   {
+      rt = CreateSQL01_Table();
+      if ( rt < 0 )
+      {
+         sprintf( Buffer, "Unable to create SQL01 in memory. Xipc err %d", rt );
+         LogEvent( Buffer, WARN_MSG );
+      }
+   }
+
+   sprintf( Buffer,
+           "Starting the Service: %s, version %s",
+            ServiceName, Version );
+   LogEvent( Buffer, INFO_MSG );
+   printf( "%s\n", Buffer );
+
+   printf ( "DataServer is ready. press <ENTER> to exit\n" );
+
+   while ( !EndProcessSignalled )
+   {
+      /* You are blocked here waiting for a message on either app queue or control que  */
+      /* if there is no message on either que for the specified time, the blocking call returns   */
+      p_msg = pteipc_receive( application_que_name, control_que_name, 
+                              TIME_BETWEEN_CHECKS, &ipc_rcode );
+
+      if( p_msg != NULL_PTR )
+      {
+         PinnacleMsgHandler( p_msg );
+         free (p_msg);
+      }
+      else if( ipc_rcode != QUE_ER_TIMEOUT ) 
+      {
+         pteipc_get_errormsg ( ipc_rcode, ErrorMsg );
+         sprintf ( Buffer, "Error on pteipc_receive %s", ErrorMsg );
+         TxUtils_Send_Msg_To_Operator(1, Buffer, 1, WARN_MSG, "MainProcessor", 2, WARNING_ERROR, NULL_PTR, NULL_PTR, NULL_PTR);
+
+         /* There is a problem with the queue.  Delay 1 second
+          * so as to not flood Applnk's queue and syslog.
+          */
+         #ifdef WIN32
+            Sleep( 1000 );
+         #else
+            usleep( 1000000 );
+         #endif
+
+         /* Inform Operators if service's queue is no longer readable. */
+         if ( ++err_ctr > 10 )
+         {
+            err_ctr = 0;
+            sprintf( strError,
+                    "SHUT DOWN %s. UNABLE TO ACCESS QUEUE!!!!",
+                     ServiceName );
+            TxUtils_Send_Msg_To_Operator (1, strError, 1, ALERT_MSG,
+                                         "MainProcessor", 4, FATAL_ERROR,0,0,0);
+            #ifdef WIN32
+               Sleep (5000);
+            #else
+               usleep (5000000);
+            #endif
+         }
+
+         /* Comment the following out after the production stability
+          * problem is resolved.
+          */
+         /* This line is to gather XIPC info *
+         memset( XipcErrBuffer, 0x00, sizeof(XipcErrBuffer) );
+         XipcSystemErrorReport( XipcErrBuffer, sizeof(XipcErrBuffer)-1 );
+         LogEvent( XipcErrBuffer, ERROR_MSG );
+         exit(1);
+         */
+      }
+      else
+      {
+         in_refeed_mode = false;
+
+         /* The queue read has timed out.  This means there is no
+          * activity for this application.  Take this opportunity
+          * to see if it is time to log the database timing stats.
+          */
+         if ( is_it_report_time(NextReportTime) )
+         {
+            /* Time to report the DB timing measurement statistics. */
+            num_sql = log_timing_statistics_report( &TimingStats );
+
+            memset( Buffer, 0x00, sizeof(Buffer) );
+            sprintf( Buffer,
+                    "%s logged stats for %d SQLs",
+                     AppName, num_sql );
+            LogEvent( Buffer, INFO_MSG );
+
+            reset_timing_stats( &TimingStats );
+            NextReportTime = set_next_report_time_at_startup( ReportTime );
+         }
+      }
+
+      dstimer_check_for_timeouts ();
+   }
+
+   dstimer_shutdown ();
+
+   if(Bin01InMem)
+   {
+      xipc_code = DestroyXipcTable("Bin01Table");
+   }
+   if(Caf01InMem)
+   {
+      xipc_code = DestroyXipcTable("Caf01Table");
+   }
+   if(Faf01InMem)
+   {
+      xipc_code = DestroyXipcTable("Faf01Table");
+   }
+   if(Crf01InMem)
+   {
+      xipc_code = DestroyXipcTable("Crf01Table");
+   }
+   if(Csf01InMem)
+   {
+      xipc_code = DestroyXipcTable("Csf01Table");
+   }
+   if(OprMonInMem)
+   {
+      xipc_code = DestroyXipcTable("MonitorTable");
+   }
+
+   /* shut down ipc */
+   //pteipc_shutdown_single_instance_app(); 
+   pteipc_shutdown_multiple_instance_app(); 
+
+   printf ("pteipc shutdown successful\n");
+
+   /* disconnect from database */
+   if (dbcommon_disconnect (ErrorMsg) != PTEMSG_OK)
+      printf ( "%s\n", ErrorMsg );
+   else
+      printf ( "Disconnected from ORACLE\n" );
+
+   /* signal that we are ready for shutdown */
+   MainProcessDone = 1;
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+void EndProcess()
+{
+   CHAR Buffer[100] = "";
+
+   sprintf( Buffer, "Shutting down the %s Service, version %s",
+            ServiceName, Version );
+   LogEvent( Buffer, INFO_MSG );
+   strcat( Buffer, "\n" );
+   PRINT( Buffer );
+
+   pteipc_sleep (3000);
+}
+
+
+
+
+/* Do not remove the following lines. These are the Custom build settings for the Pro C pre-compiler */
+/*proc $(ProjDir)\$(InputName).pc dbms=native sqlcheck=semantics userid=atp/atp@atp include=$(ProjDir)\..\..\include*/
+/*$(ProjDir)\$(InputName).c*/

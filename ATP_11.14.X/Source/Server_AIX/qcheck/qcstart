@@ -1,0 +1,98 @@
+#!/usr/bin/ksh
+#
+# Name: qcstart
+# Ascendent run-script
+# Hypercom Corporation
+#
+# Created 8/14/2006 by JMG to stop and start the qcheck service.
+#
+#  ***** START of user configuration parameters ********
+
+# Set up time to wait for a process to die with a regular "kill" before forcing
+# it to die with a "kill -9"
+WAIT_STOP=5
+
+# Set EB production or HYPERCOM (unix-pollux or cobra) environment here
+ENV=`uname -n`
+
+# Set this parameter to TEST to have the test version of startup.ini used
+# to start ATP
+STARTUP=PRODUCTION
+#STARTUP=TEST
+
+#  Set the name of the log file here. Path is computed below.
+LOGFILE=atplog
+
+#  ***** END of user configuration parameters ********
+
+if [ $ENV != "pollux" ]
+then
+  export INSTALLATION_ROOT=/local
+else
+  export INSTALLATION_ROOT=/local
+fi
+
+# Compute final path to log file.
+LOGFILE=$INSTALLATION_ROOT/$LOGFILE
+
+# Export Ascendent variables:
+export ASCENDENTROOT=$INSTALLATION_ROOT/realpay
+export LOGGER_QUENAME=L_AP_S1
+export PATH=$PATH:$ASCENDENTROOT/bin
+
+echo
+echo "This script will shut down and restart the qcheck service."
+echo "The Ascendent root path is $ASCENDENTROOT"
+echo "The environment is $ENV"
+echo "Progressing will be reported to the screen and the log file at:"
+echo "$LOGFILE"
+echo
+echo "Are you sure you want to shutdown and restart the qcheck service? \c"
+read ANSWER
+if [ "Y" = $ANSWER -o "y" = $ANSWER ]
+then
+  echo "`date` qcstart-Shutdown and restart of qcheck!" | tee -a $LOGFILE
+else
+  echo "`date` qcstart-Restart procedure aborted!" | tee -a $LOGFILE
+  exit
+fi
+
+# Stop qcheck service
+#PID_LINE=`ps -ef | fgrep qcheck | fgrep -v grep`
+#echo "The process line is:"
+#echo $PID_LINE
+PID=`ps -ef | fgrep qcheck | fgrep -v grep \
+     | nawk '{ while( sub(/^[ ]/,"") );while (gsub(/[ ]{2,}/," ",$0));\
+     ;split($0,a,/[ ]/); print a[2] }'`
+if [ -n "$PID" ] -a [ 0 -lt $PID  ]
+then
+   kill $PID >> $LOGFILE
+   while ( PID=`ps -ef | fgrep qcheck | fgrep -v grep \
+     | nawk '{ while( sub(/^[ ]/,"") );while (gsub(/[ ]{2,}/," ",$0));\
+     ;split($0,a,/[ ]/); print a[2] }'`; [ -n "$PID" ] -a [ 0 -lt $PID ] )
+   do
+     echo "Waiting for qcheck=$PID to stop."
+     sleep 1
+   done
+else
+#   echo "PID result for qcheck=$PID"
+   echo "qcheck service is not running!" | tee -a $LOGFILE
+fi
+echo "`date` qcstart - qcheck service is down!" | tee -a $LOGFILE
+
+# Start qcheck service
+echo "Starting qcheck service." | tee -a $LOGFILE
+# Display the qcheck utility configuration parameters in tf.ini
+nawk '/\[QCHECK\]/ { i=0; while (i < 5) {getline; print; ++i}; }' \
+/local/realpay/config/tf.ini | tee -a $LOGFILE
+nohup $ASCENDENTROOT/bin/qcheck > $ASCENDENTROOT/bin/qcheck.out &
+until ( PID=`ps -ef | fgrep qcheck | fgrep -v grep \
+  | nawk '{ while( sub(/^[ ]/,"") );while (gsub(/[ ]{2,}/," ",$0));\
+  ;split($0,a,/[ ]/); print a[2] }'`; \
+  [ -n "$PID" ] -a [ 0 -lt $PID ] )
+do
+  echo "Waiting for qcheck service to start."
+  sleep 1
+done
+
+echo "`date` qcstart - qcheck service is up!" | tee -a $LOGFILE

@@ -1,0 +1,508 @@
+/******************************************************************************
+
+   fgrdmain.c
+
+   Copyright (c) 2006, Hypercom, Inc.
+   All Rights Reserved.
+
+   TITLE:  Fraudguard Interface Driver
+
+   This module is the  handler for the Fraudguard interface.  It
+   will process all messages destined to, or originated from,
+   the Fraudguard.
+
+   Fraudguard is a Fraud Detection & Alert Management system by CTL.
+
+   APPLICATION:  Advanced Transaction Processor (ATP)
+
+   REVISION HISTORY
+
+   $Log:   N:\POS\PVCS6.6\EPICPORTZ\PTE\Equitable\fguard\fgrdmain.c  $
+   
+      Rev 1.11   Nov 17 2006 13:32:38   DIrby
+   Updated version to 4.4.1.9
+   SCR 23657
+   
+      Rev 1.10   Nov 06 2006 13:15:32   DIrby
+   Modified to get number of messages in the FSoap dialog connection
+   queue.  If the count is too high, do not send request to FG.  Put out
+   a warning message every 25 txns.
+   SCR 23657
+   
+      Rev 1.9   Oct 27 2006 13:43:22   DIrby
+   Updated version to 4.4.1.7
+   SCR 23522
+   
+      Rev 1.8   Oct 09 2006 14:25:32   DIrby
+   Added capability to send Issuer (ATP approves the txns) to Fraudguard.
+   SCR 21851
+   
+      Rev 1.7   Sep 26 2006 14:10:20   dirby
+   Updated version to 4.4.1.6
+   SCR 21292
+   
+      Rev 1.6   May 11 2006 14:16:02   dirby
+   Updated version to 4.4.1.5
+   SCR 21188
+   
+      Rev 1.5   Feb 27 2006 14:03:46   dirby
+   Updated version to 4.4.1.4
+   SCR 19054
+   
+      Rev 1.4   Dec 21 2005 16:02:22   dirby
+   Updated version to 4.4.1.3
+   SCR 19054
+   
+      Rev 1.3   Sep 09 2005 15:59:48   dirby
+   Updated version to 4.4.1.2
+   SCR 16789
+   
+      Rev 1.2   Aug 23 2005 16:55:18   dirby
+   Updated version to 4.4.1.1 test b
+   SCR 16789
+   
+      Rev 1.1   Jul 15 2005 09:49:56   dirby
+   Added a line to make sure Auth_Tx is always initialized.
+   SCR 14421
+   
+      Rev 1.0   Jul 08 2005 09:15:46   dirby
+   Initial revision.
+ ******************************************************************************/
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "ptemsg.h"
+#include "basictyp.h"
+#include "app_info.h"
+#include "equitdb.h"
+#include "nc_dbstruct.h"
+#include "tx_dbstruct.h"
+#include "pteipc.h"
+#include "ptetimer.h"
+#include "ntutils.h"
+#include "ptestats.h"
+#include "ptesystm.h"
+#include "txutils.h"
+#include "txtrace.h"
+#include "diskio.h"
+#include "fgrd_constants.h"
+#include "fgrd_prototypes.h"
+
+
+extern INT  EndProcessSignalled;
+extern INT  MainProcessDone;
+extern CHAR ServiceName[12];
+
+
+/************************************************
+    GLOBAL DECLARATIONS
+ ************************************************/
+
+/* QUEUES */
+CHAR  AppName[80];
+CHAR  updateds_que_name[]   = "updatdsA";
+CHAR  trands_que_name []    = "trandsA";
+CHAR  netds_que_name []     = "netdsA";
+CHAR  timerds_que_name []   = "timerdsA";
+CHAR  devds_que_name []     = "devdsA";
+CHAR  authorizer_que_name[] = "txcntlA";
+CHAR  applnk_que_name []    = "applnkA";
+CHAR  oprmon_que_name[]     = "oprmonI" ;
+CHAR  dialog_que_name []    = "dialogA";
+
+/* STRUCTURES */
+AUTH_TX   Auth_Tx;
+CRF01     Crf01;
+FGUARD    Fguard;
+FG_RAW    Fgraw;
+FG01      Fg01;
+
+/* STRUCTURE SIZES */
+INT  Auth_Tx_Size;
+INT  Crf01_Size;
+INT  Fguard_Size;
+INT  Fgraw_Size;
+INT  Fg01_Size;
+
+/* Counters */
+INT    MaxActiveTxns;
+INT    MaxConsecTimeouts;
+INT    QueMsgCnt_A;
+INT    QueMsgCnt_I;
+
+/* Statistics for Monitor */
+TXN_COUNTS     Txn_Counts;
+MONITOR_STATS  Monitor_Stats;
+
+/* Originator Information */
+BYTE   Orig_Queue[17];
+BYTE   Orig_Info[33];
+
+/* Txn Tracing Info */
+CHAR   DirPath[MAX_APP_NAME_SIZE];
+CHAR   TraceFile[MAX_APP_NAME_SIZE];
+INT    Tracing;
+FILE   TraceFile_fp;
+FILE   *pTraceFile_fp;
+FILE   **ppTraceFile_fp;
+
+ISS_AMTS Iss_Amts;
+
+double USD_to_Peso_Conv_Rate = 0.0;
+INT    ConvRateFlag = false;
+INT    Authorizer;
+INT    Card_Family = CARD_FAMILY_UNDEFINED;
+INT    TranFlow;
+INT    BufLen;
+BYTE   ReqRsp_Buffer[COMM_BUF_SZE];
+BYTE   XML_ReqRsp_Buffer[COMM_BUF_SZE];
+CHAR   Version[] = "ATP_5.18.0";
+
+/******************************************************************************
+ *
+ *  NAME:         ascendent_msg_handler
+ *
+ *  DESCRIPTION:  This function acts as a switch for messages coming into this
+ *                host handler.  It will transfer control to the appropriate
+ *                module, based on message type.
+ *
+ *  INPUTS:       p_msg_in - Incoming message
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       Ram Malathkar
+ *
+ ******************************************************************************/
+void ascendent_msg_handler( pPTE_MSG p_msg_in )
+{
+   BYTE            msgtype;
+   CHAR            buffer[256];      
+   pBYTE           p_data = NULL_PTR;
+
+   /* Determine message type so we know which module to send it to. */
+   memset( &Auth_Tx, 0x00, Auth_Tx_Size );
+   msgtype = ptemsg_get_msg_type(p_msg_in);
+   switch( msgtype )
+   {
+      case MT_AUTH_REQUEST:
+
+         /* Authorization request from txcntl */
+         process_request_for_host( p_msg_in );
+         break;
+
+      case MT_AUTH_RESPONSE: 
+
+         /* Authorization response from txcntl */
+         break;
+
+      case MT_INCOMING: 
+
+         /* Message(request/response) from the Equitable host */
+         process_host_msg( p_msg_in );
+         break;
+
+      case MT_DB_REPLY:
+
+         /* Message coming from the data server */
+         process_db_reply( p_msg_in );
+         break;
+
+      case MT_GET_STATS:
+
+         /* Send transaction counts to whoever requested them. */
+         (void)send_transaction_statistics( p_msg_in );
+         break;
+
+      case MT_RESET_STATS:
+
+         /* Reset transaction counts to zero. */
+         (void)reset_transaction_statistics( p_msg_in );
+         break;
+
+      case MT_BATCH_SEND_REQUEST:
+
+         /* Resend one or more failed Fraudguard transactions. */
+         begin_batch_send( p_msg_in );
+         break;
+
+      case MT_SYSTEM_REQUEST:
+         ptesystm_system_msg_handler( p_msg_in );
+		 process_encryption_flag( p_msg_in );
+         if ( ST1_SYS_PING == ptemsg_get_msg_subtype1(p_msg_in) )
+         {
+            if ( Tracing == TRACE_ON )
+            {
+               /* Flush the trace file buffer when service is pinged. */
+               if ( false == flush_file(ppTraceFile_fp) )
+               {
+                  Tracing = TRACE_OFF;
+                  sprintf( buffer,
+                    "%s: Unable to flush trace file buffer. Turning Trace off.",
+                     AppName );
+                  log_message( 2, 1, buffer, "ascendent_msg_handler" );
+                  (void)close_trace_file( ppTraceFile_fp );
+               }
+            }
+
+            /* When pinged, display application version on Monitor. */
+            sprintf( buffer,
+                    "Pinged -> Fraudguard Service: %s, version %s",
+                     ServiceName, Version );
+            log_message( 3, 1, buffer, "ascendent_msg_handler" );
+         }
+      break;
+
+      case MT_SYSTEM_REPLY: 
+         PRINT( "MT_SYSTEM_REPLY  \n" );
+      break;
+
+      default :
+         sprintf( buffer, "Unknown msg type received: %d", (INT)msgtype );
+         log_message( 3, 2, buffer, "ascendent_msg_handler" );
+      break;
+   }  /* switch msg_type */
+
+   return;
+} /* ascendent_msg_handler */
+
+
+/******************************************************************************
+ *
+ *  NAME:         MainProcessor
+ *
+ *  DESCRIPTION:  This is the driver function for the Fraudguard Interface.
+ *
+ *  INPUTS:       None
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       D. Irby
+ *
+ ******************************************************************************/
+void MainProcessor()
+{
+   pPTE_MSG  p_msg;
+   LONG      ret_code;
+   CHAR      ErrorMsg[100] = "";
+   CHAR      buffer[256]   = "";
+   CHAR      xipc_instance[30];
+   INT       xipc_timeout_ctr;
+
+   GetAppName( AppName );
+   GetXipcInstanceName( xipc_instance );
+
+   sprintf( buffer,
+           "Starting the Fraudguard Interface Service: %s, version %s",
+            ServiceName, Version );
+   LogEvent( buffer, INFO_MSG );
+   PRINT2( "%s\n", buffer );
+
+   if( !pteipc_init_multiple_instance_app( AppName, ServiceName, xipc_instance ))
+   {
+      log_message( 2, 3, "Failed to create XIPC queues.", "MainProcessor" );
+      PRINT( "Failed to create XIPC queues\n" );
+      pteipc_shutdown_multiple_instance_app();
+      MainProcessDone = 1;
+   }
+   else
+   {
+      /* Perform any startup initialization. */
+      if ( false == startup() )
+      {
+         pteipc_shutdown_multiple_instance_app();
+         MainProcessDone = 1;
+      }
+      else
+      {
+         /**************
+          * MAIN  LOOP *
+          **************/
+         xipc_timeout_ctr = 0;
+         while( !EndProcessSignalled )
+         {
+            /* You are blocked here waiting for a message on either app queue
+             * or control queue. If there is no message on either queue for 5
+             * seconds, the blocking call returns.
+             *
+             * The following line will be used to get messages from the queue.
+             */
+            p_msg = pteipc_receive( application_que_name,
+                                    control_que_name,
+                                    5, &ret_code ); 
+
+            if ( NULL_PTR != p_msg )
+            {
+               xipc_timeout_ctr = 0;
+               ascendent_msg_handler( p_msg );
+               free( p_msg );
+            }
+            else if ( QUE_ER_TIMEOUT != ret_code ) 
+            {
+               pteipc_get_errormsg( ret_code, ErrorMsg );
+               sprintf( buffer, "Error on pteipc_receive %s", ErrorMsg );
+               log_message( 2, 3, buffer, "MainProcessor" );
+
+               xipc_timeout_ctr++;
+               if ( xipc_timeout_ctr > 10 )
+               {
+                  strcpy( buffer, "Too many XIPC errors. Shutting down." );
+                  EndProcessSignalled = 1;
+               }
+            }
+         }
+      }
+
+      /* Shutting down, need to change state before exiting Xipc. */
+      (void)set_host_state( DOWN, ErrorMsg );
+
+      /* pteipc_shutdown_single_instance_app(); */
+      pteipc_shutdown_multiple_instance_app();
+      MainProcessDone = 1;
+   }
+}
+
+
+/******************************************************************************
+ *
+ *  NAME:         EndProcess
+ *
+ *  DESCRIPTION:  This is the function used to clean up when the app is
+ *                being exited.  All clean up code goes in here.
+ *
+ *  INPUTS:       None
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       D. Irby
+ *
+ ******************************************************************************/
+void EndProcess()
+{
+   CHAR Buffer[100]  = "";
+
+   if ( Tracing == TRACE_ON )
+   {
+      if ( false == close_trace_file( ppTraceFile_fp ))
+      {
+         sprintf( Buffer, "Unable to close trace file %s", TraceFile );
+         log_message( 2, 1, Buffer, "startup" );
+      }
+   }
+
+   sprintf( Buffer, "Shutting down the %s Service, version %s",
+            ServiceName, Version );
+   LogEvent( Buffer, INFO_MSG );
+}
+
+/******************************************************************************
+ *
+ *  NAME:         STARTUP
+ *
+ *  DESCRIPTION:  This function performs required initialization when the
+ *                service starts up.  It creates the shared memory table, gets
+ *                FG01, and may perform auto logon.
+ *
+ *  INPUTS:       None
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   True if successful, false if a problem occurred
+ *
+ *  AUTHOR:       Dennis Irby
+ *
+ ******************************************************************************/
+INT startup()
+{
+   INT    ret_val = true;
+   INT    rc;
+   CHAR   Buffer[200]  = "";
+   CHAR   err_buf[100] = "";
+
+   QueMsgCnt_A = 0;
+   QueMsgCnt_I = 0;
+
+   sprintf( Buffer, "Fraudguard service %s was started.", ServiceName );
+   log_message( 2, 1, Buffer, "startup" );
+
+   /* Initialize the structure sizes so they
+    * do not have to be recalculated every time.
+    */
+   Auth_Tx_Size = AUTH_TX_SIZE;
+   Crf01_Size   = CRF01_SIZE;
+   Fguard_Size  = FGUARD_SIZE;
+   Fgraw_Size   = FGRAW_SIZE;
+   Fg01_Size    = FG01_SIZE;
+
+   /*  Create a table to be used for shared memory between multiple
+    *  instances of this  Module.  It contains three fields:
+    *  # of consecutive timeouts, # of active transactions, 
+    *  and the current state of the host.
+    */
+   ret_val = create_shared_mem_table( err_buf );
+   if ( true == ret_val )
+   {
+      /* Get FG01 record for switched out transactions. */
+      memset( &Fg01, 0x00, Fg01_Size );
+      memset( Buffer, 0x00, sizeof(Buffer) );
+      strcpy( Fg01.name, AppName );
+      ret_val = get_fg01_with_wait( &Fg01, Buffer );
+      if ( false == ret_val )
+      {
+         strcpy(  err_buf, "Error on select of FG01: " );
+         strncat( err_buf,  Buffer, 50 );
+      }
+   }
+
+   if ( true == ret_val )
+   {
+      /* Initialize transaction statistics */
+      (void)reset_stats( &Txn_Counts );
+
+      /* Determine if transaction tracing should be turned on. */
+      rc = get_trace_ini_info( AppName, DirPath, err_buf );
+      if ( rc == 0 )
+      {
+         Tracing = TRACE_ON;
+
+         /* Open the transaction trace file. */
+         memset( TraceFile, 0x00, sizeof(TraceFile) );
+
+         pTraceFile_fp  = &TraceFile_fp;
+         ppTraceFile_fp = &pTraceFile_fp;
+
+         if (false == open_trace_file(AppName,DirPath,ppTraceFile_fp,TraceFile))
+         {
+            Tracing = TRACE_OFF;
+            sprintf( err_buf,
+                    "Unable to open trace file %s. Tracing is off",
+                     TraceFile );
+            log_message( 2, 1, err_buf, "startup" );
+         }
+         else
+            log_message( 2, 1, "Tracing is turned ON", "startup" );
+      }
+      else
+      {
+         Tracing = TRACE_OFF;
+         if ( rc == -1 )
+         {
+            log_message( 2, 1, err_buf, "startup" );
+         }
+         log_message( 2, 1, "Tracing is turned off", "startup" );
+      }
+   }
+   else
+   {
+      sprintf( Buffer, "Unable to startup %s.  %s.", AppName, err_buf );
+      log_message( 2, 3, Buffer, "Startup" );
+   }
+
+   return( ret_val );
+}
+

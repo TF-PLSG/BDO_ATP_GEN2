@@ -1,0 +1,4 @@
+14:05:41,937  INFO (LogProxy) Using default log4j settings
+14:05:41,937  INFO (LogProxy) osName=Windows 2000
+14:05:42,187  INFO (LogProxy) JVM = SunJRE
+14:05:45,234  WARN (LogProxy) Java asserts disabled!!!

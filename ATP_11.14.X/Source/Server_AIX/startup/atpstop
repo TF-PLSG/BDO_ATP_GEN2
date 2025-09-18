@@ -1,0 +1,301 @@
+#!/usr/bin/ksh
+#
+# Name: atpstop
+# Ascendent run-script to stop ATP system
+# Hypercom Corporation
+#
+# Edited 11/01/2005 by Dirby to stop the qcheck service.
+#
+# Edited 7/13/2000 by JMG to perform stop of ATP with proper
+# timing and progressing information.
+# All progressing info will be logged to the screen and also to the log file
+# LOGFILE
+#
+# Edited 11/8/2000 to add testing configuration capability and handle logic
+# to detect and pass over disabled services in the startup.ini file.
+# Also made EB production vs pollux configurable.
+#
+# Edited 12/20/2000 to automatically detect the Hypercom environment and
+# eliminate the need for a configuration change.
+#
+# Edited 1/9/2001 to change LOGFILE name to atplog and compute environment
+# dependent path to the file.
+#
+# Edited 1/25/2002 to add logic to do kill -9 on applnk if it does not shut
+# down due to existing GUI connections. This change is simultaneous with
+# GUI changes that will attempt reconnects to applnk after it goes away.
+# Also modify the kill -9 logic for all processes to be similar in operation.
+# Finally, make Service Manager logic do kill -9 like applnk & use same logic.
+#
+#  ***** START of user configuration parameters ********
+
+# Set up time to wait for a process to die with a regular "kill" before forcing
+# it to die with a "kill -9"
+WAIT_STOP=5
+
+# Set EB production or HYPERCOM (pollux) environment here
+#ENV=EQUITABLE
+ENV=`uname -n`
+
+#  Set the name of the log file here. Path is computed below.
+LOGFILE=atplog
+
+#  ***** END of user configuration parameters ********
+
+if [ $ENV != "pollux" ]
+then
+  export INSTALLATION_ROOT=/Ascendent
+else
+  export INSTALLATION_ROOT=/prog
+fi
+
+# Compute final path to log file.
+LOGFILE=$INSTALLATION_ROOT/$LOGFILE
+
+# Export Ascendent variables:
+export ASCENDENTROOT=$INSTALLATION_ROOT/ascendent
+export LOGGER_QUENAME=L_AP_S1
+export PATH=$PATH:$ASCENDENTROOT/bin
+
+echo
+echo "This script will shut down XIPC and ATP services."
+echo "The Ascendent root path is $ASCENDENTROOT"
+echo "The environment is $ENV" 
+echo "Progressing will be reported to the screen and the log file at:"
+echo "$LOGFILE"
+echo
+echo "     ***** You should first exit all ATP GUI's *****"
+echo "Are you sure you want to shutdown ATP services? \c"
+read ANSWER
+if [ "Y" = $ANSWER -o "y" = $ANSWER ]
+then
+  echo "`date` atpstop-Starting shutdown of ATP system!" | tee -a $LOGFILE
+else
+  echo "`date` atpstop-Shutdown procedure aborted!" | tee -a $LOGFILE
+  exit
+fi
+
+# Stop all ATP services
+echo "Stopping all ATP services" | tee -a $LOGFILE
+for LINE in `cat $ASCENDENTROOT/config/startup.ini`
+  do
+    PNAME=`echo $LINE | cut -f2 -d':'`
+    PID=`echo $LINE | cut -f8 -d':'`
+    PENABLE=`echo $LINE | cut -f5 -d':'`
+#echo "LINE=$LINE" | tee -a $LOGFILE
+#echo "PNAME=$PNAME" | tee -a $LOGFILE
+#echo "PID=$PID" | tee -a $LOGFILE
+#echo "PENABLE=$PENABLE" | tee -a $LOGFILE
+    if [ $PENABLE != "1" ]
+    then
+     if ps -ef \
+       | awk '{ while( sub(/^[ ]/,"") );while (gsub(/[ ]{2,}/," ",$0));\
+                      ;split($0,a,/[ ]/); print a[2] }' \
+       | fgrep -x $PID > /dev/null
+      then
+        echo "Stopping ATP process $PNAME=$PID" | tee -a $LOGFILE
+        kill $PID >> $LOGFILE
+      else
+        echo " ATP process $PNAME=$PID is not running" | tee -a $LOGFILE
+     fi
+    fi
+  done
+
+# Stop qcheck service
+PID=`ps -ef | fgrep qcheck | fgrep -v grep \
+     | awk '{ while( sub(/^[ ]/,"") );while (gsub(/[ ]{2,}/," ",$0));\
+     ;split($0,a,/[ ]/); print a[2] }'`
+
+if [ $PID > 0 ]
+then
+   kill $PID >> $LOGFILE
+fi
+
+for LINE in `cat $ASCENDENTROOT/config/startup.ini`
+  do
+    PNAME=`echo $LINE | cut -f2 -d':'`
+    PID=`echo $LINE | cut -f8 -d':'`
+    PENABLE=`echo $LINE | cut -f5 -d':'`
+#echo "LINE=$LINE" | tee -a $LOGFILE
+#echo "PNAME=$PNAME" | tee -a $LOGFILE
+#echo "PID=$PID" | tee -a $LOGFILE
+#echo "PENABLE=$PENABLE" | tee -a $LOGFILE
+    if [ $PENABLE != "1" ]
+    then
+      if ps -ef \
+       | awk '{ while( sub(/^[ ]/,"") );while (gsub(/[ ]{2,}/," ",$0));\
+                      ;split($0,a,/[ ]/); print a[2] }' \
+       | fgrep -x $PID > /dev/null
+      then
+#       Wait for each service to stop.
+#       If it does not stop within WAIT_STOP seconds
+#       then force it to die and continue when it does
+        echo "Waiting for ATP process $PNAME=$PID to stop \c" | tee -a $LOGFILE
+        DELAY=$WAIT_STOP
+        while ps -ef \
+           | awk '{ while( sub(/^[ ]/,"") );while (gsub(/[ ]{2,}/," ",$0));\
+                      ;split($0,a,/[ ]/); print a[2] }' \
+           | fgrep -x $PID > /dev/null
+          do
+            if [ $DELAY -gt 0 ]
+              then
+                echo ".\c" | tee -a $LOGFILE
+                DELAY=`expr $DELAY - 1`
+                sleep 1
+              else
+                echo | tee -a $LOGFILE
+                echo "Process did not stop." | tee -a $LOGFILE
+                echo "Killing process $PNAME=$PID \c" | tee -a $LOGFILE
+                kill -9 $PID >> $LOGFILE
+                DELAY=$WAIT_STOP
+                sleep 1
+            fi
+          done
+        echo | tee -a $LOGFILE
+        echo "-----> ATP process $PNAME=$PID has stopped" | tee -a $LOGFILE
+      else
+        echo "ATP process $PNAME=$PID is down" | tee -a $LOGFILE
+      fi
+    else
+      echo "ATP process $PNAME is not enabled." | tee -a $LOGFILE
+    fi
+  done
+
+echo "All configured ATP services are stopped!" | tee -a $LOGFILE
+
+# Now stop Service Manager
+#   Kill srvcmgr and then wait for srvcmgr service to stop.
+#   If it does not stop within WAIT_STOP seconds
+#   then force it to die and continue when it does
+if ps -ef | fgrep srvcmgr | fgrep -v grep > /dev/null
+  then
+    PID=`ps -ef | fgrep srvcmgr | fgrep -v grep \
+         | awk '{ while( sub(/^[ ]/,"") );while (gsub(/[ ]{2,}/," ",$0));\
+         ;split($0,a,/[ ]/); print a[2] }'`
+    echo "----->Stopping process srvcmgr=$PID" | tee -a $LOGFILE
+    kill $PID
+    echo "Waiting for ATP process srvcmgr=$PID to stop\c" | tee -a $LOGFILE
+    sleep 1
+    DELAY=$WAIT_STOP
+    while ps -ef | fgrep $PID | fgrep -v fgrep > /dev/null
+      do
+        if [ $DELAY -gt 0 ]
+          then
+            echo ".\c" | tee -a $LOGFILE
+            DELAY=`expr $DELAY - 1`
+            sleep 1
+          else
+            echo | tee -a $LOGFILE
+            echo ATP process srvcmgr did not stop. | tee -a $LOGFILE
+            echo "All ATP GUI's are not stopped and will have to re-connect!"\
+                  | tee -a $LOGFILE
+            echo "Killing process srvcmgr=$PID" | tee -a $LOGFILE
+            kill -9 $PID >> $LOGFILE
+            DELAY=$WAIT_STOP
+            echo "Waiting for process srvcmgr=$PID to die \c" | tee -a $LOGFILE
+            sleep 1
+        fi
+      done
+    echo | tee -a $LOGFILE
+    echo "-----> ATP process srvcmgr=$PID is stopped" | tee -a $LOGFILE
+  else
+    echo "ATP process srvcmgr is not running" | tee -a $LOGFILE
+fi
+
+# Now stop applnk
+#   Kill applnk and then wait for applnk service to stop.
+#   If it does not stop within WAIT_STOP seconds
+#   then force it to die and continue when it does
+if ps -ef | fgrep applnk | fgrep -v grep > /dev/null
+  then
+    PID=`ps -ef | fgrep applnk | fgrep -v grep \
+         | awk '{ while( sub(/^[ ]/,"") );while (gsub(/[ ]{2,}/," ",$0));\
+         ;split($0,a,/[ ]/); print a[2] }'`
+    echo "----->Stopping process applnk=$PID" | tee -a $LOGFILE
+    kill $PID
+    echo "Waiting for ATP process applnk=$PID to stop\c" | tee -a $LOGFILE
+    sleep 1
+    DELAY=$WAIT_STOP
+    while ps -ef | fgrep $PID | fgrep -v fgrep > /dev/null
+      do
+        if [ $DELAY -gt 0 ]
+          then
+            echo ".\c" | tee -a $LOGFILE
+            DELAY=`expr $DELAY - 1`
+            sleep 1
+          else
+            echo | tee -a $LOGFILE
+            echo ATP process applnk did not stop. | tee -a $LOGFILE
+            echo "All ATP GUI's are not stopped and will have to re-connect!"\
+                  | tee -a $LOGFILE
+            echo "Killing process applnk=$PID" | tee -a $LOGFILE
+            kill -9 $PID >> $LOGFILE
+            DELAY=$WAIT_STOP
+            echo "Waiting for process applnk=$PID to die \c" | tee -a $LOGFILE
+            sleep 1
+        fi
+      done
+    echo | tee -a $LOGFILE
+    echo "-----> ATP process applnk=$PID is stopped" | tee -a $LOGFILE
+  else
+    echo "ATP process applnk is not running" | tee -a $LOGFILE
+fi
+
+# Now check to make sure all configured services are down and report
+# any named services that might be running from a prior startup
+echo "Checking for ATP services by name that may be up..."| tee -a $LOGFILE
+PRIORSERVICEUP="false"
+for LINE in `cat $ASCENDENTROOT/config/startup.ini`
+  do
+    PNAME=`echo $LINE | cut -f2 -d':'`
+    PID=`echo $LINE | cut -f8 -d':'`
+    PENABLE=`echo $LINE | cut -f5 -d':'`
+#echo "LINE=$LINE" | tee -a $LOGFILE
+#echo "PNAME=$PNAME" | tee -a $LOGFILE
+#echo "PID=$PID" | tee -a $LOGFILE
+#echo "PENABLE=$PENABLE" | tee -a $LOGFILE
+    if [ $PENABLE != "1" ]
+    then
+     if ps -ef | fgrep $PNAME | fgrep -v grep  > /dev/null
+      then
+        PRIORSERVICEUP="true"
+        echo "Killing a prior $PNAME service that is still up!"| tee -a $LOGFILE
+        for XPID in `ps -ef | fgrep $PNAME | fgrep -v grep \
+              | awk '{ while( sub(/^[ ]/,"") );while (gsub(/[ ]{2,}/," ",$0));\
+                      ;split($0,a,/[ ]/); print a[2] }'`
+          do
+            echo "----->Killing process $XPID for $PNAME=$PID" | tee -a $LOGFILE
+            kill -9 $XPID
+          done
+      else
+        echo "****** ATP $PNAME service is NOT running! *****" > /dev/null
+     fi
+    fi
+  done
+
+if [ $PRIORSERVICEUP = "true" ]
+  then
+    echo "Prior ATP named services were up --> killed" | tee -a $LOGFILE
+  else
+    echo "No prior ATP named services were up" | tee -a $LOGFILE
+fi
+
+echo "All ATP services are stopped!" | tee -a $LOGFILE
+
+# Stop XIPC
+if ps -ef | fgrep -v grep | fgrep xipc > /dev/null
+  then
+    echo "Stopping XIPC services" | tee -a $LOGFILE
+    xipcstop
+    xipcterm
+    while ps -ef | fgrep -v grep | fgrep xipc > /dev/null
+      do
+        sleep 1
+      done
+    echo "XIPC services are stopped!" | tee -a $LOGFILE
+  else
+    echo "XIPC services are not running" | tee -a $LOGFILE
+fi
+
+echo "`date` atpstop -----> ATP system is down!" | tee -a $LOGFILE
+

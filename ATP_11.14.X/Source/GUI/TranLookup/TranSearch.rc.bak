@@ -1,0 +1,591 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United States) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
+    "#define _AFX_NO_OLE_RESOURCES\r\n"
+    "#define _AFX_NO_TRACKER_RESOURCES\r\n"
+    "#define _AFX_NO_PROPERTY_RESOURCES\r\n"
+    "\r\n"
+    "#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)\r\n"
+    "#ifdef _WIN32\r\n"
+    "LANGUAGE 9, 1\r\n"
+    "#pragma code_page(1252)\r\n"
+    "#endif\r\n"
+    "#include ""res\\TranSearch.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
+    "#include ""afxres.rc""         // Standard components\r\n"
+    "#endif\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDR_MAINFRAME           ICON                    "res\\TranSearch.ico"
+IDR_TRANSETYPE          ICON                    "res\\TranSearchDoc.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDR_MAINFRAME MENU
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&New\tCtrl+N",                ID_FILE_NEW
+        MENUITEM "&Open...\tCtrl+O",            ID_FILE_OPEN
+        MENUITEM "&Save\tCtrl+S",               ID_FILE_SAVE
+        MENUITEM "Save &As...",                 ID_FILE_SAVE_AS
+        MENUITEM SEPARATOR
+        MENUITEM "Recent File",                 ID_FILE_MRU_FILE1, GRAYED
+        MENUITEM SEPARATOR
+        MENUITEM "E&xit",                       ID_APP_EXIT
+    END
+    POPUP "&Edit"
+    BEGIN
+        MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
+        MENUITEM SEPARATOR
+        MENUITEM "Cu&t\tCtrl+X",                ID_EDIT_CUT
+        MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY
+        MENUITEM "&Paste\tCtrl+V",              ID_EDIT_PASTE
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&About TranSearch...",        ID_APP_ABOUT
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Accelerator
+//
+
+IDR_MAINFRAME ACCELERATORS
+BEGIN
+    "N",            ID_FILE_NEW,            VIRTKEY, CONTROL
+    "O",            ID_FILE_OPEN,           VIRTKEY, CONTROL
+    "S",            ID_FILE_SAVE,           VIRTKEY, CONTROL
+    "Z",            ID_EDIT_UNDO,           VIRTKEY, CONTROL
+    "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL
+    "C",            ID_EDIT_COPY,           VIRTKEY, CONTROL
+    "V",            ID_EDIT_PASTE,          VIRTKEY, CONTROL
+    VK_BACK,        ID_EDIT_UNDO,           VIRTKEY, ALT
+    VK_DELETE,      ID_EDIT_CUT,            VIRTKEY, SHIFT
+    VK_INSERT,      ID_EDIT_COPY,           VIRTKEY, CONTROL
+    VK_INSERT,      ID_EDIT_PASTE,          VIRTKEY, SHIFT
+    VK_F6,          ID_NEXT_PANE,           VIRTKEY 
+    VK_F6,          ID_PREV_PANE,           VIRTKEY, SHIFT
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_ABOUTBOX DIALOG 0, 0, 217, 55
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About TranSearch"
+FONT 8, "MS Sans Serif"
+BEGIN
+    ICON            IDR_MAINFRAME,IDC_STATIC,11,17,20,20
+    LTEXT           "TranSearch Version 11.0.0",IDC_STATIC_APP_VERSION,40,10,119,8,SS_NOPREFIX
+    LTEXT           "Copyright © 2007, Hypercom Inc.",IDC_STATIC,40,25,119,8
+    DEFPUSHBUTTON   "OK",IDOK,178,7,32,14,WS_GROUP
+END
+
+IDD_TRANDETAILS DIALOGEX 0, 0, 805, 431
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Transaction Details"
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    PUSHBUTTON      "Close",IDCANCEL,559,328,60,16
+    EDITTEXT        IDC_TRAN_TYPE_FLD,98,3,135,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_RETRIEVAL_REF_NUM_FLD,98,37,98,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_PROCESSING_CODE_FLD,98,54,45,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_PROCESSING_CODE_FLD_1,150,54,45,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_CARD_NUMBER_FLD,98,69,98,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_TRAN_AMOUNT_FLD,98,85,98,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_RESPONSE_CODE_FLD,98,117,46,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_TERMINAL_ID_FLD,97,151,98,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_MERCHANT_ID_FLD1,97,169,98,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_SYSTEM_TRACE_NUMBER_FLD,97,222,98,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_OUTSTANDING_BALANCE_FLD,97,241,98,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_CREDIT_LIMIT_FLD,97,258,98,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_OPERATOR_ID_FLD,343,255,102,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_FG_Result_FLD,654,363,102,14,ES_AUTOHSCROLL | ES_READONLY | NOT WS_VISIBLE
+    EDITTEXT        IDC_INVOICE_NUMBER_FLD,344,57,102,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_TRAN_TIME_FLD,344,75,102,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_TRAN_DATE_FLD,344,92,102,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_AUTH_ID_RESPONSE_FLD,344,110,102,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_RESPONSE_TEXT_FLD,344,127,102,23,ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY
+    EDITTEXT        IDC_POS_ENTRY_MODE_FLD,344,152,35,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_POS_ENTRY_MODE_FLD_1,382,152,65,15,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_POS_CONDITION_CODE_FLD,344,168,50,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_POS_CONDITION_CODE_FLD_1,396,168,50,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_ACQUIRING_INST_ID_FLD,539,4,100,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_FORWARDING_INSTITUTION_ID_FLD,539,23,100,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_EXP_DATE_FLD,344,3,102,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_CURRENCY_CODE_FLD,98,100,98,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_SYSTEM_DATE_FLD,539,44,100,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_GROSS_AMOUNT,540,175,86,13,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_MONTHLY_AMORT,540,194,86,13,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_TERM_LENGTH,540,211,86,13,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_FACTOR,540,230,86,13,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_TEXT_FLD,97,327,453,45,ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY
+    EDITTEXT        IDC_EMV_FLD,98,374,453,12,ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | NOT WS_VISIBLE | WS_VSCROLL
+    LTEXT           "Transaction Type:",IDC_STATIC,7,3,58,8
+    LTEXT           "Retrieval Reference Num:",IDC_STATIC,7,39,83,8
+    LTEXT           "Processing Code:",IDC_STATIC,7,59,68,8
+    LTEXT           "Card Number:",IDC_STATIC,7,73,52,8
+    LTEXT           "Transaction Amount:",IDC_STATIC,7,88,82,8
+    LTEXT           "Response Code:",IDC_STATIC,7,119,60,8
+    LTEXT           "Terminal ID:",IDC_STATIC,7,157,50,11
+    LTEXT           "Merchant ID:",IDC_STATIC,7,174,57,8
+    LTEXT           "System Trace Audit Num:",IDC_STATIC,7,221,84,10
+    LTEXT           "Available Balance:",IDC_STATIC,7,241,60,8
+    LTEXT           "Credit Limit:",IDC_STATIC,7,262,37,8
+    LTEXT           "Operator ID:",IDC_STATIC,250,258,40,8
+    LTEXT           "Invoice Number:",IDC_STATIC,249,61,62,8
+    LTEXT           "Transaction Time:",IDC_STATIC,249,78,63,8
+    LTEXT           "Transaction Date:",IDC_STATIC,249,94,67,8
+    LTEXT           "Auth ID Response:",IDC_STATIC,249,111,67,8
+    LTEXT           "Response Text:",IDC_STATIC,249,135,64,8
+    LTEXT           "POS Entry Mode:",IDC_STATIC,249,156,66,8
+    LTEXT           "POS Condition Code:",IDC_STATIC,249,171,68,8
+    LTEXT           "Acquiring Inst. ID:",IDC_STATIC,459,7,57,8
+    LTEXT           "Forwarding Inst. ID:",IDC_STATIC,459,27,62,8
+    LTEXT           "Expiration Date:",IDC_STATIC,249,9,51,8
+    LTEXT           "Currency Code:",IDC_STATIC,7,104,50,8
+    LTEXT           "System Date:",IDC_STATIC,459,47,43,8
+    LTEXT           "Text:",IDC_STATIC,15,344,17,8
+    LTEXT           "Raw Data:",IDC_STATIC,50,372,25,20,NOT WS_VISIBLE
+    LTEXT           "",IDC_MESSAGE_LBL,39,401,572,13,SS_SUNKEN
+    GROUPBOX        "",IDC_STATIC,30,390,590,29
+    LTEXT           "Fraud Guard Result:",IDC_FG_Result,558,366,73,8,NOT WS_VISIBLE
+    LTEXT           "Gross Amount:",IDC_STATIC,472,175,60,18
+    GROUPBOX        "Deferred Payments",IDC_STATIC,461,160,183,87
+    LTEXT           "Monthly Amortization:",IDC_STATIC,472,191,62,16
+    LTEXT           "Term Length:",IDC_STATIC,472,211,60,15
+    LTEXT           "Factor (%)",IDC_STATIC,472,231,40,10
+    CONTROL         "",IDC_ATP_STIP,"Button",BS_AUTOCHECKBOX | WS_DISABLED | WS_TABSTOP,662,26,16,8
+    CONTROL         "",IDC_MERCHANT_OMD,"Button",BS_AUTOCHECKBOX | WS_DISABLED | WS_TABSTOP,662,61,16,8
+    CONTROL         "",IDC_VOICE_VOD,"Button",BS_AUTOCHECKBOX | WS_DISABLED | WS_TABSTOP,662,50,16,8
+    CONTROL         "",IDC_SCHEME_STIP,"Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_DISABLED | WS_TABSTOP,662,309,16,8
+    EDITTEXT        IDC_BIN_LOW,539,65,100,14,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Bin Low:",IDC_STATIC,459,67,28,8
+    EDITTEXT        IDC_BDO_MERC_ACQ_TX,639,344,102,14,ES_AUTOHSCROLL | ES_READONLY | NOT WS_VISIBLE
+    LTEXT           "BDO Merchant Acq Tx:",IDC_STATIC,559,350,75,8,NOT WS_VISIBLE
+    EDITTEXT        IDC_ORIGINAL_CURRENCY_CODE,343,220,102,14,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Earmarked Currency:",IDC_STATIC,249,225,67,8
+    EDITTEXT        IDC_EARMARKED_AMT,344,203,102,14,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Earmarked Amt:",IDC_STATIC,249,208,51,8
+    EDITTEXT        IDC_AUTH_PROFILE,539,86,100,14,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Auth Profile:",IDC_STATIC,459,89,39,8
+    EDITTEXT        IDC_SERVICE_CODE,98,276,98,14,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Service Code:",IDC_STATIC,7,280,47,8
+    LTEXT           "ATP STIP Processed",IDC_STATIC,679,26,104,8
+    LTEXT           "Voice Override (VOD)",IDC_STATIC,680,50,104,8
+    LTEXT           "Override Merchant Denial (OMD)",IDC_STATIC,680,61,104,8
+    GROUPBOX        "",IDC_STATIC,660,3,136,73
+    LTEXT           "Original Txn Amount:",IDC_STATIC,7,297,66,11
+    EDITTEXT        IDC_Orginial_Txn_Amount,97,294,98,14,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Original Txn Amt Currency:",IDC_STATIC,7,312,85,9
+    EDITTEXT        IDC_Original_Txn_Amt_Currency,97,310,98,14,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "ECI:",IDC_STATIC,249,28,37,8
+    EDITTEXT        IDC_ECI,344,23,51,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_ECI_1,398,23,47,14,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "MCC:",IDC_STATIC,7,191,42,10
+    EDITTEXT        IDC_MCC,97,187,98,14,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Merchant Name",IDC_STATIC,7,208,72,8
+    EDITTEXT        IDC_Merchant_Name,97,203,98,14,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "POS Data:",IDC_STATIC,249,188,61,8
+    EDITTEXT        IDC_POS_DATA,344,185,102,15,ES_AUTOHSCROLL | ES_READONLY
+    CONTROL         "",IDC_HOST_PROCESSED,"Button",BS_AUTOCHECKBOX | WS_DISABLED | WS_TABSTOP,662,12,16,8
+    LTEXT           "Host Processed",IDC_STATIC,679,12,104,8
+    CONTROL         "",IDC_CVV_PRESENT,"Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_DISABLED | WS_TABSTOP,661,320,12,8
+    LTEXT           "CVV Present",IDC_STATIC,679,321,104,8,NOT WS_VISIBLE
+    CONTROL         "",IDC_CVV_Validated,"Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_DISABLED | WS_TABSTOP,659,207,12,8
+    LTEXT           "CVV Validated",IDC_STATIC,677,207,104,8,NOT WS_VISIBLE
+    CONTROL         "",IDC_CVV2_Present,"Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_DISABLED | WS_TABSTOP,660,218,16,8
+    LTEXT           "CVV2 Present",IDC_STATIC,675,217,104,8,NOT WS_VISIBLE
+    CONTROL         "",IDC_CVV2_Validated,"Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_DISABLED | WS_TABSTOP,660,229,16,8
+    LTEXT           "CVV2 Validated",IDC_STATIC,678,228,104,8,NOT WS_VISIBLE
+    CONTROL         "",IDC_PIN_Present,"Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_DISABLED | WS_TABSTOP,660,238,16,8
+    LTEXT           "PIN Present",IDC_STATIC,679,238,104,8,NOT WS_VISIBLE
+    CONTROL         "",IDC_PIN_Validated,"Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_DISABLED | WS_TABSTOP,661,251,16,8
+    LTEXT           "PIN Validated",IDC_STATIC,677,250,104,8,NOT WS_VISIBLE
+    CONTROL         "",IDC_ARQC_Present,"Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_DISABLED | WS_TABSTOP,661,263,16,8
+    LTEXT           "ARQC Present",IDC_STATIC,677,262,104,8,NOT WS_VISIBLE
+    CONTROL         "",IDC_CAVV_Present,"Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_DISABLED | WS_TABSTOP,661,285,16,8
+    LTEXT           "CAVV Present",IDC_STATIC,677,284,104,8,NOT WS_VISIBLE
+    CONTROL         "",IDC_CAVV_Validated,"Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_DISABLED | WS_TABSTOP,661,296,16,8
+    LTEXT           "Acquiring Country:",IDC_STATIC,249,241,57,10
+    EDITTEXT        IDC_Acquiring_Country,343,238,102,14,ES_AUTOHSCROLL | ES_READONLY
+    CONTROL         "",IDC_ARQC_VALIDATED,"Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_DISABLED | WS_TABSTOP,662,273,16,8
+    LTEXT           "ARQC Validated",IDC_STATIC,677,273,104,8,NOT WS_VISIBLE
+    EDITTEXT        IDC_VISA_MERCHANT_IND,539,105,100,14,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Visa Merchant identifier ",IDC_STATIC,459,107,76,8
+    EDITTEXT        IDC_DIGITAL_COMM_PRG_IND,539,124,100,14,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Digital Comm Program Indicator",IDC_STATIC,461,124,78,18
+    EDITTEXT        IDC_DIGITAL_ENTRY_IDENTIFIER,539,144,100,14,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Digital Entry Identifier ",IDC_STATIC,463,145,72,12
+    LTEXT           "MessageType:",IDC_STATIC,12,21,48,8
+    EDITTEXT        IDC_MESSAGE_TYPE,98,20,98,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_CUP_INDICATOR,343,272,102,14,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "CUP Indicator:",IDC_STATIC,247,276,47,8
+    EDITTEXT        IDC_SETTLEMENT_DATE,343,289,102,14,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Settle Date:",IDC_STATIC,248,292,55,10
+    LTEXT           "Original ECI/Reason",IDC_STATIC,248,47,74,13
+    EDITTEXT        IDC_ORI_ECI_REASON,343,39,102,14,ES_AUTOHSCROLL | ES_READONLY
+    CONTROL         "",IDC_TO_ATP_STIP,"Button",BS_AUTOCHECKBOX | WS_DISABLED | WS_TABSTOP,662,39,16,8
+    LTEXT           "TO ATP STIP Processed",IDC_STATIC,679,39,104,8
+    LTEXT           "Tran ID:",IDC_STATIC,463,255,71,14
+    EDITTEXT        IDC_NRID,539,252,86,13,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "ATP sbatchtime :",IDC_STATIC,463,270,66,13
+    EDITTEXT        IDC_SBATCH_TIME,540,270,86,13,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Action Code :",IDC_STATIC,7,136,72,13
+    EDITTEXT        IDC_ACTION_CODE,98,134,98,13,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "POS Data Extd Cond Codes:",IDC_STATIC,461,289,66,17
+    EDITTEXT        IDC_EXTCOND_CODE,539,290,86,13,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "MRA Sent Time :",IDC_STATIC,457,308,66,13
+    EDITTEXT        IDC_MRA_SENT_TIME,538,308,86,13,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_REPLACEMENT_AMOUNT_FLD,343,308,102,14,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Replacement Amount:",IDC_STATIC,247,310,74,11
+    GROUPBOX        "",IDC_STATIC,646,79,152,88
+    LTEXT           "Earmarked Amt:",IDC_STATIC,652,89,51,8
+    LTEXT           "Earmarked Currency:",IDC_STATIC,651,110,67,8
+    LTEXT           "Billing Currency:",IDC_STATIC,652,148,51,8
+    LTEXT           "Billing Amount:",IDC_STATIC,651,130,47,8
+    EDITTEXT        IDC_EARMARKED_AMT2,719,87,72,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_SETTLEMENT_AMT,720,127,70,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_EARMARKED_CURRENCY2,719,107,72,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_SETTELMENT_CURRENCY,719,145,71,14,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "CAVV Validated",IDC_STATIC,677,297,104,8,NOT WS_VISIBLE
+    LTEXT           "SCHEME STIP Processed",IDC_STATIC,677,309,104,8,NOT WS_VISIBLE
+    LTEXT           "HostName",IDC_STATIC,651,175,39,9
+    EDITTEXT        IDC_HOSTNAME,699,173,86,13,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_NII,699,188,86,13,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "NII",IDC_STATIC,651,191,39,9
+    EDITTEXT        IDC_RESPONSE_CODE_FLDSCHEME,147,117,47,14,ES_AUTOHSCROLL | ES_READONLY
+END
+
+IDD_TRAN_INQUIRY DIALOGEX 0, 0, 454, 370
+STYLE DS_SETFONT | DS_MODALFRAME | WS_MINIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Transaction Lookup"
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    EDITTEXT        IDC_ACCOUNT_NBR_FLD,144,12,84,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_MERCHANT_ID_FLD,144,26,84,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_DEVICE_ID_FLD,144,40,84,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_DATE_FLD,144,68,40,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_DATE_END_FLD,144,82,40,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_TIME_FLD,144,96,40,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_TIME_END_FLD,144,110,40,14,ES_AUTOHSCROLL
+    CONTROL         "Search POS/EFT Transactions",IDC_POS_SEARCH_CHECK,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,249,12,115,10
+    CONTROL         "View EM&V Raw Data",IDC_EMV_RAW_RADIO,"Button",BS_AUTORADIOBUTTON | NOT WS_VISIBLE | WS_TABSTOP,250,111,94,10
+    CONTROL         "Search FGuard Transactions",IDC_FGUARD_SEARCH_CHECK,
+                    "Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_DISABLED | WS_TABSTOP,249,39,107,10
+    CONTROL         "View &All Transactions",IDC_VIEW_ALLRADIO,"Button",BS_AUTORADIOBUTTON | NOT WS_VISIBLE | WS_GROUP | WS_TABSTOP,260,49,107,10
+    CONTROL         "View A&ccepted Transactions",IDC_VIEW_ACCEPTED_RADIO,
+                    "Button",BS_AUTORADIOBUTTON | NOT WS_VISIBLE,260,60,107,10
+    CONTROL         "View &Failed Transactions",IDC_VIEW_FAILED_RADIO,"Button",BS_AUTORADIOBUTTON | NOT WS_VISIBLE,260,71,107,10
+    CONTROL         "View &Raw Data",IDC_VIEW_FGRAW_RADIO,"Button",BS_AUTORADIOBUTTON | NOT WS_VISIBLE | WS_GROUP | WS_TABSTOP,260,82,107,10
+    PUSHBUTTON      "Re&send Failed Transactions",IDC_RESEND_BUTTON,250,96,105,12,NOT WS_VISIBLE
+    PUSHBUTTON      "&Inquiry",IDC_INQUIRY_BUTTON,386,29,50,14,WS_GROUP
+    PUSHBUTTON      "&Next 10",IDC_NEXT_BUTTON,386,51,50,14
+    PUSHBUTTON      "&Details",IDC_DETAILS_BUTTON,386,73,50,14
+    CONTROL         "List1",IDC_LIST,"SysListView32",LVS_REPORT | LVS_SHOWSELALWAYS | LVS_OWNERDRAWFIXED | WS_BORDER | WS_TABSTOP,13,151,428,179
+    LTEXT           "",IDC_MESSAGE_LBL,16,341,420,13,SS_SUNKEN
+    LTEXT           "Card Number:",-1,13,15,56,8
+    LTEXT           "Merchant ID:",-1,13,29,42,8
+    LTEXT           "Device ID:",-1,13,43,35,8
+    LTEXT           "Transaction Date Start: (DDMMYYYY)",-1,14,70,121,8
+    LTEXT           "Transaction Date End: (DDMMYYYY)",-1,14,85,120,8
+    LTEXT           "Transaction Time Start: (HHMM)",-1,14,97,103,8
+    LTEXT           "Transaction Time End: (HHMM)",-1,14,113,101,8
+    GROUPBOX        "",-1,7,331,440,31
+    PUSHBUTTON      "Exit",IDC_BUTTON_EXIT,387,97,49,14
+    CONTROL         "Mask Card Numbers",IDC_MASK_CARD_NUMBER_CHK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,130,124,10
+    CONTROL         "Search TLF01_STIP Transactions",IDC_TLF01_STIP_SEARCH,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,250,27,124,10
+    LTEXT           "Auth ID",-1,14,58,25,8
+    EDITTEXT        IDC_AUTH_NUMBER,144,55,40,14,ES_UPPERCASE | ES_AUTOHSCROLL
+    LTEXT           "Host Name",-1,260,124,36,8
+    EDITTEXT        IDC_HOSTNAME,353,122,84,14,ES_AUTOHSCROLL
+END
+
+IDD_IDLE_LOGIN DIALOG 0, 0, 208, 127
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Translookup Idle Login"
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_UID,94,25,93,15,ES_UPPERCASE | ES_AUTOHSCROLL
+    EDITTEXT        IDC_PWD,94,53,92,16,ES_PASSWORD | ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,26,99,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,107,100,50,14
+    LTEXT           "PASSWORD",IDC_PASS,27,55,54,15
+    LTEXT           "USERID",IDC_USER,29,27,54,15
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 11,0,0,0
+ PRODUCTVERSION 11,0,0,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "Comments", "Version ATP_11.0.0 - Modified to allow multiple instances to run on the same client."
+            VALUE "CompanyName", "Hypercom Corp."
+            VALUE "FileDescription", "TRANSEARCH MFC Application"
+            VALUE "FileVersion", "11, 0, 0, 0"
+            VALUE "InternalName", "TRANSEARCH"
+            VALUE "LegalCopyright", "ThoughtFocus Copyright © 2012"
+            VALUE "OriginalFilename", "TRANSEARCH.EXE"
+            VALUE "ProductName", "Ascendent"
+            VALUE "ProductVersion", "11, 0, 0, 0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_ABOUTBOX, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 210
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 48
+    END
+
+    IDD_TRANDETAILS, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 798
+        TOPMARGIN, 3
+        BOTTOMMARGIN, 424
+    END
+
+    IDD_TRAN_INQUIRY, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 447
+        VERTGUIDE, 250
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 363
+    END
+
+    IDD_IDLE_LOGIN, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 201
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 120
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE
+BEGIN
+    IDR_MAINFRAME           "TranSearch\n\nTranSe\n\n\nTranSearch.Document\nTranSe Document"
+END
+
+STRINGTABLE
+BEGIN
+    AFX_IDS_APP_TITLE       "TranSearch"
+    AFX_IDS_IDLEMESSAGE     "Ready"
+END
+
+STRINGTABLE
+BEGIN
+    ID_INDICATOR_EXT        "EXT"
+    ID_INDICATOR_CAPS       "CAP"
+    ID_INDICATOR_NUM        "NUM"
+    ID_INDICATOR_SCRL       "SCRL"
+    ID_INDICATOR_OVR        "OVR"
+    ID_INDICATOR_REC        "REC"
+END
+
+STRINGTABLE
+BEGIN
+    ID_FILE_NEW             "Create a new document\nNew"
+    ID_FILE_OPEN            "Open an existing document\nOpen"
+    ID_FILE_CLOSE           "Close the active document\nClose"
+    ID_FILE_SAVE            "Save the active document\nSave"
+    ID_FILE_SAVE_AS         "Save the active document with a new name\nSave As"
+END
+
+STRINGTABLE
+BEGIN
+    ID_APP_ABOUT            "Display program information, version number and copyright\nAbout"
+    ID_APP_EXIT             "Quit the application; prompts to save documents\nExit"
+END
+
+STRINGTABLE
+BEGIN
+    ID_FILE_MRU_FILE1       "Open this document"
+    ID_FILE_MRU_FILE2       "Open this document"
+    ID_FILE_MRU_FILE3       "Open this document"
+    ID_FILE_MRU_FILE4       "Open this document"
+    ID_FILE_MRU_FILE5       "Open this document"
+    ID_FILE_MRU_FILE6       "Open this document"
+    ID_FILE_MRU_FILE7       "Open this document"
+    ID_FILE_MRU_FILE8       "Open this document"
+    ID_FILE_MRU_FILE9       "Open this document"
+    ID_FILE_MRU_FILE10      "Open this document"
+    ID_FILE_MRU_FILE11      "Open this document"
+    ID_FILE_MRU_FILE12      "Open this document"
+    ID_FILE_MRU_FILE13      "Open this document"
+    ID_FILE_MRU_FILE14      "Open this document"
+    ID_FILE_MRU_FILE15      "Open this document"
+    ID_FILE_MRU_FILE16      "Open this document"
+END
+
+STRINGTABLE
+BEGIN
+    ID_NEXT_PANE            "Switch to the next window pane\nNext Pane"
+    ID_PREV_PANE            "Switch back to the previous window pane\nPrevious Pane"
+END
+
+STRINGTABLE
+BEGIN
+    ID_WINDOW_SPLIT         "Split the active window into panes\nSplit"
+END
+
+STRINGTABLE
+BEGIN
+    ID_EDIT_CLEAR           "Erase the selection\nErase"
+    ID_EDIT_CLEAR_ALL       "Erase everything\nErase All"
+    ID_EDIT_COPY            "Copy the selection and put it on the Clipboard\nCopy"
+    ID_EDIT_CUT             "Cut the selection and put it on the Clipboard\nCut"
+    ID_EDIT_FIND            "Find the specified text\nFind"
+    ID_EDIT_PASTE           "Insert Clipboard contents\nPaste"
+    ID_EDIT_REPEAT          "Repeat the last action\nRepeat"
+    ID_EDIT_REPLACE         "Replace specific text with different text\nReplace"
+    ID_EDIT_SELECT_ALL      "Select the entire document\nSelect All"
+    ID_EDIT_UNDO            "Undo the last action\nUndo"
+    ID_EDIT_REDO            "Redo the previously undone action\nRedo"
+END
+
+STRINGTABLE
+BEGIN
+    AFX_IDS_SCSIZE          "Change the window size"
+    AFX_IDS_SCMOVE          "Change the window position"
+    AFX_IDS_SCMINIMIZE      "Reduce the window to an icon"
+    AFX_IDS_SCMAXIMIZE      "Enlarge the window to full size"
+    AFX_IDS_SCNEXTWINDOW    "Switch to the next document window"
+    AFX_IDS_SCPREVWINDOW    "Switch to the previous document window"
+    AFX_IDS_SCCLOSE         "Close the active window and prompts to save the documents"
+END
+
+STRINGTABLE
+BEGIN
+    AFX_IDS_SCRESTORE       "Restore the window to normal size"
+    AFX_IDS_SCTASKLIST      "Activate Task List"
+    IDS_PRODUCT_VERSION     "ATP_11.0.0"
+END
+
+#endif    // English (United States) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+#define _AFX_NO_SPLITTER_RESOURCES
+#define _AFX_NO_OLE_RESOURCES
+#define _AFX_NO_TRACKER_RESOURCES
+#define _AFX_NO_PROPERTY_RESOURCES
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE 9, 1
+#pragma code_page(1252)
+#endif
+#include "res\TranSearch.rc2"  // non-Microsoft Visual C++ edited resources
+#include "afxres.rc"         // Standard components
+#endif
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

@@ -1,0 +1,3344 @@
+/*******************************************************************************
+*
+*  Copyright (c) 2006, Hypercom, Inc. All Rights Reserved.   
+*  
+*  MODULE:           settle.c
+*  
+*  TITLE:            Credit/Debit Settlement Files
+*  
+*  DESCRIPTION:      This module creates 
+*
+*                      credit (base_credit_mmdd.txt), 
+*                      debit (base_debit_mmdd.txt), and 
+*                      raffle (base_raffle_mmdd.txt) 
+*
+*                    settlement files for a specified period of time.
+*
+*  APPLICATION:      Equitable
+*
+*  AUTHOR:           Irene Goldfild
+*
+*  REVISION HISTORY:
+*
+* $Log:   N:\POS\PVCS6.6\EPICPORTZ\PTE\Equitable\cd_sett_file\settle.c  $
+   
+      Rev 1.69   Sep 11 2006 17:24:30   dirby
+   Modified the raffle (Cash Bonus) program to look for multiple
+   winner tickets per transaction, and to get the reward amount
+   from BON03, not BON01.
+   SCR 22835
+   
+      Rev 1.68   Jul 12 2006 14:47:52   dirby
+   Corrected a DB Timing Statistic in get_currency from BCH01 to MCF01.
+   SCR 12299
+   
+      Rev 1.67   Jul 12 2006 13:20:04   dirby
+   Implemented functionality to gather statistics on database SQL calls.
+   SCR 12299
+   
+      Rev 1.66   Mar 03 2006 14:45:26   dirby
+   Modified to recognize a batch uploaded transaction by looking at
+   the last digit of the processing code.  This will be '1'.  This is used
+   to keep old transactions that were batch uploaded out of the
+   settlement file.
+   SCR 19325
+   
+      Rev 1.65   Feb 20 2006 11:21:18   dirby
+   Moved the device type in the header record one byte to position
+   74.  It was in position 73.  But apparently, there is an unknown
+   value that belongs in position 73. A value of 'T' or a space.
+   SCR 19844
+   
+      Rev 1.64   Feb 17 2006 11:21:02   dirby
+   Modified to put a one-byte device type after the currency code in
+   the header records.
+   SCR 19844
+   
+      Rev 1.63   Dec 12 2005 14:36:52   dirby
+   Modified to use tran_date when processing the exception file
+   transactions instead of open_date.  Also, do not include voids
+   in the exception file.
+   SCR 18910
+   
+      Rev 1.62   Nov 30 2005 16:30:08   dirby
+   Added functionality to send 'old' BCH10 records to the exception
+   file if they are 0320 batch upload transactions.
+   SCR 18679
+   
+      Rev 1.61   Oct 03 2005 16:31:52   dirby
+   Modified to support exception processing - that is, settle BCH01
+   and BCH10 records that are more than 45 days old.
+   SCR 15009
+   
+      Rev 1.60   Jul 01 2005 13:53:12   dirby
+   1.  Updated version to 4.4.1.4
+   2.  Added code to populate Reload txn with data from the corresponding
+       Reload Confirm txn in TLF01.
+   SCR 16303
+   
+      Rev 1.59   Jun 09 2005 09:40:28   dirby
+   Fixed bug in credit/debit archive functions to look for 'Confirmed'
+   for Reloads in the auth_tx_arc structure instead of auth_tx.
+   SCR 15748
+   
+      Rev 1.58   Jun 09 2005 09:19:14   dirby
+   Modified to store reload transactions in the settlement file only if
+   they were confirmed.  Also, set tran code to 60, not 40 for reloads.
+   The archive functions, getting records from BCH11, were setting
+   it to 40.
+      SCR 15748
+   
+      Rev 1.57   May 19 2005 17:47:46   dirby
+   Modified to open the raffle output file without using a base name
+   and time.  This is to be consistent with the other filenames and
+   also, settlement was erring out when attempting to log a record
+   to the raffle file.  The file was being created using a different name
+   than what it was being opened with.
+   SCR 15307
+   
+      Rev 1.56   May 16 2005 17:24:38   chuang
+   Update version number to 4.4.1.2.
+   
+      Rev 1.55   May 16 2005 17:22:42   chuang
+   Fix SCR 15307. Retrun correct for get_currency_code().
+   
+      Rev 1.54   Apr 05 2005 15:53:30   dirby
+   Updated version to 4.4.1.1
+   SCR 12785
+   
+      Rev 1.53   Oct 05 2004 15:03:28   lmitchel
+   VER 4.0.0.4: Increased sizes: path[20] to path[50], error buffers to 500.  Path variable inadequate for long path names
+   
+      Rev 1.52   Oct 04 2004 16:56:06   lmitchel
+   Ver 4.0.0.3: open dump file errors ; increased dump filename to 256
+   
+      Rev 1.52   Oct 04 2004 15:50:14   lmitchel
+   Ver 4.0.0.3 - Set filename size for dump file to 256 from 50.  Filname too large was causing problems opening file.
+   
+      Rev 1.51   Sep 30 2004 15:51:54   lmitchel
+   Ver 4.4.0.2 - Added a dump file to write batch or transaction information for unsettled batches to.
+   
+      Rev 1.50   Jul 20 2004 15:58:34   lmitchel
+   Correction: change auth_reload to auth_reload_confirm as a settled transaction.
+   
+      Rev 1.49   Jul 20 2004 14:00:54   lmitchel
+   SCR1287 - Add support for new AUTH_RELOAD transaction type.
+   
+      Rev 1.48   Jul 08 2004 17:05:20   dirby
+   Updated version to 4.4.0.1
+   SCRs 1287 & 1388
+   
+      Rev 1.47   May 27 2004 17:08:40   dirby
+   Updated version to 4.3.0.1
+   SCR 1380
+   
+      Rev 1.46   Feb 06 2004 15:47:40   dirby
+   Modified to not stop processing if unable to move one batch
+   into BCH11.  Need to continue processing the remaining batches.
+   SCR 1336
+   
+      Rev 1.45   Jan 12 2004 15:02:14   dirby
+   1.  Updated version to 4.2.0.6
+   2.  Modified for processing code nn4nnn to be processed as credit.
+   SCR 1306
+   
+      Rev 1.44   Oct 03 2003 10:19:32   lmitchel
+   Ver: 4.2.0.5 - Added RBS37 as dedicated rollback segment for the settlement process.  
+   
+      Rev 1.43   Sep 25 2003 20:23:42   lmitchel
+   SCR1212 : Ver4.2.0.4
+   Removed while loop design to select SCH_MAX_SIZE number of bch01 records at a time into an open cursor.  If there more than SCH_MAX_SIZE batches, only the first set of batches were seclected on each iteration of the loop.  All BCH01 batches to be setteld are now selected into the open cursor.
+   
+      Rev 1.42   Sep 20 2003 15:29:46   lmitchel
+   Updated version 4.2.0.2 to 4.2.0.3
+   
+      Rev 1.41   Aug 28 2003 15:55:38   dirby
+   Updated version to 4.2.0.2
+   SCR 1211
+   
+      Rev 1.40   Feb 18 2003 16:29:42   dirby
+   Updated version to 4_2_0
+   SCR 955
+   
+      Rev 1.39   Feb 11 2003 13:51:06   dirby
+   1.  Modified to set tran code to '50' for deferred txns.
+   2.  Updated version to 4.1.1.2
+   SCR 1019
+   
+      Rev 1.38   Aug 22 2002 13:07:08   dirby
+   Updated version to 4.1.1.1
+   SCR 255
+   
+      Rev 1.37   May 17 2002 16:29:02   dirby
+   1.  Updated version to 4.0.2.1
+   2.  Changed output file names to be:
+         credit_yyyymmdd.upl
+         debit_yyyymmdd.upl
+         raffle_yyyymmdd.upl
+   SCR 629
+   
+      Rev 1.36   Nov 08 2001 10:37:56   dirby
+   1.  Updated version to 4.0.0.1
+   2.  Added deferred gross amount and term values to output files.
+   3.  Changed logged messages to not send to Monitor; no XIPC.
+   SCR 256
+   
+      Rev 1.35   Oct 25 2001 15:14:14   dirby
+   1.  Updated to version 3.2.3.2
+   2.  Corrected bug when comparing pos entry mode so 'if' condition is not always true.
+   3.  Corrected bug in _arc functions where rrn was not being stored in the file.
+   4.  Corrected bug to make descriptor code be zero filled.
+   5.  Corrected bug where credit/debit header records were stored when there were no records in the batch.
+   SCR  527
+   
+      Rev 1.34   Aug 06 2001 08:55:48   dirby
+   Updated version to 3.2.3.1  This is for changes made in
+   revision 1.33
+   
+      Rev 1.33   Jul 13 2001 11:44:16   lmitchel
+   Modifed settle.c:  create_credit_detail and create debit detail records: added posentry mode after odometer
+   
+      Rev 1.32   Feb 28 2001 13:32:42   dirby
+   1.  Updated version to 3.2.2.3
+   2.  Commented out any ties to XIPC.  It now runs independently of XIPC.
+   
+   
+      Rev 1.31   Jan 09 2001 13:45:46   dirby
+    
+   
+      Rev 1.30   Aug 18 2000 13:54:10   lmitchel
+   Added odometer field(7); corrected missing fields when retrieving from bch11
+   
+      Rev 1.29   Aug 10 2000 10:46:22   dirby
+   1.  Modified Raffle file dates to be MMDDYY format from YYMMDD.
+   2.  Upped the version number to 3.2.2.1
+   
+      Rev 1.28   Jul 31 2000 09:52:30   dirby
+   Modified to display version number at startup and shutdown.
+   
+   
+      Rev 1.27   Jul 21 2000 12:45:18   dirby
+   Added code to log version number at startup and shut down.
+   
+      Rev 1.26   Jul 20 2000 16:33:04   lmitchel
+   EB Issue 51:  reformat rrn in detail record; digits 1-2 = '02', digits 3-12 = last 10 digits of bch10 or bch11 rrn
+   EB Issue 52:  terms field length in detail record to 3 digits (zero fill) decreased filler to 9
+   
+      Rev 1.25   Jun 15 2000 14:52:28   ddabberu
+   Changed the transaction date format to mmddyy
+   
+      Rev 1.24   Apr 24 2000 16:08:24   svelaga
+   Changes for equitable release 3_2_1.
+   
+      Rev 1.23   Jan 26 2000 16:12:36   farad
+   (farad 1-26-2000) fixed bug #326.
+   
+      Rev 1.22   Jan 26 2000 14:56:12   farad
+   Fixed bug #298 (farad on 1-25-2000)
+   Modified the select statments such that they do not include voids. 
+   
+      Rev 1.21   Jan 03 2000 10:23:00   gbarnes
+   updated for AIX port
+   
+      Rev 1.20   Dec 10 1999 14:38:34   dperson
+   Accidentally deleted call to db_update_bch01_move_bch10tobch11_delete_bch10
+   If this call fails, added call to dbcommon_rollback
+   
+   
+      Rev 1.19   Dec 03 1999 12:29:12   dperson
+   Updated display_settle_info function
+   
+      Rev 1.18   Nov 19 1999 15:12:14   dperson
+   Implemented an optional parameter "File to Process"
+   and modified the output file name to include the system time
+   
+   
+      Rev 1.17   Nov 18 1999 12:46:12   dperson
+   Incorporated code to handle an additional 3 selection parameters:
+     cutoff date, cutoff time, and number of hours to look back (offset)
+   Incorporated code to use BCH11 if a batch has been released
+   Cleaned up code a bit; alphabetized functions
+   
+   
+      Rev 1.16   Aug 03 1999 15:17:10   apinto
+   Fixed only first 30 detail records in a batch 
+   in TXT file. Now all the details are in TXT file.
+   Logic-Verified-OK
+   
+      Rev 1.15   Aug 02 1999 15:03:24   dperson
+   Fixed minor problem with logic highlighted by conversion
+   to MS Developer Studio 6.0
+   
+      Rev 1.14   Jul 26 1999 15:02:00   apinto
+   Merchant ID is 16 digits with leading zeros
+   Void Sale Eliminated-verfied-OK
+   Transaction Code-verified-OK
+   Julian Date-verified-OK 
+   
+      Rev 1.13   Jul 08 1999 09:47:18   dperson
+   Added logic to correctly calculate the cash bonus amount
+   Removed unused trim_string function
+   
+      Rev 1.12   Jun 24 1999 14:58:42   dperson
+   Changed function used to calculate Julian day for header.
+   Changed format specification for merchant id to %-16s in all cases.
+   Added code to exclude VOID SALE transactions.
+   Modified code to populate transaction code.
+   Added code to populate and output descriptor 
+   code from first 2 characters of product code.
+   
+      Rev 1.11   10 Jun 1999 16:48:44   epriyev
+   changed output record's format
+   according to spec
+   
+      Rev 1.10   Jun 04 1999 10:15:40   dperson
+   Changed printf to PRINT macro
+   
+      Rev 1.9   Jun 03 1999 15:36:30   dperson
+   Put output file tag back to MMDD per Emilia
+   
+      Rev 1.8   Jun 03 1999 13:28:08   dperson
+   Added code to
+        fix the execution of settle.c when no argument is given
+        tag the output files with MMDDHHMM
+        display messages on system monitor inc. stop/start messages
+   Changed sprintf format specifications to fix reported errors
+        (card number #662 and numeric filler #663)
+   
+   
+      Rev 1.7   28 May 1999 17:20:58   epriyev
+   added code to solve a porting issue,
+   fixed code to handle no details batches
+   
+      Rev 1.6   13 May 1999 11:16:46   epriyev
+   added code to operate as it's own dataserver,
+   recoded functionality, changed input parameters,
+   added code for unix compilation,
+   fixed output record formats.
+   
+      Rev 1.5   May 04 1999 16:19:58   npogosya
+   Bug fixes
+   
+      Rev 1.4   Apr 29 1999 11:39:54   npogosya
+   Changes to save files inC:\Ascendent\Settlement directory
+   
+      Rev 1.3   Apr 22 1999 15:32:10   npogosya
+   Bug fixes, modifications
+   
+      Rev 1.1   Feb 25 1999 11:46:32   IGOLDFIE
+   Changed some error messages and comments
+   
+      Rev 1.0   Feb 15 1999 13:34:16   IGOLDFIE
+   initial release
+*
+*******************************************************************************/
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <time.h>
+#include <memory.h>
+#include <math.h>
+#include "basictyp.h"
+#include "pte.h"
+#include "ptemsg.h"
+#include "pteipc.h"
+#include "ptestats.h"
+#include "ptesystm.h"
+#include "ntutils.h"
+
+#include "app_info.h"
+#include "equitdb.h"
+#include "dc_dbstruct.h"
+#include "settle.h"
+#include "txutils.h"
+#include "dc_database.h"
+#include "memmnger.h"
+#include "ptetimer.h"
+#include "ptetime.h"
+#include "dbcommon.h"
+#include "timings.h"
+
+/***** External variables */
+
+extern volatile INT  EndProcessSignalled;
+extern volatile INT  MainProcessDone;
+extern int           Start();
+extern void          Stop ();
+
+/***** Global variables *****/
+static DCF01         terminal;
+static BCH10_LIST    bch10_list;
+static BCH11_LIST    bch11_list;
+static BCH01_LIST    bch01_list;
+static CHAR          c_record [122]; 
+static CHAR          d_record [122];
+static CHAR          r_record [102];
+static CHAR          e_record [122]; 
+static CHAR			 dump_record[256];
+
+static TC_TOTALS     tc_totals;
+BCH10				 auth_tx_detail;         
+BCH11				 auth_tx_detail_arc;
+BCH01			  	 auth_tx_total;          
+
+static CHAR          cutoff_date[9];
+static CHAR          cutoff_hour[3];
+static CHAR          day[4];
+static CHAR          day_m[3];
+static CHAR          extract_date[7] = "";
+static CHAR          hour_offset[3];
+static CHAR          minute[3];
+static CHAR          month[3];
+static CHAR          year[5];
+static CHAR          jul_day[4];
+static CHAR          offset[3];
+static CHAR          process_code[2];
+static CHAR          time_tag[20];
+static CHAR          yyyymmdd_finish[9];
+static CHAR          yyyymmdd_start[9];
+static CHAR          path[30] = "";  /*hold root directory path*/
+
+static FILE          *c_file_write = 0;
+static FILE          *d_file_write = 0;
+static FILE          *r_file_write = 0; 
+static FILE          *e_file_write = 0;
+
+static CHAR          base[17];
+static CHAR          c_filename[256] = "";       /* credit file name */
+static CHAR          d_filename[256] = "";       /* debit  file name */
+static CHAR          r_filename[256] = "";       /* raffle file name */
+static CHAR          e_filename[256] = "";       /* except file name */
+
+static CHAR          dump_filename[256] = "";    /* dump file name */
+static FILE          *dumpfile_ptr = 0;	         /* dump file ptr */
+
+
+static CHAR          dir_str  [128];
+static INT           max_tran = 0;
+static INT           credit_txns_exist;
+static INT           debit_txns_exist;
+static CHAR          curr_code[4];
+static CHAR 		 cupMerchantID[16];
+static CHAR          device_type[3];
+static CHAR          max_reward[13];			 
+extern CHAR          ExeName[100];
+
+       CHAR          EndProcessFlag;
+       CHAR          AppName[12];
+       CHAR          lError_Msg[300];
+       CHAR          Version[] = "ATP_11.1.0";
+
+/* Globals used in the Exception File processing = records over 45 days old */
+INT   ExceptionFlag = true;  /* Default so old records DO get processed */
+
+INT   TempExRecCnt;
+INT   ExceptRecCnt;
+INT   ExceptFile = false;
+INT   ExceptError;
+CHAR  ExceptDate[9];
+CHAR  CurrentDate[9];
+BYTE  LocalCopy_Batch_status[2]; 
+
+
+/* Database Timing Measurements */
+TIMINGS_LIST  TimingStats;
+INT           DB_Timing_Flag; /* True = Do DB Timing Stats, False = don't do */
+INT           ForceReport;
+CHAR          ReportTime[5];
+
+CHAR  settle_Erro_warning_Filename[256] = {0};
+CHAR  settle_module_error_warning_file_name[256] = {0};
+CHAR  settle_error_warning_file_path[256] = {0};
+
+UINT Max_File_Size_Defined = 0 ;
+
+BYTE  DB_MsgSubtype2 ;
+BYTE  DB_MsgSubtype1 ;
+CHAR  DB_Logging_Filename[256];
+CHAR  DB_module_file_name[256];
+CHAR  DB_file_path[256];
+/* End   */
+/* This variable will get the value from the tf.ini
+ * from the section DATASERVER with key name DB_ERROR_STATICS_FLAG
+ * */
+INT    db_error_statics_flag;
+double db_error_statics_value;
+INT DB_NullCheck_Flag = 0;
+#define MODE_INSERT "INSERT"
+#define MODE_UPDATE "UPDATE"
+/*******************************************************************************
+*
+*  FUNCTION:         main
+*
+*  DESCRIPTION:      This function gets the initial parameters.
+*
+*  INPUTS:           INT argc - number of parameters
+*                    pCHAR argv[1] - path and filename 
+*                  
+*  OUTPUTS:          None
+*
+*  RETURN VALUE:     None
+*
+*  AUTHOR:           Darcy Person
+*   
+*******************************************************************************/
+void main(int argc, char *argv[])
+{
+
+   CHAR correct_hours [24] [3] = {"00", "01", "02", "03", "04", "05",
+                                  "06", "07", "08", "09", "10", "11",
+                                  "12", "13", "14", "15", "16", "17",
+                                  "18", "19", "20", "21", "22", "23"};
+
+   CHAR correct_files [16] [7] = {"ALL", "all", "CREDIT", "credit", 
+                                  "DEBIT", "debit", "RAFFLE", "raffle", 
+                                  "A", "a", "C", "c", "D", "d", "R", "r"};
+
+   CHAR correct_codes [16] [2] = {"A", "A", "C", "C", "D", "D", "R", "R",
+                                  "A", "A", "C", "C", "D", "D", "R", "R"};
+
+   int               hour_index;
+   int               file_index;
+
+   /*** Initialize global variables ***/
+   memset(base,         0, sizeof(base));
+   memset(cutoff_date,  0, sizeof(cutoff_date));
+   memset(cutoff_hour,  0, sizeof(cutoff_hour));
+   memset(offset,       0, sizeof(offset));
+
+   EndProcessFlag = false;
+	#ifndef WIN32
+		strcpy(ExeName, argv[0]);
+	#endif
+   /*********************************************************
+   *
+   *  There are 5 required command-line parameters:
+   *     Parameter 0    -  executable program name
+   *     Parameter 1    -  settle file base file name
+   *     Parameter 2    -  cutoff date (yyyymmdd) or comma (',')
+   *     Parameter 3    -  cutoff hour 
+   *     Parameter 4    -  number of hours to look back
+   *
+   *  There is 1 optional command-line parameter:
+   *     Parameter 5    -  file to process
+   *
+   **********************************************************/
+
+   if ((argc != 5) && (argc != 6)) 
+   {
+      display_settle_info();
+      return;
+   }
+
+   if (strcmp(argv[1], "?") == 0)
+   {
+      display_settle_info();
+      return;
+   }
+
+   /*** 1st Parameter - base file name ***/
+   if (strlen(argv[1]) > 16)
+	{
+      printf("\n\n");
+	   printf("Error in 1st parameter:\n");
+      printf("Base of filename must be less than 17 characters.\n");
+      printf("\n");
+      return;
+	}
+   else
+      strcpy(base, argv[1]);
+
+   if ( 0 == strcmp(base, EXCEPTION_BASE_NAME) )
+      ExceptionFlag = false;
+
+   /*** 2nd Parameter - cutoff date ***/
+   if (strcmp(argv[2], ",") != 0)
+   {
+      if (strlen(argv[2]) != 8)
+      {
+         printf("\n\n");
+         printf("Error in 2nd parameter.\n");
+         printf("Date must be in YYYYMMDD format.\n");
+         printf("\n");
+         return;
+      }
+   }
+   strcpy(cutoff_date, argv[2]);
+
+   /*** 3rd Parameter - cutoff hour ***/
+   if (strlen(argv[3]) > 2)
+   {
+      printf("\n\n");
+      printf("Error in 3rd parameter.\n");
+      printf("Hour must be in HH format.\n");
+      printf("\n");
+      return;
+   }
+
+   if (strlen(argv[3]) == 1)
+   {
+      strcpy(cutoff_hour, "00");
+      strncpy(cutoff_hour + 1, argv[3], 1);
+   }
+   else
+      strcpy(cutoff_hour, argv[3]);
+
+   for (hour_index = 0; hour_index < 24; hour_index++)
+   {
+      if (strcmp(cutoff_hour, correct_hours[hour_index]) == 0)
+         break;
+   }
+
+   if (hour_index == 24)
+   {
+      printf("\n\n");
+      printf("Error in 3rd parameter.\n");
+      printf("Invalid hour.\n");
+      printf("\n");
+      return;
+   }
+
+   /*** 4th Parameter - hours back from cutoff hour (offset) ***/
+   if (strlen(argv[4]) > 2)
+   {
+      printf("\n\n");
+      printf("Error in 4th parameter.\n");
+      printf("Hours back from cutoff time must be between 00 and 99.\n");
+      printf("\n");
+      return;
+   }
+
+   if (strlen(argv[4]) == 1)
+   {
+      strcpy(offset, "00");
+      strncpy(offset + 1, argv[4], 1);
+   }
+   else
+      strcpy(offset, argv[4]);
+
+   /*** 5th Parameter (optional) ***/
+   if (argc == 6)
+   {
+      for (file_index = 0; file_index < 16; file_index++)
+      {
+         if (strcmp(argv[5], correct_files[file_index]) == 0)
+            break;
+      }
+
+      if (file_index == 16)
+      {
+         printf("\n\n");
+         printf("Error in 5th parameter.\n");
+         printf("Invalid file to process.\n");
+         printf("\n");
+         return;
+      }
+      else
+      {
+         strcpy(process_code, correct_codes[file_index]);
+      }
+   }
+   else
+      strcpy(process_code, "A");
+
+   if(!Start())
+	   printf("Error starting ServiceManager\n\n" );
+   	 
+	Stop();
+
+} /* main */
+
+
+/*******************************************************************************
+*
+*  FUNCTION:         MainProcessor
+*
+*  DESCRIPTION:      This function performs initial application setup.
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          None
+*
+*  RETURN VALUE:     None
+*
+*  AUTHOR:           Darcy Person
+*   
+*******************************************************************************/
+void MainProcessor(void)
+{
+   CHAR              buffer[500];
+   CHAR              err_msg[100];
+   CHAR              time_date[25] = "";
+   INT               count_tran = 0;
+   INT               next_portion = 0; 
+   INT               num_returned = 0;
+   INT               ret_code = 0;
+   LONG              julian;
+   BYTE              bch01_buffer[sizeof(AUTH_TX) + sizeof(BCH01)];
+   INT               num_sql;
+   INT               err_ctr = 0;
+   double            start_time;
+   double            end_time;
+   double            duration;
+	INT      ret_val = 0;
+	CHAR     Buffer[256] = {0};
+
+   /* Clear buffer (set to null) */
+   memset(&bch01_buffer,0, sizeof(bch01_buffer));
+   memset (&lError_Msg, 0x00, sizeof (lError_Msg));
+   memset (&buffer, 0x00, sizeof(buffer));
+  
+   GetAppName (AppName);
+
+   sprintf( buffer,
+           "Starting settlement: %s, version %s", AppName, Version );
+   settle_log_message( 2, 1, buffer, "MainProcessor", 0);
+
+   /* Send message to DOS window in debug mode */
+   strcat(buffer,"\n");
+   PRINT(buffer);
+
+   /*Get root directory path*/
+   memset (path, 0x00, sizeof(path));
+   GetAscendentRootDirectory(path);
+   settle_get_error_warning_file_name_path();
+   /* Get Database Timing Parameters to gather statistics about each query. */
+   memset( ReportTime, 0x00, sizeof(ReportTime) );
+   memset( buffer,     0x00, sizeof(buffer)     );
+   ret_code = get_timing_parameters( &DB_Timing_Flag, ReportTime, &ForceReport, buffer );
+   settle_log_message( 2, 1, buffer, "MainProcessor", 0);
+   /* Initialize the DB Timing Statistics Data Structure. */
+   if ( DB_Timing_Flag == true )
+   {
+      reset_timing_stats( &TimingStats );
+   }
+
+   /* Try to connect to the database */
+   if (dbcommon_connect ("equitable", "equitable", "equitable", "ORCL", err_msg) != PTEMSG_OK)
+   {
+      memset(&buffer, 0x00, sizeof(buffer));
+	  strcpy(buffer, "Database Connect Error:  ");
+	  strcat(buffer, err_msg);
+      settle_log_message( 1, 3, buffer, "MainProcessor", 0 );
+	  write_to_dump_file(buffer);
+	   /* pteipc_shutdown_single_instance_app(); */
+	  MainProcessDone = 1;
+
+       return;
+   }
+	ret_val = get_dataserver_ini_db_error_statics_value( &db_error_statics_flag, &db_error_statics_value,
+			AppName,     Buffer );
+   /* Send message to system monitor */
+   strcpy(buffer,"Connected to ORACLE ");
+   settle_log_message( 2, 1, buffer, "MainProcessor", 0 );
+   /* Send message to DOS window in debug mode */
+   strcat(buffer,"\n");
+   PRINT(buffer);
+
+   /* Set cutoff date and time */
+   set_date();
+
+   /* Set dates for Exception processing. */
+   ptetime_get_timestamp( time_date );  /* YYYY-MM-DD-hh.mm.ss.jjj */
+   get_date( time_date, CurrentDate );  /* YYYYMMDD */
+
+   /* Exception Date = Current Date minus 45 days */
+   julian = Txutils_Calculate_Julian_Date( CurrentDate ) - EXCEPTION_DAYS_BACK;
+   Txutils_Calculate_Gregorian_Date(julian, ExceptDate);
+
+   /* If we are going to generate all files or just raffle file */
+   if ((process_code[0] == 'A') || (process_code[0] == 'R'))
+   {
+      if ( DB_Timing_Flag == true )
+      {
+         /* The functionality to gather DB Query Timing Statistics is ON.
+          * Get system time, then do again after the query.  This is
+          * different than the above timings.  That one flags long queries;
+          * this one gather stats.
+          */
+         start_time = ptetime_get_time();
+      }
+
+      /* Removed the following because it is not needed
+       * in the enhanced Cash Bonus Program.
+
+       * Get max_reward from bon01 one time only *
+      if (db_select_bon01 (max_reward, err_msg) != PTEMSG_OK)
+      {
+         strcpy(buffer, "Error retrieving bonus record from database:");
+         strcat(buffer, err_msg);
+         settle_log_message( 2, 1, buffer, "MainProcessor", 0 );
+      }
+      */
+
+      if ( DB_Timing_Flag == true )
+      {
+         /* The functionality to gather DB Query Timing Statistics is ON.
+          * Start time has been obtained. Now get end time and calculate
+          * the duration and update the statistics.
+          */
+         end_time = ptetime_get_time();
+
+         duration = end_time - start_time;
+
+         update_timing_stats( ST1_DB_SELECT, ST2_NONE, BON01_DATA,
+                              (float)duration, &TimingStats );
+      }
+   }
+
+    
+   /*** Set initial data for BCH01 table ***/
+   memset(&auth_tx_total, 0, sizeof(auth_tx_total));
+   memset(&tc_totals, 0, sizeof(tc_totals));
+   strcpy(auth_tx_total.primary_key.device_id, " ");
+   strcpy(auth_tx_total.primary_key.batch_nbr, " ");
+   next_portion = 0;
+
+   strcpy(auth_tx_total.open_date, yyyymmdd_start);
+   strcpy(auth_tx_total.release_date, yyyymmdd_finish);
+   strcpy(auth_tx_total.open_time, offset);
+   strcat(auth_tx_total.open_time, "0000");
+   strcpy(auth_tx_total.release_time, cutoff_hour);
+   strcat(auth_tx_total.release_time, "0000");
+
+   /*Call to set large rollback segment RBS37 defined for settlement to online state - SCR1212 - LM */
+   if (db_set_rollback_segment_online(err_msg) )
+   {	
+	   sprintf( buffer, "Settlement MainProcessor: Unable to set RBS37 online: %s, Continue processing.", err_msg);
+	   settle_log_message( 2, 1, buffer, "MainProcessor", 0);
+   }
+   else
+   {
+	   sprintf( buffer, "Settlement MainProcessor: Set RBS37 Online.");
+	   settle_log_message( 2, 1, buffer, "MainProcessor", 0);
+   }
+
+
+   /* Process all batches identified in the bch01 database table */
+   if (ret_code =  (db_get_bch01_service_list(&auth_tx_total, &bch01_list, err_msg)) != PTEMSG_OK)
+   {
+	   sprintf (buffer, "Error processing bch01 batches.");
+	   sprintf(lError_Msg,"db_get_bch01_service_list: %s",buffer);
+	   settle_log_message( 2, 3, buffer, "MainProcessor", 0);
+   } 
+
+  
+
+   /* Perform Exception File handling. */
+   if ( ExceptionFlag == true )
+      process_exception_txns();
+
+   /*Call to set rollback segment RBS37 to offline state - SCR1212 10/3/03 LM */
+   if (db_set_rollback_segment_offline(err_msg) )
+   {
+	   sprintf( buffer, "Settlement MainProcessor: Unable to set RBS37 offline: %s.", err_msg);
+	   settle_log_message( 2, 1, buffer, "MainProcessor", 0);
+   }
+   else
+   {
+	   sprintf( buffer, "Settlement MainProcessor: Set RBS37 offline.");
+	   settle_log_message( 2, 1, buffer, "MainProcessor", 0);
+   }
+
+   /*disconnect from database*/
+   dbcommon_disconnect (err_msg);
+
+   /* Report the DB timing measurement statistics before exiting. */
+   num_sql = log_timing_statistics_report( &TimingStats );
+
+   memset( buffer, 0x00, sizeof(buffer) );
+   sprintf( buffer,
+           "%s logged stats for %d SQLs",
+            AppName, num_sql );
+   settle_log_message( 2, 1, buffer, "MainProcessor", 0);
+   /* Send message to system monitor */
+   strcpy(buffer,"Stopping settlement ");
+   settle_log_message( 2, 1, buffer, "MainProcessor", 0 );
+   /* Send message to DOS window in debug mode */
+   strcat(buffer,"\n");
+   PRINT(buffer);
+
+   /* pteipc_shutdown_single_instance_app(); */
+   MainProcessDone = 1;
+           
+   return;  
+   
+} /* MainProcessor */
+
+
+/*****************************************************************************
+*                                                                            *
+*  Except for main and MainProcessor, functions are in alphabetical order.   *
+*                                                                            *
+*****************************************************************************/
+
+/*******************************************************************************
+*
+*  FUNCTION:         calc_bonus_amount
+*
+*  DESCRIPTION:      This function calculates the bonus amount 
+*                    written to the raffle file.
+*
+*  INPUTS:           bon03_ptr - Contains all winning recs for this txn
+*
+*  OUTPUTS:          None
+*
+*  RETURN VALUE:     total reward amount
+*
+*  AUTHOR:           D. Irby
+*     
+*******************************************************************************/
+LONG calc_bonus_amount( pBON03_LIST bon03_ptr )
+{
+   INT   i;
+   INT   num_of_winners;
+   LONG  total_reward = 0;
+
+   num_of_winners = atoi( bon03_ptr->num_returned );
+   for( i=0; i<num_of_winners; i++ )
+   {
+      total_reward += atol( bon03_ptr->bon_list[i].reward_amount );
+   }
+
+   return( total_reward );
+
+} /* calc_bonus_amount */
+
+
+/*****************************************************************************
+*
+*  FUNCTION:         calc_julian_day
+*
+*  DESCRIPTION:      This function will calculate the julian day
+*
+*  INPUTS:           date_str -  input string format (YYYYMMDD)
+*
+*  OUTPUTS:          julian_str - output string format (DDD)
+*
+*  RETURN VALUE:     None
+*
+*  AUTHOR:           Unknown
+*
+******************************************************************************/
+void calc_julian_day(char date_str[], char julian_str[])
+{
+   char              year[5];
+   char              month[3];
+   char              day[3];
+   int               iYear;
+   int               iMonth;
+   int               iDay;
+   int               julian_day;
+   int               i;
+   int               DaysOfMonth[12] = { 31,28,31,30,31,30,31,31,30,31,30,31 };
+
+   memset (&year,  0, sizeof(year));
+   memset (&month, 0, sizeof(month));
+   memset (&day,   0, sizeof(day));
+   memcpy (&year,  &date_str[0], 4);
+   memcpy (&month, &date_str[4], 2);
+   memcpy (&day,   &date_str[6], 2);
+
+   iYear  = atoi(year);
+   iMonth = atoi(month);
+   iDay   = atoi(day);
+
+   for(i=0,julian_day=0; i<iMonth-1 && i<12; i++)
+   {
+		julian_day += DaysOfMonth[i];
+   }
+   julian_day += iDay;
+
+   if (iMonth > 2)
+      if (0 == (iYear % 4))
+          julian_day++;
+   
+   itoa(julian_day, julian_str, 10);
+
+   Rj_with_lead_zeros (julian_str, 3);
+
+} /* calc_julian_day */
+
+
+/*******************************************************************************
+*
+*  FUNCTION:         create_credit_detail
+*
+*  DESCRIPTION:      This function creates detail structure for 
+*                    the credit settlement file. 
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          pCHAR c_record -  detail structure 
+*
+*  RETURN VALUE:     True if record should be written to file, else false
+*
+*  AUTHOR:           Irene Goldfild
+*   
+*******************************************************************************/
+INT create_credit_detail()
+{
+   INT   retval = true;
+   CHAR  tran_code[3] = "";
+   CHAR  rrn[13] = "";
+   CHAR  descriptor_code[3] = "";
+   CHAR  tran_dt[7],tempDt[7], entry_mode[5] = "";	
+   INT   i;
+
+
+   memset(tran_dt,0,7);
+   memset(tempDt,0,7);
+   strcpy(tempDt,auth_tx_detail.tran_date + 2);
+   for( i=0;i<4;i++)
+   {
+       tran_dt[i]= tempDt[i+2];
+   }
+   tran_dt[4]= tempDt[0];
+   tran_dt[5]= tempDt[1];
+
+   memset(c_record, 0, sizeof(c_record));
+
+   if (auth_tx_detail.tx_key == AUTH_CASH_ADVANCE_RESPONSE ||
+       auth_tx_detail.tx_key == AUTH_CASH_ADVANCE)
+   {
+      strcpy( tran_code, "30" );
+   }
+   else if (auth_tx_detail.tx_key == AUTH_RELOAD_RESPONSE ||
+            auth_tx_detail.tx_key == AUTH_RELOAD)
+   {
+      if ( 0 == strcmp(auth_tx_detail.product_codes[17].amount,"Confirmed"))
+         strcpy( tran_code, "60" );
+      else
+         retval = false;
+   }
+   else if ( auth_tx_detail.term[0] != 0x00 )
+      strcpy( tran_code, "50" );
+   else
+      strcpy( tran_code, "40" );
+
+   if ( retval == true )
+   {
+      /*07/21/00 LM new rrn format - bch10 rrn; replace first 2 digits with 02 */
+      strcpy (rrn, "02");
+      strncpy(rrn + 2, auth_tx_detail.primary_key.retrieval_ref_num + 2, 10);
+      strncpy(descriptor_code, auth_tx_detail.product_code, 2);
+
+      /*pos_entry_mode*/ /*0629/01 LM*/
+      strcpy (entry_mode, auth_tx_detail.pos_entry_mode);
+
+      /* Check for visa/jcb mode starting with 9 - convert to 22 */
+      if(entry_mode[1] == '9')
+         strcpy(entry_mode, "0022");
+
+      sprintf(c_record, "%016s%2s%6s%10.10s%019s%6.6s%6s%2s%12.12s%-15.15s%02.2s%12.12s%3.3s%07s%2s",
+         auth_tx_detail.merchant_id,
+         "62",
+         extract_date,
+         auth_tx_detail.tran_amount + 2,
+         auth_tx_detail.card_nbr,
+         auth_tx_detail.auth_number,
+         tran_dt,
+         tran_code,
+         rrn,
+         auth_tx_detail.ticket_nbr,
+         descriptor_code,
+         auth_tx_detail.def_gross_amt,
+         auth_tx_detail.term,
+         auth_tx_detail.odometer,
+         entry_mode + 2);/*LM add pos entry mode 062901*/
+
+      strncpy(c_record + 120, "\n\0", 2);
+   }
+   return( retval );
+
+} /* create_credit_detail */
+
+
+/*******************************************************************************
+*
+*  FUNCTION:         create_credit_detail_arc
+*
+*  DESCRIPTION:      This function creates detail structure for the credit
+*                    settlement file from the batch archive file (BCH11).
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          pCHAR c_record -  detail structure 
+*
+*  RETURN VALUE:     True if record should be written to file, else false
+*
+*  AUTHOR:           Irene Goldfild
+*   
+*******************************************************************************/
+INT create_credit_detail_arc()
+{
+   INT   retval = true;
+   CHAR              tran_code[3] = "";
+   CHAR              rrn[13] = "";
+   CHAR              descriptor_code[3];
+   CHAR              tran_dt[7],tempDt[7], entry_mode[5] = "";	
+   INT   i;
+
+   memset(tran_dt,0,7);
+   memset(tempDt,0,7);
+   strcpy(tempDt,auth_tx_detail_arc.tran_date + 2);
+   for( i=0;i<4;i++)
+   {
+       tran_dt[i]= tempDt[i+2];
+   }
+   tran_dt[4]= tempDt[0];
+   tran_dt[5]= tempDt[1];   
+
+   memset(c_record, 0, sizeof(c_record));
+
+   if (auth_tx_detail_arc.tx_key == AUTH_CASH_ADVANCE_RESPONSE || 
+	   auth_tx_detail_arc.tx_key == AUTH_CASH_ADVANCE)
+   {
+      strcpy(tran_code, "30" );
+   }
+   else if (auth_tx_detail_arc.tx_key == AUTH_RELOAD_RESPONSE || 
+            auth_tx_detail_arc.tx_key == AUTH_RELOAD)
+   {
+      if ( 0 == strcmp(auth_tx_detail_arc.product_codes[17].amount,"Confirmed"))
+         strcpy( tran_code, "60" );
+      else
+         retval = false;
+   }
+   else if ( auth_tx_detail_arc.term[0] != 0x00 )
+      strcpy( tran_code, "50" );
+   else
+      strcpy( tran_code, "40" );
+
+   if ( retval == true )
+   {
+      /*07/21/00 LM new rrn format - bch10 rrn; replace first 2 digits with 02 */
+      strcpy (rrn, "02");
+      strncpy(rrn + 2, auth_tx_detail_arc.primary_key.retrieval_ref_num + 2, 10);
+      strncpy(descriptor_code, auth_tx_detail_arc.product_code, 2);
+
+      /*pos_entry_mode*/ /*0629/01 LM*/
+      strcpy (entry_mode, auth_tx_detail_arc.pos_entry_mode);
+
+      /* Check for visa/jcb mode starting with 9 - convert to 22*/
+      if(entry_mode[1] == '9')
+         strcpy(entry_mode, "0022");
+
+      sprintf(c_record, "%016s%2s%6s%10.10s%019s%6.6s%6s%2s%12.12s%-15.15s%02.2s%12.12s%3.3s%07s%2s",
+         auth_tx_detail_arc.merchant_id,
+         "62",
+         extract_date,
+         auth_tx_detail_arc.tran_amount + 2,
+         auth_tx_detail_arc.card_nbr,
+         auth_tx_detail_arc.auth_number,
+         tran_dt,
+         tran_code,
+         rrn,
+         auth_tx_detail_arc.ticket_nbr,
+         descriptor_code,
+         auth_tx_detail_arc.def_gross_amt,
+         auth_tx_detail_arc.term,
+         auth_tx_detail_arc.odometer,
+         entry_mode + 2);/*LM add pos entry mode 062901*/
+
+      strncpy(c_record + 120, "\n\0", 2);
+   }
+   return( retval );
+} /* create_credit_detail_arc */
+
+
+/*******************************************************************************
+*
+*  FUNCTION:         create_debit_detail
+*
+*  DESCRIPTION:      This function creates detail structure for 
+*                    the debit settlement file.
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          pCHAR d_record -  detail structure 
+*
+*  RETURN VALUE:     True if record should be written to file, else false
+*
+*  AUTHOR:           Narina Pogosyants
+*   
+*******************************************************************************/
+INT create_debit_detail()
+{
+   INT   retval = true;
+   CHAR              tran_code[3] = "";
+   CHAR              rrn[13] = "";
+   CHAR              descriptor_code[3] = "";
+   CHAR              tran_dt[7],tempDt[7], entry_mode[5] = "";	
+   INT   i;
+
+   memset(tran_dt,0,7);
+   memset(tempDt,0,7);
+   strcpy(tempDt,auth_tx_detail.tran_date + 2);
+   for( i=0;i<4;i++)
+   {
+       tran_dt[i]= tempDt[i+2];
+   }
+   tran_dt[4]= tempDt[0];
+   tran_dt[5]= tempDt[1];
+
+   memset(d_record, 0, sizeof(d_record));
+
+   if (auth_tx_detail.tx_key == AUTH_CASH_ADVANCE_RESPONSE ||
+       auth_tx_detail.tx_key == AUTH_CASH_ADVANCE)
+   {
+      strcpy(tran_code, "30" );
+   }
+   else if (auth_tx_detail.tx_key == AUTH_RELOAD_RESPONSE ||
+            auth_tx_detail.tx_key == AUTH_RELOAD)
+   {
+      if ( 0 == strcmp(auth_tx_detail.product_codes[17].amount,"Confirmed"))
+         strcpy( tran_code, "60" );
+      else
+         retval = false;
+   }
+   else if ( auth_tx_detail.term[0] != 0x00 )
+      strcpy( tran_code, "50" );
+   else
+      strcpy( tran_code, "40" );
+
+   if ( retval == true )
+   {
+      /*07/21/00 LM new rrn format - bch10 rrn; replace first 2 digits with 02 */
+      strcpy (rrn, "02");
+      strncpy(rrn + 2, auth_tx_detail.primary_key.retrieval_ref_num + 2, 10);
+      strncpy(descriptor_code, auth_tx_detail.product_code, 2);
+
+      /*pos_entry_mode*/ /*0629/01 LM*/
+      strcpy (entry_mode, auth_tx_detail.pos_entry_mode);
+
+      /* Check for visa/jcb mode starting with 9 - convert to 22 */
+      if(entry_mode[1] == '9')
+         strcpy(entry_mode, "0022");
+
+      sprintf(d_record, "%016s%2s%6s%10.10s%019s%6.6s%6s%2s%12.12s%-15.15s%02.2s%12.12s%3.3s%07s%2s",
+         auth_tx_detail.merchant_id,
+         "62",
+         extract_date,
+         auth_tx_detail.tran_amount + 2,
+         auth_tx_detail.card_nbr,
+         auth_tx_detail.auth_number,
+         tran_dt,
+         tran_code,
+         rrn,
+         auth_tx_detail.ticket_nbr,
+         descriptor_code,
+         auth_tx_detail.def_gross_amt,
+         auth_tx_detail.term,
+         auth_tx_detail.odometer,
+         entry_mode + 2);/*LM add pos entry mode 062901*/
+
+      strncpy(d_record + 120, "\n\0", 2);
+   }
+   return( retval );
+} /* create_debit_detail */
+
+
+/*******************************************************************************
+*
+*  FUNCTION:         create_debit_detail_arc
+*
+*  DESCRIPTION:      This function creates detail structure for the debit
+*                    settlement file from the batch archive file (BCH11).
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          pCHAR d_record -  detail structure 
+*
+*  RETURN VALUE:     True if record should be written to file, else false
+*
+*  AUTHOR:           Narina Pogosyants
+*   
+*******************************************************************************/
+INT create_debit_detail_arc()
+{
+   INT   retval = true;
+   CHAR              tran_code[3] = "";
+   CHAR              rrn[13] = "";
+   CHAR              descriptor_code[3] = "";
+   CHAR              tran_dt[7],tempDt[7], entry_mode[5] = "";	
+   INT   i;
+
+   memset(tran_dt,0,7);
+   memset(tempDt,0,7);
+   strcpy(tempDt,auth_tx_detail_arc.tran_date + 2);
+   for( i=0;i<4;i++)
+   {
+       tran_dt[i]= tempDt[i+2];
+   }
+   tran_dt[4]= tempDt[0];
+   tran_dt[5]= tempDt[1];
+
+   memset(d_record, 0, sizeof(d_record));
+
+   if (auth_tx_detail_arc.tx_key == AUTH_CASH_ADVANCE_RESPONSE ||
+       auth_tx_detail_arc.tx_key == AUTH_CASH_ADVANCE)
+   {
+      strcpy(tran_code, "30" );
+   }
+   else if (auth_tx_detail_arc.tx_key == AUTH_RELOAD_RESPONSE ||
+            auth_tx_detail_arc.tx_key == AUTH_RELOAD)
+   {
+      if ( 0 == strcmp(auth_tx_detail_arc.product_codes[17].amount,"Confirmed"))
+         strcpy( tran_code, "60" );
+      else
+         retval = false;
+   }
+   else if ( auth_tx_detail_arc.term[0] != 0x00 )
+      strcpy( tran_code, "50" );
+   else
+      strcpy( tran_code, "40" );
+
+   if ( retval == true )
+   {
+      /*07/21/00 LM new rrn format - bch10 rrn; replace first 2 digits with 02 */
+      strcpy (rrn, "02");
+      strncpy(rrn + 2, auth_tx_detail_arc.primary_key.retrieval_ref_num + 2, 10);
+      strncpy(descriptor_code, auth_tx_detail_arc.product_code, 2);
+
+      /*pos_entry_mode*/ /*0629/01 LM*/
+      strcpy (entry_mode, auth_tx_detail_arc.pos_entry_mode);
+
+      /* Check for visa/jcb mode starting with 9 - convert to 22*/
+      if(entry_mode[1] == '9')
+         strcpy(entry_mode, "0022");
+
+      sprintf(d_record, "%016s%2s%6s%10.10s%019s%6.6s%6s%2s%12.12s%-15.15s%02.2s%12.12s%3.3s%07s%2s",
+         auth_tx_detail_arc.merchant_id,
+         "62",
+         extract_date,
+         auth_tx_detail_arc.tran_amount + 2,
+         auth_tx_detail_arc.card_nbr,
+         auth_tx_detail_arc.auth_number,
+         tran_dt,
+         tran_code,
+         rrn,
+         auth_tx_detail_arc.ticket_nbr,
+         descriptor_code,
+         auth_tx_detail_arc.def_gross_amt,
+         auth_tx_detail_arc.term,
+         auth_tx_detail_arc.odometer,
+         entry_mode + 2);/*LM add pos entry mode 062901*/
+
+      strncpy(d_record + 120, "\n\0", 2);
+   }
+   return( retval );
+} /* create_debit_detail_arc */
+
+
+/*******************************************************************************
+*
+*  FUNCTION:         create_headers
+*
+*  DESCRIPTION:      This function creates header structures for 
+*                    the credit and debit settlement files.
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          pCHAR c_record -  header structure 
+*
+*  RETURN VALUE:     None
+*
+*  AUTHOR:           Irene Goldfild
+*   
+*******************************************************************************/
+void create_headers()
+{
+   CHAR  currency = ' ';
+   CHAR  terminal_type;
+	
+	calc_julian_day(yyyymmdd_finish, jul_day);
+
+   if (0 == strcmp(curr_code, "608"))
+      currency = 'P';
+   else if (0 == strcmp(curr_code, "840"))
+      currency = 'U';
+
+   if ( device_type[1] == 0x00 )
+      terminal_type = ' ';
+   else
+      terminal_type = device_type[1];
+
+   if ( ((process_code[0] == 'A') || (process_code[0] == 'C')) &&
+        ( credit_txns_exist == true ) )
+   {
+      memset(c_record, 0, sizeof(c_record)); 
+      sprintf(c_record, "%016s%2s%6s%06.6s%010.10s%16s%3s%4.4s%8s%c%1s%c%46s",
+         tc_totals.merchant_id,
+         "50",
+         extract_date,
+         tc_totals.number_credit_tran_for_batch,
+         tc_totals.totals_credit_for_batch,
+         " ",
+         jul_day,
+         tc_totals.batch_number + 2,
+         tc_totals.terminal_id,
+         currency,
+         " ",
+         terminal_type,
+         " ");
+      strncpy(c_record + 120, "\n\0", 2);
+   }
+
+   if ( ((process_code[0] == 'A') || (process_code[0] == 'D')) &&
+        ( debit_txns_exist == true ) )
+   {
+      memset(d_record, 0, sizeof(d_record)); 
+      sprintf(d_record, "%016s%2s%6s%06.6s%010.10s%16s%3s%4.4s%8s%c%1s%c%46s",
+         tc_totals.merchant_id,
+         "50",
+         extract_date,
+         tc_totals.number_debit_tran_for_batch,
+         tc_totals.totals_debit_for_batch,
+         " ",
+         jul_day,
+         tc_totals.batch_number + 2,
+         tc_totals.terminal_id,
+         currency,
+         " ",
+         terminal_type,
+         " ");
+      strncpy(d_record + 120, "\n\0", 2);
+   }
+
+} /* create_headers */
+
+
+/*******************************************************************************
+*
+*  FUNCTION:         create_raffle_detail
+*
+*  DESCRIPTION:      This function creates the detail structure for the
+*                    raffle file.
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          pCHAR record -  detail structure 
+*
+*  RETURN VALUE:     None
+*
+*  AUTHOR:           Darcy Person
+*   
+*******************************************************************************/
+void create_raffle_detail( LONG l_amount )
+{
+   CHAR   amount[11];
+   CHAR   tran_date[7] = "";
+
+   /* Format Transaction Date and Original Date */
+   memcpy( tran_date,   auth_tx_detail.tran_date+4, 4 );
+   memcpy( tran_date+4, auth_tx_detail.tran_date+2, 2 );
+
+   memset(r_record, 0, sizeof(r_record));
+
+   sprintf( amount, "%010ld", l_amount );
+
+   sprintf(r_record, "%019s%2s%6s%2s%010s%6s%-15s%c%07d%6s%6s%6s%c%010d%s",
+      auth_tx_detail.card_nbr,
+      "71",
+      extract_date,
+      "38",
+      amount,
+      extract_date,
+      tc_totals.merchant_id,
+      ' ',
+      0,
+      tran_date,
+      auth_tx_detail.auth_number,
+      tran_date,
+      ' ',
+      0,
+      "   ");
+   strncpy(r_record + 100, "\n\0", 2);
+
+} /* create_raffle_detail */
+
+
+/*******************************************************************************
+*
+*  FUNCTION:         create_raffle_detail_arc
+*
+*  DESCRIPTION:      This function creates the detail structure for the
+*                    raffle file from the batch archive file (BCH11).
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          pCHAR record -  detail structure 
+*
+*  RETURN VALUE:     None
+*
+*  AUTHOR:           Darcy Person
+*   
+*******************************************************************************/
+void create_raffle_detail_arc( LONG l_amount )
+{
+   CHAR   amount[11];
+   CHAR   tran_date[7] = "";
+ 
+   /* Format Transaction Date and Original Date */
+   memcpy( tran_date,   auth_tx_detail_arc.tran_date+4, 4 );
+   memcpy( tran_date+4, auth_tx_detail_arc.tran_date+2, 2 );
+
+   memset(r_record, 0, sizeof(r_record));
+
+   sprintf( amount, "%010ld", l_amount );
+
+   sprintf(r_record, "%019s%2s%6s%2s%010s%6s%-15s%c%07d%6s%6s%6s%c%010d%s",
+      auth_tx_detail_arc.card_nbr,
+      "71",
+      extract_date,
+      "38",
+      amount,
+      extract_date,
+      tc_totals.merchant_id,
+      ' ',
+      0,
+      tran_date,
+      auth_tx_detail_arc.auth_number,
+      tran_date,
+      ' ',
+      0,
+      "   ");
+   strncpy(r_record + 100, "\n\0", 2);
+
+} /* create_raffle_detail_arc */
+
+
+/*******************************************************************************
+*
+*  FUNCTION:         create_raffle_header
+*
+*  DESCRIPTION:      This function creates the header structure for 
+*                    the raffle file.
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          pCHAR r_record -  header structure 
+*
+*  RETURN VALUE:     None
+*
+*  AUTHOR:           Darcy Person
+*   
+*******************************************************************************/
+BOOLEAN create_raffle_header( pBON03_LIST bon03_ptr )
+{
+   INT               num_tran;
+   LONG              total_amount;
+   LONG              bonus_amount;
+   CHAR              char_num[9] = "";
+   CHAR              char_amount[11] = "";
+   CHAR              buffer[500];
+
+
+   memset( r_record, 0x00, sizeof(r_record) );
+
+   if (fseek(r_file_write, 0, SEEK_SET) == 0)
+   { 
+      if (fgets (r_record, 100, r_file_write) < 0)
+      { 
+         strcpy(buffer, "Error getting raffle file record ");
+         settle_log_message( 2, 3, buffer, "create_reffle_header", 0 );
+         write_to_dump_file(buffer);
+
+         return(false);
+      }
+      else
+      {
+         strncpy(char_num, r_record + 24, 8);
+         num_tran = atoi(char_num) + atoi(bon03_ptr->num_returned);
+         memcpy( char_amount, r_record + 32, 10 );
+         bonus_amount = calc_bonus_amount( bon03_ptr );
+         total_amount = atol(char_amount) + bonus_amount;
+      }
+   }
+   else
+   {
+      num_tran = atoi(bon03_ptr->num_returned);
+      memcpy( char_amount, r_record + 32, 10 );
+      bonus_amount = calc_bonus_amount( bon03_ptr );
+      total_amount = atol(char_amount) + bonus_amount;
+   }
+
+   memset( r_record, 0x00, sizeof(r_record) );
+   sprintf( r_record, "%016d%2s%6s%08d%010d%031d%16s%010d%c", 
+      0,
+     "50",
+      extract_date,
+      num_tran,
+      total_amount,
+      0,
+      "                ",
+      0,
+      ' ');
+   strncpy(r_record + 100, "\n\0", 2);
+
+   return(true);
+
+} /* create_raffle_header */
+
+
+/*******************************************************************************
+*
+*  FUNCTION:         create_settle_files
+*
+*  DESCRIPTION:      This function creates records and 
+*                    writes to the settlement files. 
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          None
+*
+*  RETURN VALUE:     BOOLEAN true for success or false for failure.
+*
+*  AUTHOR:           Irene Goldfild
+*   
+*******************************************************************************/
+BOOLEAN create_settle_files()
+{
+	return true;
+}/* create_settle_files */
+
+
+/*****************************************************************************
+
+  FUNCTION:       display_settle_info   
+
+  DESCRIPTION:    This function displays an informational message
+                  on the console.
+  
+  AUTHOR:         Darcy Person
+
+  INPUTS:         None
+
+  OUTPUTS:        None
+
+  RETURN VALUE:   None
+
+******************************************************************************/
+void display_settle_info(void)
+{
+   printf("Settle requires four command line parameters to work correctly:                  \n");
+   printf("Parameter 1  -  settle file base file name                                       \n");
+   printf("Parameter 2  -  cutoff date (yyyymmdd) or comma (',')                  			\n");
+   printf("Parameter 3  -  cutoff hour in HH format in the range of 00 to 23, and 			\n");
+   printf("Parameter 4  -  number of hours to look back back in the range of 01 to 99.      \n");
+   printf("                                                                       			\n");
+   printf("In addition, Settle has an optional 5th parameter to indicate which    			\n");
+   printf("settlement file to generate: (A)ll, (C)redit, (D)ebit, (R)affle.       			\n");
+   printf("The default is to generate all three files for the specified period.   			\n");
+   printf("                                                                       			\n");
+   printf("For example, to process closed and released batches from July 9, 1999  			\n");
+   printf("at 2:00 p.m. through July 10, 1999 at 1:00 p.m., use the parameters:   			\n");
+   printf("                                                                       			\n");
+   printf("          settle 19990710 13 23                                        			\n");
+   printf("                                                                       			\n");
+   printf("To process only debit transactions from yesterday at midnight through  			\n");
+   printf("today at midnight, use the parameters:                                			\n");
+   printf("                                                                       			\n");
+   printf("          settle , 00 24 debit     (where the comma indicates today)   			\n");
+   printf("                                                                       			\n");   
+   printf("Output is placed in the settlement subdirectory under the configured   			\n");
+   printf("Ascendent system directory.                                            			\n");
+   printf("                                                                       			\n");
+   printf("Settle will generate an exception file containing transaction details  			\n");
+   printf("that are 45 days or older.  To prevent this file from being            			\n");
+   printf("generated, use a base name of 'no_exceptions'.                         			\n");
+   printf("                                                                      			\n");
+   printf("Credit/Debit Settlement Version: %s\n\n", Version                        		   );
+ 
+} /* display_settle_info */
+
+
+/*******************************************************************************
+*
+*  FUNCTION:         EndProcess
+*
+*  DESCRIPTION:      This function does shutdown and clean up functionalities.
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          None
+*
+*  RETURN VALUE:     BOOLEAN true for success or false for failure.
+*
+*  AUTHOR:           Irene Goldfild
+*   
+*******************************************************************************/
+void EndProcess(void)
+{
+   CHAR Buffer[100] = "";
+
+   if ( EndProcessFlag == true )
+   {
+      sprintf( Buffer, "Shutting down the %s Service, version %s",
+               AppName, Version );
+      settle_log_message( 2, 1, Buffer, "EndProcess", 0 );
+      strcat( Buffer, "\n" );
+      PRINT( Buffer );
+   }
+   else
+   {
+      EndProcessFlag = true;
+   }
+   return;
+
+} /* EndProcess */
+
+
+/*******************************************************************************
+*
+*  FUNCTION:         get_currency_code
+*
+*  DESCRIPTION:      This function gets currency code using dcf01 (terminal) 
+*                    and mcf01 (merchant) tables.    
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          DCF01 terminal, MCF01 merchant.
+*
+*  RETURN VALUE:     BOOLEAN true for success or false for failure.
+*
+*  AUTHOR:           Irene Goldfild
+*   
+*******************************************************************************/
+BOOLEAN get_currency_code()
+{
+   BYTE    rc;
+   CHAR    err_msg[100] = "";
+   CHAR    buffer[500];
+   BOOLEAN retval = true;
+   double  start_time;
+   double  end_time;
+   double  duration;
+
+   memset( &terminal, 0x00, sizeof(terminal) );
+   memcpy( terminal.primary_key.device_id, tc_totals.terminal_id, 8 );
+   memcpy( terminal.merchant_id, tc_totals.merchant_id, 15);
+   memset(&cupMerchantID,0x00,sizeof(cupMerchantID));
+
+   /*** Get terminal configuration table ***/
+   memset( device_type, 0x00, sizeof(device_type) );
+
+   if ( DB_Timing_Flag == true )
+      start_time = ptetime_get_time();
+
+   rc = db_select_curr_code( curr_code,device_type,&terminal,&cupMerchantID,err_msg );
+
+   if ( DB_Timing_Flag == true )
+   {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      update_timing_stats( ST1_DB_SELECT, ST2_NONE, MCF01_DATA,
+                           (float)duration, &TimingStats );
+   }
+
+   if ( rc != PTEMSG_OK )
+   {
+      memset( buffer, 0x00,sizeof(buffer) );
+      sprintf( buffer,
+              "DB Err getting Currency Code from Merchant record: %s Terminal record: %s %s",
+			  tc_totals.terminal_id,tc_totals.merchant_id,err_msg );
+      settle_log_message( 1, 3, buffer, "get_currency_code", 0 );
+      retval = false;
+   }
+   return( retval );
+
+} /* get_currency_code */
+
+
+/*******************************************************************************
+*
+*  FUNCTION:         open_credit_file
+*
+*  DESCRIPTION:      This function opens the credit settlement file 
+*                    or creates it if it doesn't exist. 
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          None
+*
+*  RETURN VALUE:     BOOLEAN true for success or false for failure.
+*
+*  AUTHOR:           Darcy Person
+*   
+*******************************************************************************/
+BOOLEAN open_credit_file()
+{   
+   CHAR              buffer[500];
+
+   memset(buffer, 0, sizeof(buffer));
+
+   /* Send message to system monitor */
+   strcpy(buffer,"Open credit settlement file ");
+   settle_log_message( 2, 1, buffer, "open_credit_file", 0 );
+   /* Send message to DOS window in debug mode */
+   strcat(buffer,"\n");
+   PRINT(buffer);
+
+   /*** Open file ***/
+   strcpy(c_filename, path);
+   #ifndef WIN32
+	   strcat(c_filename, "settlement/");
+   #else
+	   strcat(c_filename, "settlement\\");
+   #endif
+   strcat(c_filename, "credit_");
+   strcat(c_filename, cutoff_date);
+   strcat(c_filename, ".upl"); 
+
+   c_file_write = fopen (c_filename, "w");
+
+   if (c_file_write == NULL_PTR)
+   {  
+      strcpy(buffer, "Cannot open credit settlement file: ");
+      strcat(buffer, c_filename); 
+      settle_log_message( 1, 3, buffer, "open_credit_settle_file", 0 );
+
+	  write_to_dump_file(buffer);
+
+      return(false);
+   }
+
+   return (true);
+
+} /* open_credit_file */
+
+
+/*******************************************************************************
+*
+*  FUNCTION:         open_debit_file
+*
+*  DESCRIPTION:      This function opens the debit settlement file 
+*                    or creates it if it doesn't exist. 
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          None
+*
+*  RETURN VALUE:     BOOLEAN true for success or false for failure.
+*
+*  AUTHOR:           Darcy Person
+*   
+*******************************************************************************/
+BOOLEAN open_debit_file()
+{   
+   CHAR              buffer[500];
+
+   memset(buffer, 0, sizeof(buffer));
+
+   /* Send message to system monitor */
+   strcpy(buffer,"Open debit settlement file ");
+   settle_log_message( 2, 1, buffer, "open_debit_file", 0 );
+   /* Send message to DOS window in debug mode */
+   strcat(buffer,"\n");
+   PRINT(buffer);
+
+   /*** Open file ***/  
+   strcpy(d_filename, path);
+   #ifndef WIN32
+	   strcat(d_filename, "settlement/");
+   #else
+	   strcat(d_filename, "settlement\\");
+   #endif
+   strcat(d_filename, "debit_"); 
+   strcat(d_filename, cutoff_date);
+   strcat(d_filename, ".upl"); 
+   d_file_write = fopen (d_filename, "w");
+
+   if (d_file_write == NULL_PTR)
+   {  
+      strcpy(buffer, "Cannot open debit settlement file: ");
+      strcat(buffer, d_filename); 
+      settle_log_message( 1, 3, buffer, "open_debit_settle_file", 0 );
+	  write_to_dump_file(buffer);
+      
+      return(false);
+   }
+
+   return (true);
+
+} /* open_debit_file */
+
+
+/*******************************************************************************
+*
+*  FUNCTION:         open_empty_raffle_file
+*
+*  DESCRIPTION:      This function opens an empty raffle file 
+*                    or creates it if it doesn't exist. 
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          None
+*
+*  RETURN VALUE:     BOOLEAN true for success or false for failure.
+*
+*  AUTHOR:           Darcy Person
+*   
+*******************************************************************************/
+BOOLEAN open_empty_raffle_file()
+{
+   CHAR              buffer[500];
+   CHAR              dir[100] = "";
+
+       
+   /* Send message to system monitor */
+   strcpy(buffer,"Open empty raffle file ");
+   settle_log_message( 2, 1, buffer, "open_empty_raffle_file", 0 );
+   /* Send message to DOS window in debug mode */
+   strcat(buffer,"\n");
+   PRINT(buffer);
+
+   /*** Open file ***/
+   strcpy(r_filename, path); 
+   #ifndef WIN32
+	   strcat(r_filename, "settlement/");
+   #else
+	   strcat(r_filename, "settlement\\");
+   #endif
+   strcat(r_filename, "raffle_");
+   strcat(r_filename, cutoff_date);
+   strcat(r_filename, ".upl"); 
+
+   r_file_write = fopen (r_filename, "w");
+
+   if (r_file_write == NULL_PTR)
+   {  
+      strcpy(buffer, "Cannot open raffle file: ");
+      strcat(buffer, r_filename); 
+      settle_log_message( 2, 1, buffer, "open_empty_raffle_file", 0 );
+	  write_to_dump_file(buffer);
+      
+      return(false);
+   }
+
+   fclose (r_file_write);
+   return (true);
+
+} /* open_empty_raffle_file */
+
+
+/*******************************************************************************
+*
+*  FUNCTION:         open_raffle_file
+*
+*  DESCRIPTION:      This function opens the raffle file
+*                    or creates it if it doesn't exist. 
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          None
+*
+*  RETURN VALUE:     BOOLEAN true for success or false for failure.
+*
+*  AUTHOR:           Darcy Person
+*   
+*******************************************************************************/
+BOOLEAN open_raffle_file()
+{
+   CHAR              buffer[500];
+   CHAR              dir[100] = "";
+
+   /* Send message to system monitor */
+   strcpy(buffer,"Open raffle file ");
+   settle_log_message( 2, 1, buffer, "open_raffle_file", 0 );
+   /* Send message to DOS window in debug mode */
+   strcat(buffer,"\n");
+   PRINT(buffer);
+
+   /*** Open file ***/
+   strcpy(r_filename, path); 
+   #ifndef WIN32
+	   strcat(r_filename, "settlement/");
+   #else
+	   strcat(r_filename, "settlement\\");
+   #endif
+   strcat(r_filename, "raffle_");
+   strcat(r_filename, cutoff_date);
+   strcat(r_filename, ".upl"); 
+  
+   r_file_write = fopen (r_filename, "r+");
+
+   if (r_file_write == NULL_PTR)
+   {  
+      strcpy(buffer, "Cannot open raffle file: ");
+      strcat(buffer, r_filename); 
+      settle_log_message( 2, 1, buffer, "open_raffle_file", 0 );
+	  write_to_dump_file(buffer);
+      
+      return(false);
+   }
+   return (true);
+
+} /* open_raffle_file */
+
+/******************************************************************************
+ *
+ *  FUNCTION:         open_exception_file
+ *
+ *  DESCRIPTION:      This function opens the exception settlement file 
+ *                    or creates it if it doesn't exist. 
+ *
+ *  INPUTS:           None
+ *         
+ *  OUTPUTS:          None
+ *
+ *  RETURN VALUE:     BOOLEAN true for success or false for failure.
+ *
+ *  AUTHOR:           D. Irby
+ *   
+ ******************************************************************************/
+BOOLEAN open_exception_file()
+{
+   INT     errtype = INFO_MSG;
+   CHAR    buffer[200] = "";
+   BOOLEAN retval = true;
+
+   /*** Open file ***/
+   strcpy( e_filename, path );
+   #ifndef WIN32
+	   strcat( e_filename, "settlement/");
+   #else
+	   strcat( e_filename, "settlement\\");
+   #endif
+   strcat( e_filename, "except_"   );
+   strcat( e_filename, cutoff_date );
+   strcat( e_filename, ".upl"      );
+
+   e_file_write = fopen( e_filename, "a" );
+
+   if ( e_file_write == NULL_PTR )
+   {
+      sprintf( buffer, "Cannot open exception settlement file: %s", e_filename);
+      write_to_dump_file( buffer );
+      errtype = WARN_MSG;
+      retval = false;
+   }
+   else
+   {
+      sprintf( buffer, "Created exception settlement file: %s", e_filename);
+   }
+
+   settle_log_message( 2, 1, buffer, "open_exception_file", 0 );
+   return( retval );
+
+} /* open_exception_file */
+
+
+/*************************************************************************************
+*
+*  NAME:           returnCurrentTime
+*
+*  DESCRIPTION:    This function return the current time in HHMMSS frormat.
+*
+*  INPUTS:         None
+*         
+*  OUTPUTS:        NONE
+*
+*  RETURNS:        None
+*
+*  AUTHOR:         Farad 10-28-1999  
+*   
+*************************************************************************************/
+void returnCurrentTime(char *currentTime)
+{
+
+   time_t tme;
+   struct tm *tm1;
+   CHAR timeString[20]={0};
+
+   /*Get the time in seconds since 0 hrs from 1/1/70*/
+   tme = time(NULL_PTR);
+   tm1 = localtime(&tme);
+  
+   sprintf(timeString  ,"%2.2d",tm1->tm_hour);
+   sprintf(timeString+2,"%2.2d",tm1->tm_min);
+   sprintf(timeString+4,"%2.2d",tm1->tm_sec);
+
+   strcpy(currentTime,timeString);
+}
+
+
+/*****************************************************************************
+*
+*  FUNCTION:         Rj_with_lead_zeros
+*
+*  DESCRIPTION:      This function will right justify a string and 
+*                    add leading zeros
+*
+*  INPUTS:           str - the ascii string to be right justified 
+*                    FieldWidth
+*
+*  OUTPUTS:          str - the right justified ascii string
+*
+*  RETURN VALUE:     None
+*
+*  AUTHOR:           Unknown
+*
+******************************************************************************/
+void Rj_with_lead_zeros( pCHAR str, INT FieldWidth )
+{
+   INT               i;
+   INT               dif;
+   INT               strlength;
+
+   strlength = strlen(str);
+
+   /* Convert any leading blanks to zero. */
+   for (i = 0; i < strlength; i++)
+   {
+      if ( 0x20 == str[i] )
+         str [i] = 0x30;
+      else
+         break;
+   }
+
+   /* Remove any trailing blanks. */
+   for (i = strlength-1; i >= 0; i--)
+   {
+      if ( 0x20 == str[i] )
+         str [i] = 0x00;
+      else
+         break;
+   }
+
+   strlength = strlen(str);
+   dif       = FieldWidth - strlength;
+
+   if (dif > 0)
+   {
+      /* Right justify, then prepend leading zeros. */
+      memmove (&str [dif], &str[0], strlength+1);
+      memset  (&str[0], 0x30, dif);
+   }
+
+} /* Rj_with_lead_zeros */
+
+
+/*************************************************************************************
+*
+*  FUNCTION:         set_date
+*
+*  DESCRIPTION:      This function uses the cutoff date and time 
+*                    along with the number of hours to look back 
+*                    to compute the date/time values needed for 
+*                    the retrieval of information from the database 
+*                    table bch01.
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          None
+*
+*  RETURN VALUE:     None
+*
+*  AUTHOR:           Darcy Person   
+*
+*************************************************************************************/
+void set_date()
+{
+   CHAR              year_yyyy[5];
+
+   INT               day_m_int;
+   INT               month_int;
+	INT               offset_tmp = 0;
+	INT               temp_div = 0;
+	INT               temp_rem = 0;
+	INT               temp_var = 0;
+   INT               year_int;
+
+   LONG              julian;
+
+   time_t            tme;
+   struct            tm *tm1;
+
+   PRINT ("Set date\n");
+
+   /* Initialize variables */
+   memset(time_tag,        0, sizeof(time_tag));
+   memset(yyyymmdd_start,  0, sizeof(yyyymmdd_start));
+   memset(yyyymmdd_finish, 0, sizeof(yyyymmdd_finish));
+
+   /* Get time tag */
+   returnCurrentTime(time_tag);
+
+   /* Calculate today's date as the finish date   */
+   /* if the cutoff date uses the comma shorthand */
+   if (strcmp(cutoff_date, ",") == 0)
+   {
+      tme = time(NULL_PTR);
+      tm1 = localtime(&tme);
+
+      /* Put today's date in YYYYMMDD format */
+      month_int = tm1->tm_mon + 1;
+      day_m_int = tm1->tm_mday;
+      year_int  = tm1->tm_year;
+      year_int  = year_int + 1900;
+
+      memset(day_m,           0, sizeof(day_m));
+      memset(month,           0, sizeof(month));
+      memset(year_yyyy,       0, sizeof(year_yyyy));
+
+      sprintf(month, "%02d", month_int);
+      sprintf(day_m, "%02d", day_m_int);
+      itoa(year_int, year_yyyy, 10);
+      strncpy(yyyymmdd_finish, year_yyyy, 4);
+      strncpy(yyyymmdd_finish + 4, month, 2);
+      strncpy(yyyymmdd_finish + 6, day_m, 2);
+      strcpy(cutoff_date, yyyymmdd_finish);
+   }
+   else
+   {
+      strncpy(month, cutoff_date + 4, 2);
+      strncpy(day_m, cutoff_date + 6, 2);
+      strcpy(yyyymmdd_finish, cutoff_date);
+   }
+
+   /* Set values for extraction date */
+   strcpy(extract_date, yyyymmdd_finish + 4);
+   strncpy(extract_date + 4, yyyymmdd_finish + 2, 2);
+
+   /* Determine start date */
+   julian = Txutils_Calculate_Julian_Date(yyyymmdd_finish);
+
+   temp_rem = atoi(offset) % 24;
+	temp_div = (atoi(offset) / 24 );
+	
+	julian = julian - temp_div;
+
+	if( temp_rem > atoi(cutoff_hour) )
+	{
+		julian = julian - 1;
+		offset_tmp = 24 - (temp_rem - atoi(cutoff_hour));
+	}
+	else 
+      offset_tmp = atoi(cutoff_hour) - temp_rem;
+
+	Txutils_Calculate_Gregorian_Date(julian, yyyymmdd_start);
+
+   /* Determine start time */
+	if( (offset_tmp / 10 ) == 0)
+			sprintf(offset,"0%d",offset_tmp);
+		else 
+			sprintf(offset,"%d",offset_tmp);
+
+} /* set_date */
+
+
+/*******************************************************************************
+*
+*  FUNCTION:         write_to_credit_settle_file
+*
+*  DESCRIPTION:      This function writes to credit settlement file. 
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          None
+*
+*  RETURN VALUE:     BOOLEAN true for success or false for failure.
+*
+*  AUTHOR:           Irene Goldfild
+*   
+*******************************************************************************/
+BOOLEAN write_to_credit_settle_file()
+{
+   CHAR              tempstr[16];
+   CHAR              buffer[100];   
+
+   /* Send message to system monitor */
+/*   strcpy(buffer,"Writing to credit settlement file ");
+     settle_log_message( 2, 1, buffer, "write_to_credit_settle_file", 0 );
+*/
+   /* Send message to DOS window in debug mode */
+/*   strcat(buffer,"\n");
+   PRINT(buffer);
+*/
+   /*** Write to file ***/
+   //if (fputs (c_record, c_file_write) < 0)
+   if (fwrite (c_record, sizeof(c_record) - 1, 1, c_file_write) < 0)
+   {
+      itoa (ferror(c_file_write), tempstr, 10);
+      fclose (c_file_write);
+      
+      strcpy(buffer, "Cannot write to credit settlement file: ");
+      strcat(buffer, tempstr);
+      settle_log_message( 2, 1, buffer, "write_to_credit_settle_file", 0 );
+	  write_to_dump_file(buffer);
+
+      return(false);
+   }
+   return (true);
+
+} /* write_to_credit_settle_file */
+
+/******************************************************************************
+ *
+ *  FUNCTION:         write_to_except_settle_file
+ *
+ *  DESCRIPTION:      This function writes to exception settlement file. 
+ *
+ *  INPUTS:           None
+ *         
+ *  OUTPUTS:          None
+ *
+ *  RETURN VALUE:     BOOLEAN true for success or false for failure.
+ *
+ *  AUTHOR:           D. Irby
+ *   
+ ******************************************************************************/
+BOOLEAN write_to_except_settle_file()
+{
+   BOOLEAN retval      = false;
+   CHAR    tempstr[16] = "";
+   CHAR    buffer[100] = "";
+
+   /*** Write to file ***/
+   if (fputs (e_record, e_file_write) < 0)
+   {
+      itoa( ferror(e_file_write), tempstr, 10 );
+      fclose( e_file_write );
+      
+      strcpy(buffer, "Cannot write to except settlement file: ");
+      strcat(buffer, tempstr);
+      settle_log_message( 2, 2, buffer, "write_to_except_settle_file", 0 );
+      write_to_dump_file(buffer);
+
+      retval = true;
+   }
+   return( retval );
+
+} /* write_to_except_settle_file */
+
+/*******************************************************************************
+*
+*  FUNCTION:         write_to_dump_file() 
+*
+*  DESCRIPTION:      This function writes an error record to the credit dump file. 
+*					 The file will be created if it does not already exist.
+*  INPUTS:           None
+*         
+*  OUTPUTS:          None
+*
+*  RETURN VALUE:     BOOLEAN true for success or false for failure.
+*
+*  AUTHOR:           Linda Mitchell
+*   
+*******************************************************************************/
+void write_to_dump_file(CHAR* dump_record)
+{
+   CHAR              tempstr[16] = "";
+   CHAR              buffer[500] = ""; 
+   CHAR				 time_hhmmss[7] = "";
+   CHAR				 time_str[10] = "";
+
+
+   memset (&buffer, 0x00, sizeof(buffer));
+
+   returnCurrentTime(time_hhmmss);
+   sprintf(time_str, "%2.2s:%2.2s:%2.2s:\n", time_hhmmss, time_hhmmss+2, time_hhmmss+4);
+
+   /* Check if file exists*/
+   if (dumpfile_ptr == NULL_PTR)
+   {
+       /*** Open dump file ***/
+	   memset (&dump_filename, 0x00, sizeof(dump_filename));
+       strcpy(dump_filename, path);
+       #ifndef WIN32
+	       strcat(dump_filename, "settlement/settle_");
+       #else
+	       strcat(dump_filename, "settlement\\settle_");
+       #endif
+
+	   strcat(dump_filename, cutoff_date);
+	   strcat(dump_filename, "_dump.txt");
+
+
+	   /* Send message to system monitor */
+       sprintf(buffer,"Opening dump file %s.", dump_filename);
+       settle_log_message( 2, 1, buffer, "write_to_dump_file", 0 );
+       /* Send message to DOS window in debug mode */
+       strcat(buffer,"\n");
+       PRINT(buffer);
+	   
+	   dumpfile_ptr = fopen (dump_filename, "w");
+
+	   if (dumpfile_ptr == NULL_PTR)
+	   {  
+		  memset (&buffer, 0x00, sizeof(buffer));
+		  sprintf(buffer, "Cannot open dump file %s.", dump_filename);
+		  settle_log_message( 2, 1, buffer, "write_to_dump_file", 0 );
+		  return;					      /*will try to continue settlement process*/
+	   }
+	   else
+	   {
+	   	   sprintf(buffer, "Settlement Dump File: %s\n", dump_filename); 
+		   fputs (buffer, dumpfile_ptr);
+	   }
+   }
+
+   /*else file exists or was opened successfully*/
+   /*** Write to file ***/
+   fputs(time_str, dumpfile_ptr);
+   if (fputs (dump_record, dumpfile_ptr) < 0)
+   {
+      itoa (ferror(dumpfile_ptr), tempstr, 10);
+      fclose (dumpfile_ptr);
+      
+      sprintf(buffer, "Cannot write to dump file %s: %s", dump_filename, tempstr);
+      settle_log_message( 2, 1, buffer, "write_to_dump_file", 0 );
+   }
+   return;
+
+} /* write_to_dump_file */
+
+
+
+/*******************************************************************************
+*
+*  FUNCTION:         write_to_debit_settle_file
+*
+*  DESCRIPTION:      This function writes to debit settlement file. 
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          None
+*
+*  RETURN VALUE:     BOOLEAN: true for success or false for failure.
+*
+*  AUTHOR:           Narina Pogosyants
+*      
+*************************************************************************************/
+BOOLEAN write_to_debit_settle_file()
+{
+   CHAR              tempstr[16];
+   CHAR              buffer[100];  
+
+   /* Send message to system monitor */
+   strcpy(buffer,"Writing to debit settlement file ");
+   settle_log_message( 2, 1, buffer, "write_to_debit_settle_file", 0 );
+   /* Send message to DOS window in debug mode */
+   strcat(buffer,"\n");
+   PRINT(buffer);
+   
+   /*** Write to file ***/
+   if (fputs (d_record, d_file_write) < 0)
+   {
+      itoa (ferror(d_file_write), tempstr, 10);
+      fclose (d_file_write);
+      
+      strcpy(buffer, "Cannot write to debit settlement file: ");
+      strcat(buffer, tempstr);
+      settle_log_message( 2, 1, buffer, "write_to_debit_settle_file", 0 );
+	  write_to_dump_file(buffer);
+
+      return(false);
+   }
+   return (true);
+
+} /* write_to_debit_settle_file */
+
+
+/*******************************************************************************
+*
+*  FUNCTION:         write_to_raffle_file
+*
+*  DESCRIPTION:      This function writes to the raffle file. 
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          None
+*
+*  RETURN VALUE:     BOOLEAN true for success or false for failure.
+*
+*  AUTHOR:           Darcy Person
+*   
+*******************************************************************************/
+BOOLEAN write_to_raffle_file()
+{
+   CHAR              tempstr[16];
+   CHAR              buffer[100];
+
+   /* Send message to system monitor */
+   strcpy(buffer,"Writing to raffle file ");
+   settle_log_message( 2, 1, buffer, "write_to_raffle_file", 0 );
+   /* Send message to DOS window in debug mode */
+   strcat(buffer,"\n");
+   PRINT(buffer);
+      
+   /*** Write to file ***/
+   if (fputs (r_record, r_file_write) < 0)
+   {
+      itoa (ferror(r_file_write), tempstr, 10);
+      fclose (r_file_write);
+      
+      strcpy(buffer, "Cannot write to raffle file: ");
+      strcat(buffer, tempstr);
+      settle_log_message( 2, 1, buffer, "write_to_raffle_file", 0 );
+	  write_to_dump_file(buffer);
+
+      return(false);
+   }
+   return (true);
+
+} /* write_to_raffle_file */
+
+/*******************************************************************************
+*
+*  FUNCTION:         bch01_handler
+*
+*  DESCRIPTION:      This function processes each batch to the settlement files. 
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          None
+*
+*  RETURN VALUE:     BOOLEAN : true successful, false unsuccessful
+*
+*  AUTHOR:           
+*   
+*******************************************************************************/
+BOOLEAN bch01_handler()
+{
+   CHAR     err_msg[100];
+   CHAR     buffer[500];
+   BOOLEAN  ret_val = true;
+
+   memset( &err_msg,   0x00, sizeof(err_msg)  );
+   memset( &buffer,    0x00, sizeof(buffer)   );
+   memset( &tc_totals, 0x00, sizeof(tc_totals));
+
+   /*** Set batch totals ***/
+   strcpy(tc_totals.batch_number, auth_tx_total.primary_key.batch_nbr);
+   strcpy(tc_totals.terminal_id, auth_tx_total.primary_key.device_id);
+   strcpy(tc_totals.merchant_id, auth_tx_total.merchant_id);
+   strcpy(tc_totals.open_date, auth_tx_total.open_date);
+   strcpy(tc_totals.open_time, auth_tx_total.open_time);
+   itoa(atoi(auth_tx_total.total_credit_cnt) + 
+        atoi(auth_tx_total.total_credit_refund_cnt), 
+        tc_totals.number_credit_tran_for_batch, 10); 
+   itoa(atoi(auth_tx_total.total_debit_cnt) + 
+        atoi(auth_tx_total.total_debit_refund_cnt), 
+        tc_totals.number_debit_tran_for_batch, 10);
+   itoa(atoi(auth_tx_total.total_credit_amt) + 
+        atoi(auth_tx_total.total_credit_refund_amt), 
+        tc_totals.totals_credit_for_batch, 10);
+   itoa(atoi(auth_tx_total.total_debit_amt) + 
+        atoi(auth_tx_total.total_debit_refund_amt), 
+         tc_totals.totals_debit_for_batch, 10);
+
+   /* Set flags to show if there are credit and/or debit txns. */
+   if ( atoi(tc_totals.number_credit_tran_for_batch) > 0 )
+      credit_txns_exist = true;
+   else
+      credit_txns_exist = false;
+
+   if ( atoi(tc_totals.number_debit_tran_for_batch) > 0 )
+      debit_txns_exist = true;
+   else
+      debit_txns_exist = false;
+
+   if (get_currency_code() == false)
+   {
+	  memset(&buffer, 0x00, sizeof(buffer));
+	  sprintf(buffer, "Batch %s Not Settled. Error retrieving currency code.", tc_totals.batch_number);
+      settle_log_message( 2, 1, buffer, "bch01_handler", 0 );
+	  /*Write Batch Information to dump file*/
+	  memset(&dump_record, 0x00, sizeof(dump_record));
+	  sprintf(dump_record,"%s  Merchant: %s  Terminal: %s\n",buffer, tc_totals.merchant_id, tc_totals.terminal_id);
+	  write_to_dump_file(dump_record );
+
+      return true;/*log error, but return true to continue with the next batch*/
+   }
+
+
+   else if (create_settle_files() == false)
+      ret_val = false;
+
+   else
+   {
+      /*** move data from BCH10 to BCH11 if batch status is "C" ***/
+      if (strcmp(auth_tx_total.batch_status, "C") == 0 || strcmp(auth_tx_total.batch_status, "P") == 0 || strcmp(auth_tx_total.batch_status, "W") == 0)
+      {
+        // Copy the batch status in local varribale to decide read transaction_id from BCH10 or BCH11.
+        strcpy(LocalCopy_Batch_status,"");
+		strcpy(LocalCopy_Batch_status,auth_tx_total.batch_status);
+		
+		if(strcmp(auth_tx_total.batch_status, "C") == 0)
+			strcpy(auth_tx_total.batch_status, "R");
+		else if(strcmp(auth_tx_total.batch_status, "P") == 0)
+			strcpy(auth_tx_total.batch_status, "W");
+		 if (DB_NullCheck_Flag==1)
+		 {
+			CheckNULLTerminatedinBCH01 (&auth_tx_total,MODE_UPDATE);
+		 }
+         if (db_update_bch01_move_bch10tobch11_delete_bch10(&auth_tx_total,err_msg) != PTEMSG_OK)
+         {
+            dbcommon_rollback ();
+
+            sprintf( buffer,
+                    "Error moving bch10 data to bch11, batch(%s): %s",
+                     auth_tx_total.primary_key.batch_nbr, err_msg );
+            settle_log_message( 2, 2, buffer, "update_bch01_move_bch10tobch11_delete_bch10", 0 );
+	       /*Write Batch Information to dump file*/
+	       memset(&dump_record, 0x00, sizeof(dump_record));
+	       sprintf(dump_record,"%s  %s  %s\n", buffer, tc_totals.merchant_id, tc_totals.terminal_id);
+	       write_to_dump_file(dump_record );
+
+            /* Do not return 'false' here.  If you do, the other batches
+             * will not get processed.
+             */
+         }
+         else
+         {
+            /*** commit the database update(s) ***/
+            dbcommon_commit ();
+         }
+      } /* end of if batch status is "C" */
+   }
+   return( ret_val );
+}
+
+
+/******************************************************************************
+ *
+ *  NAME:         GET_DATE
+ *
+ *  DESCRIPTION:  This procedure takes an input string that contains a date and
+ *                time.  It copies the date portion into an output string,
+ *                formatted slightly different.
+ *
+ *  INPUTS:       time_date : Format = "YYYY-0M-0D-0H.0I.0S.JJJ"
+ *
+ *  OUTPUTS:      date_str  : Format = "YYYY0M0D"
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       Dennis Irby
+ *
+ ******************************************************************************/
+void get_date( pCHAR time_date, pCHAR date_str )
+{
+   memset ( date_str,  0x00,         9 );
+   strncpy( date_str,  time_date,    4 );
+   strncat( date_str, &time_date[5], 2 );
+   strncat( date_str, &time_date[8], 2 );
+}
+   
+
+/******************************************************************************
+ *
+ *  FUNCTION:     PROCESS_EXCEPTION_TXNS
+ *
+ *  DESCRIPTION:  This function looks for BCH10 records that are older than
+ *                45 days.  These are put into a separate settle file (an
+ *                exception file).  They are also removed from BCH10 and
+ *                stored into BCH11.
+ *
+ *  INPUTS:       None
+ *         
+ *  OUTPUTS:      None
+ *
+ *  RETURN VALUE: None
+ *
+ *  AUTHOR:       D. Irby
+ *   
+ ******************************************************************************/
+void process_exception_txns()
+{
+   CHAR  msgbuf[100] = "";
+   INT   batch_cnt = 0;
+   INT   rec_cnt   = 0;
+
+   TempExRecCnt   = 0;
+   ExceptRecCnt   = 0;
+   ExceptFile     = false;
+   ExceptError    = false;
+
+   strcpy( msgbuf, "Beginning Exception File processing for Settlement." );
+   settle_log_message( 2, 1, msgbuf, "process_exception_txns", 0 );
+
+   /* Get number of records that should go in the exception file.
+    * These are records that are not part of a batch in BCH01.
+    */
+   TempExRecCnt   = 0;
+   rec_cnt = db_get_except_record_cnt( msgbuf );
+   if ( rec_cnt == -1 )
+   {
+      settle_log_message( 2, 2, msgbuf, "process_exception_txns", 0 );
+      write_to_dump_file( msgbuf );
+      settle_log_message( 2, 2, msgbuf, "process_exception_txns", 0 );
+      write_to_dump_file( msgbuf );
+   }
+   else if ( rec_cnt > 0 )
+   {
+      if ( ExceptFile == false )
+      {
+         if ( false == open_exception_file() )
+            ExceptError = true;
+      }
+
+      if ( ExceptError == false )
+      {
+         /* No error. Now process all BCH10 exception records. */
+         ExceptFile = true;
+         ExceptError = db_process_bch10_records( msgbuf );
+      }
+   }
+
+   /* DONE PROCESSING */
+   if ( ExceptFile == true )
+   {
+      fclose( e_file_write );
+      if ( ExceptError == true )
+      {
+         /* Errors occurred. Rollback database. */
+         dbcommon_rollback();
+      }
+      else
+      {
+         /* Success */
+         dbcommon_commit();
+         ExceptRecCnt += TempExRecCnt;
+      }
+   }
+
+   sprintf( msgbuf,
+           "Settlement Exception File Processing Completed: %d records",
+            ExceptRecCnt );
+   settle_log_message( 2, 1, msgbuf, "process_exception_txns", 0 );
+   return;
+}
+
+
+/******************************************************************************
+ *
+ *  FUNCTION:         store_detail_except_record
+ *
+ *  DESCRIPTION:      This function creates detail structure for 
+ *                    the exception settlement file. 
+ *
+ *  INPUTS:           p_bch10 - BCH10 record
+ *
+ *  OUTPUTS:          None
+ *
+ *  RETURN VALUE:     False if record is written to file, else true
+ *
+ *  AUTHOR:           D. Irby
+ *
+ ******************************************************************************/
+INT store_detail_except_record( pBCH10 p_bch10 )
+{
+   INT   i;
+   INT   retval = false;
+   CHAR  tran_code[3] = "";
+   CHAR  rrn[13] = "";
+   CHAR  descriptor_code[3] = "";
+   CHAR  tran_dt[7],tempDt[7], entry_mode[5] = "";	
+
+
+   memset(tran_dt,0,7);
+   memset(tempDt,0,7);
+   strcpy(tempDt,auth_tx_detail.tran_date + 2);
+   for( i=0;i<4;i++)
+   {
+       tran_dt[i]= tempDt[i+2];
+   }
+   tran_dt[4]= tempDt[0];
+   tran_dt[5]= tempDt[1];
+
+   memset( e_record, 0x00, sizeof(e_record) );
+
+   if (p_bch10->tx_key == AUTH_CASH_ADVANCE_RESPONSE ||
+       p_bch10->tx_key == AUTH_CASH_ADVANCE)
+   {
+      strcpy( tran_code, "30" );
+   }
+   else if (p_bch10->tx_key == AUTH_RELOAD_RESPONSE ||
+            p_bch10->tx_key == AUTH_RELOAD)
+   {
+      if ( 0 == strcmp(p_bch10->product_codes[17].amount,"Confirmed"))
+         strcpy( tran_code, "60" );
+      else
+         retval = true;
+   }
+   else if ( p_bch10->term[0] != 0x00 )
+      strcpy( tran_code, "50" );
+   else
+      strcpy( tran_code, "40" );
+
+   if ( retval == false )
+   {
+      /* Replace first 2 digits with 02 */
+      strcpy (rrn, "02");
+      strncpy(rrn + 2, p_bch10->primary_key.retrieval_ref_num + 2, 10);
+      strncpy(descriptor_code, auth_tx_detail.product_code, 2);
+
+      /*pos_entry_mode*/
+      strcpy (entry_mode, p_bch10->pos_entry_mode);
+
+      /* Check for visa/jcb mode starting with 9 - convert to 22 */
+      if(entry_mode[1] == '9')
+         strcpy(entry_mode, "0022");
+
+      sprintf( e_record,
+              "%016s%2s%6s%10.10s%019s%6.6s%6s%2s%12.12s%-15.15s%02.2s%12.12s%3.3s%07s%2s",
+               p_bch10->merchant_id,
+              "62",
+               extract_date,
+               p_bch10->tran_amount + 2,
+               p_bch10->card_nbr,
+               p_bch10->auth_number,
+               tran_dt,
+               tran_code,
+               rrn,
+               p_bch10->ticket_nbr,
+               descriptor_code,
+               p_bch10->def_gross_amt,
+               p_bch10->term,
+               p_bch10->odometer,
+               entry_mode + 2 );
+
+      strncpy( e_record + 120, "\n\0", 2 );
+
+      retval = write_to_except_settle_file();
+   }
+   return( retval );
+
+} /* store_detail_except_record */
+
+
+/******************************************************************************
+ *
+ *  FUNCTION:         store_detail_except_record_arc
+ *
+ *  DESCRIPTION:      This function creates detail structure for 
+ *                    the exception settlement file. 
+ * 			It was required as the 45 day old transactions needs to be excluded from
+ * 			the credit/debit settlement files even for released batches.
+ *			It was only being done for closed batches.
+ *
+ *  INPUTS:           p_bch11 - BCH11 record
+ *
+ *  OUTPUTS:          None
+ *
+ *  RETURN VALUE:     False if record is written to file, else true
+ *
+ *  AUTHOR:           N Joshi
+ *
+ ******************************************************************************/
+INT store_detail_except_record_arc( pBCH11 p_bch11 )
+{
+   INT   i;
+   INT   retval = false;
+   CHAR  tran_code[3] = "";
+   CHAR  rrn[13] = "";
+   CHAR  descriptor_code[3] = "";
+   CHAR  tran_dt[7],tempDt[7], entry_mode[5] = "";	
+
+
+   memset(tran_dt,0,7);
+   memset(tempDt,0,7);
+   strcpy(tempDt,auth_tx_detail_arc.tran_date + 2);
+   for( i=0;i<4;i++)
+   {
+       tran_dt[i]= tempDt[i+2];
+   }
+   tran_dt[4]= tempDt[0];
+   tran_dt[5]= tempDt[1];
+
+   memset( e_record, 0x00, sizeof(e_record) );
+
+   if (p_bch11->tx_key == AUTH_CASH_ADVANCE_RESPONSE ||
+       p_bch11->tx_key == AUTH_CASH_ADVANCE)
+   {
+      strcpy( tran_code, "30" );
+   }
+   else if (p_bch11->tx_key == AUTH_RELOAD_RESPONSE ||
+            p_bch11->tx_key == AUTH_RELOAD)
+   {
+      if ( 0 == strcmp(p_bch11->product_codes[17].amount,"Confirmed"))
+         strcpy( tran_code, "60" );
+      else
+         retval = true;
+   }
+   else if ( p_bch11->term[0] != 0x00 )
+      strcpy( tran_code, "50" );
+   else
+      strcpy( tran_code, "40" );
+
+   if ( retval == false )
+   {
+      /* Replace first 2 digits with 02 */
+      strcpy (rrn, "02");
+      strncpy(rrn + 2, p_bch11->primary_key.retrieval_ref_num + 2, 10);
+      strncpy(descriptor_code, auth_tx_detail_arc.product_code, 2);
+
+      /*pos_entry_mode*/
+      strcpy (entry_mode, p_bch11->pos_entry_mode);
+
+      /* Check for visa/jcb mode starting with 9 - convert to 22 */
+      if(entry_mode[1] == '9')
+         strcpy(entry_mode, "0022");
+
+      sprintf( e_record,
+              "%016s%2s%6s%10.10s%019s%6.6s%6s%2s%12.12s%-15.15s%02.2s%12.12s%3.3s%07s%2s",
+               p_bch11->merchant_id,
+              "62",
+               extract_date,
+               p_bch11->tran_amount + 2,
+               p_bch11->card_nbr,
+               p_bch11->auth_number,
+               tran_dt,
+               tran_code,
+               rrn,
+               p_bch11->ticket_nbr,
+               descriptor_code,
+               p_bch11->def_gross_amt,
+               p_bch11->term,
+               p_bch11->odometer,
+               entry_mode + 2 );
+
+      strncpy( e_record + 120, "\n\0", 2 );
+
+      retval = write_to_except_settle_file();
+   }
+   return( retval );
+
+} /* store_detail_except_record */
+
+
+
+/*******************************************************
+ * This function will get the values from tf.ini file
+ * from the section DATASERVER with keyname DB_ERROR_STATICS_FLAG &
+ *	DB_ERROR_STATICS_VALUE which will help to decide the db statics
+ *	logging mechanism.
+ * *******************************************************/
+
+void settle_get_error_warning_file_name_path(void )
+{
+   DWORD rc;
+   CHAR  filename   [80] = {0};
+   CHAR  tmpstr     [80] = {0};
+   CHAR  settle_error_warning_file_size[5] = {0};
+
+   /* Get path to the tf.ini file. */
+   memset( tmpstr, 0x00, sizeof(tmpstr) );
+   GetPinnacleConfigDirectory(tmpstr);
+   sprintf(filename, "%s%s", tmpstr, "tf.ini" );
+
+   /*Read path for creating file in order to log db statics and db oracle error messages */
+   rc = GetPrivateProfileString(
+								  "DATASERVERS",             /* points to section name         */
+								  "DB_STATICS_PATH",       	/* points to key name             */
+								   "",  					/* Default string                 */
+								   settle_error_warning_file_path,              	/* points to destination buffer   */
+								   sizeof(settle_error_warning_file_path)-1,   	 /* size of destination buffer     */
+								   filename                  /* points to ini filename         */
+						 	   );
+
+   rc = GetPrivateProfileString(
+								  "ERROR_WARNING",             /* points to section name         */
+								  AppName,       	/* points to key name             */
+								  "",  					/* Default string                 */
+								  settle_module_error_warning_file_name,              	/* points to destination buffer   */
+								  sizeof(settle_module_error_warning_file_name)-1,   	 /* size of destination buffer     */
+								  filename                  /* points to ini filename         */
+								);
+
+   rc = GetPrivateProfileString(
+							  "ERROR_WARNING",             /* points to section name         */
+							  "ERROR_WARNING_FILE_SIZE",       	/* points to key name             */
+							  "500",  					/* Default string                 */
+							  settle_error_warning_file_size,              	/* points to destination buffer   */
+							  sizeof(settle_error_warning_file_size)-1,   	 /* size of destination buffer     */
+							  filename                  /* points to ini filename         */
+							);
+
+	/* File size size conversion */
+	Max_File_Size_Defined = atoi(settle_error_warning_file_size);
+	if(Max_File_Size_Defined <= 0)
+	{
+		Max_File_Size_Defined = 500 ;
+	}
+	Max_File_Size_Defined = Max_File_Size_Defined * ONE_MB_IN_BYTES ; /* 1 MB = 1048576 BYTES*/
+
+
+   if((strlen(settle_error_warning_file_path) > 0) &&
+	  (strlen(settle_module_error_warning_file_name)> 0))
+   {
+	   settle_create_Error_Filename();
+   }
+}
+
+INT settle_Log_error_warning_to_File(pCHAR Error_Buf,int sev,pCHAR func, int detail)
+{
+	INT   ret_val = 0;
+	INT   len=0;
+	INT   cardlen = 0;
+	INT   path_len = 0;
+	INT   nIndex = 0;
+	CHAR  time_date[25]  ={0};
+	CHAR  timestamp[14]  ={0};
+	CHAR  current_mmdd[5]={0};
+	CHAR Buffer[1024]={0};
+	CHAR card_tid_mid_details [256] = {0};
+	CHAR tempcard[21] = {0};
+	CHAR masked_cardnum[21] = {0};
+	char *cardIndex = NULL ;
+	FILE *fp;
+	UINT file_size = 0 ;
+	char buf[256] = {0} ;
+
+
+	/* Get system timestamp "YYYY-MM-DD-hh.mm.ss.jjj" */
+	ptetime_get_timestamp( time_date );
+
+	/* Pick out the month and day to compare to filename extenstion. */
+    memcpy( current_mmdd,   time_date+5, 2 );
+    memcpy( current_mmdd+2, time_date+8, 2 );
+
+	/* Compare filename extension to current date. */
+    len = strlen(settle_Erro_warning_Filename);
+    path_len = strlen(settle_error_warning_file_path);
+    if( len == 0 ||
+    	path_len==0 )
+    {
+    	LogEvent(Error_Buf,INFO_MSG);
+    	return 0;
+    }
+    if ( 0 != strcmp(&settle_Erro_warning_Filename[len-4], current_mmdd) )
+    {
+		/* Now create the new filename.*/
+    	settle_create_Error_Filename();
+    }
+	if((fp = fopen(settle_Erro_warning_Filename,"a+b"))==NULL)
+	{
+		LogEvent(Error_Buf,INFO_MSG);
+		return 0;
+	}
+	strcpy(Buffer,time_date);
+	strcat(Buffer,":");
+	if(sev == 1)
+	{
+		strcat(Buffer," INFO");
+	}
+	else if (sev == 2)
+	{
+		strcat(Buffer," WARN");
+	}
+	else
+	{
+		strcat(Buffer," ERROR");
+	}
+	strcat(Buffer,": ");
+	strcat(Buffer,Error_Buf);
+	strcat(Buffer," ");
+	strcat(Buffer, func);
+	strcat(Buffer,"\n");
+	len=strlen(Buffer);
+
+	if(fwrite(Buffer, len, NUM_SIZE_WRITES, fp)==NUM_SIZE_WRITES)
+	{
+		// Do nothing fall below
+	}
+	else
+	{
+		LogEvent(Buffer,INFO_MSG);
+		fclose(fp);
+		return  0;
+	}
+	fseek (fp, 0, SEEK_END);
+	file_size=ftell (fp);
+
+	if( file_size >= Max_File_Size_Defined )
+	{
+		sprintf(buf,"ERROR_WARNING_FILE  size is exceeding the permissible size, need attention" );
+		TxUtils_Send_Msg_To_Operator( 1, buf,1, ALERT_MSG, "", 4, INFO_ERROR,NULL,NULL,NULL );
+	}
+	fclose(fp);
+	return  0;
+}
+
+void settle_create_Error_Filename(  )
+{
+	CHAR  system_date[25] = {0};
+
+   /* Get system timestamp "YYYY-MM-DD-hh.mm.ss.jjj" */
+	ptetime_get_timestamp( system_date );
+
+    strcpy( settle_Erro_warning_Filename, settle_error_warning_file_path );
+    strcat( settle_Erro_warning_Filename, settle_module_error_warning_file_name );
+	strcat( settle_Erro_warning_Filename, ".EW." );
+    strncat(settle_Erro_warning_Filename, system_date,   4 );  /* YYYY */
+    strncat(settle_Erro_warning_Filename, system_date+5, 2 );  /* MM   */
+    strncat(settle_Erro_warning_Filename, system_date+8, 2 );  /* DD   */
+}
+/******************************************************************************
+ *
+ *  NAME:         settle_log_message
+ *
+ *  DESCRIPTION:  This function takes a string and input parameters and
+ *                formats a message to be sent to either Monitor, Event Log
+ *                or both.  Based on inputs, it sets the severity.
+ *
+ *  INPUTS:       dest - 1 = Monitor, 2 = Event Log, 3 = Both
+ *                sev  - 1 = Info,    2 = Warning,   3 = Error
+ *                msg  - Text message to be logged
+ *                func - Name of function logging the error
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       Abhishek Verma
+ *
+ ******************************************************************************/
+void settle_log_message( INT dest, INT sev, pCHAR msg, pCHAR func, int details )
+{
+   INT  monitor_flag = 0;
+   INT  eventlog_flag = 0;
+   INT  msg_type = 0;
+   BYTE severity = 0;
+   BYTE log_type[20] = {0};
+   CHAR text_message [200] = {0};
+   INT  Appname_len = 0;
+   CHAR  appname[512] = {0};
+
+   GetAppName (appname) ;
+   /* Set Monitor flag */
+   if ( dest == 1  ||  dest == 3 )
+      monitor_flag = 1;
+   else
+      monitor_flag = 0;
+
+   /* Set message type and severity */
+   if ( sev == 2 )
+   {
+      msg_type = WARN_MSG;
+      severity = '3';
+      strcpy( log_type, WARNING_ERROR );
+   }
+   else if ( sev == 1 )
+   {
+      msg_type = INFO_MSG;
+      severity = '0';
+      strcpy( log_type, INFO_ERROR );
+   }
+   else if ( sev == 3 )
+   {
+      msg_type = ALERT_MSG;
+      severity = '4';
+      strcpy( log_type, FATAL_ERROR );
+   }
+
+   /* Make sure text message is not too long. */
+   sprintf(text_message,"%s ,",appname);
+   Appname_len = strlen(text_message);
+
+   memcpy( text_message + Appname_len, msg, (sizeof(text_message)-1 -Appname_len));
+   /* Call function to post the message. */
+   settle_Log_error_warning_to_File(text_message,sev,func,details);
+   if(monitor_flag == 1)
+   {
+	    TxUtils_Send_Msg_To_Operator( monitor_flag, text_message,
+									  eventlog_flag, msg_type, func,
+									  severity, log_type,
+									 NULL, NULL,NULL );
+   }
+
+   return;
+}
+
+/*******************************************************
+ * This function will get the values from tf.ini file
+ * from the section DATASERVER with keyname DB_ERROR_STATICS_FLAG &
+ *	DB_ERROR_STATICS_VALUE which will help to decide the db statics
+ *	logging mechanism.
+ * *******************************************************/
+
+INT get_dataserver_ini_db_error_statics_value(pINT  ds_timer_flag,
+                                   double *  ds_timer_value,
+                                   pCHAR appname, pCHAR errbuf )
+{
+   #define sON  "1"
+   #define sOFF "0"
+   #define sDEFAULT_DS_ERROR_STATICS_VALUE  "0.5"
+
+   DWORD rc;
+   CHAR  filename   [80];
+   CHAR  tmpstr     [80];
+   CHAR  timer_flag [5] = {0};
+   CHAR  timer_value[5] = {0};
+   INT   ret_val = true;
+
+   /* Get path to the tf.ini file. */
+   memset( tmpstr, 0x00, sizeof(tmpstr) );
+   GetPinnacleConfigDirectory(tmpstr);
+   sprintf(filename, "%s%s", tmpstr, "tf.ini" );
+
+   /*----------------------------------------*/
+   /* Get Data Server error statics  Flag - On or Off */
+   /*----------------------------------------*/
+   memcpy( timer_flag, sOFF, sizeof(sOFF) );
+   rc = GetPrivateProfileString(
+            "DATASERVERS",        /* points to section name         */
+            "DB_STATICS_FLAG",       /* points to key name             */
+             sOFF,                /* Default string (Off)           */
+             timer_flag,          /* points to destination buffer   */
+             sizeof(timer_flag)-1,/* size of destination buffer     */
+             filename             /* points to ini filename         */
+   );
+
+   if ( 0 == strcmp(timer_flag, sOFF) )
+   {
+      /* Timer is Off; no need to get the value. */
+	   *ds_timer_flag = DS_TIMER_OFF;
+   }
+   else if ( 0 == strcmp(timer_flag, sON) )
+   {
+      /* Timer is On; get the number of seconds for query criteria. */
+      *ds_timer_flag = DS_TIMER_ON;
+      memcpy( timer_value,
+              sDEFAULT_DS_ERROR_STATICS_VALUE,
+              sizeof(sDEFAULT_DS_ERROR_STATICS_VALUE) );
+
+      rc = GetPrivateProfileString(
+               "DATASERVERS",             /* points to section name         */
+               "DB_STATICS_VALUE",       /* points to key name             */
+                sDEFAULT_DS_ERROR_STATICS_VALUE,  /* Default string                 */
+                timer_value,              /* points to destination buffer   */
+                sizeof(timer_value)-1,    /* size of destination buffer     */
+                filename                  /* points to ini filename         */
+      );
+
+      *ds_timer_value = atof(timer_value);
+      if ( (*ds_timer_value < 0) || (*ds_timer_value > 999) )
+      {
+         sprintf( errbuf,
+                 "%s:Invalid value DB error statics Value (%s) in tf.ini. Use 0 to 999",
+                  appname, timer_value );
+         *ds_timer_flag = DS_TIMER_OFF;
+         ret_val = false;
+      }
+   }
+   else
+   {
+      /* The tf.ini file contains an invalid value for the timer flag.
+       * Log this fact, set timer off, and exit.
+       */
+      sprintf( errbuf,
+              "%s:Invalid value (%s) in tf.ini file for Data Server DB_ERROR_STATICS_FLAG flag.",
+               appname, timer_flag );
+      *ds_timer_flag = DS_TIMER_OFF;
+      ret_val = false;
+   }
+
+
+   /*Read path for creating file in order to log db statics and db oracle error messages */
+   rc = GetPrivateProfileString(
+                  "DATASERVERS",             /* points to section name         */
+                  "DB_STATICS_PATH",       	/* points to key name             */
+                   "",  					/* Default string                 */
+				   DB_file_path,              	/* points to destination buffer   */
+                   sizeof(DB_file_path)-1,   	 /* size of destination buffer     */
+                   filename                  /* points to ini filename         */
+         );
+
+   rc = GetPrivateProfileString(
+                      "ERROR_WARNING",             /* points to section name         */
+					  appname,       	/* points to key name             */
+                      "",  					/* Default string                 */
+					  DB_module_file_name,              	/* points to destination buffer   */
+                      sizeof(DB_module_file_name)-1,   	 /* size of destination buffer     */
+                      filename                  /* points to ini filename         */
+            );
+   if((strlen(DB_file_path) > 0) &&
+	  (strlen(DB_module_file_name)> 0))
+   {
+	   Create_Db_Statics_And_Db_Oracle_Error_Filename();
+   }
+
+   return( ret_val );
+}
+
+void Create_Db_Statics_And_Db_Oracle_Error_Filename()
+{
+	CHAR  system_date[25] = "";
+
+   /* Get system timestamp "YYYY-MM-DD-hh.mm.ss.jjj" */
+	ptetime_get_timestamp( system_date );
+
+    strcpy( DB_Logging_Filename, DB_file_path );
+    strcat( DB_Logging_Filename, DB_module_file_name );
+	strcat( DB_Logging_Filename, ".EW." );
+    strncat(DB_Logging_Filename, system_date,   4 );  /* YYYY */
+    strncat(DB_Logging_Filename, system_date+5, 2 );  /* MM   */
+    strncat(DB_Logging_Filename, system_date+8, 2 );  /* DD   */
+
+    return;
+}
+
+void Log_Db_Statics_And_Oracle_Db_Error_To_File(pCHAR Error_Buf)
+{
+	INT   len=0;
+	CHAR  time_date[25]  ={0};
+	CHAR  timestamp[14]  ={0};
+	CHAR  current_mmdd[5]={0};
+	CHAR path[256]={0};
+	CHAR Buffer[1024]={0};
+	int path_len=0;
+	FILE *fp;
+	#define NUM_SIZE_WRITES  1
+	/* Get system timestamp "YYYY-MM-DD-hh.mm.ss.jjj" */
+	ptetime_get_timestamp( time_date );
+	strcpy(Buffer,time_date);
+   /* Pick out the month and day to compare to filename extenstion. */
+    memcpy( current_mmdd,   time_date+5, 2 );
+    memcpy( current_mmdd+2, time_date+8, 2 );
+
+	/* Compare filename extension to current date. */
+    len = strlen(DB_Logging_Filename);
+    path_len =strlen(DB_file_path);
+    if(len==0 || path_len==0)
+    {
+    	LogEvent(Error_Buf,INFO_MSG);
+    	return;
+    }
+    if ( 0 != strcmp(&DB_Logging_Filename[len-4], current_mmdd) )
+    {
+
+		/* Now create the new filename.
+          * ----------------------------
+          */
+			Create_Db_Statics_And_Db_Oracle_Error_Filename();
+
+	}
+	if((fp = fopen(DB_Logging_Filename,"a+b"))==NULL)
+	{
+		LogEvent(Error_Buf,INFO_MSG);
+		return;
+	}
+
+	strcat(Buffer,":");
+	strcat(Buffer,Error_Buf);
+	strcat(Buffer,"\n");
+	len=0;
+	len=strlen(Buffer);
+
+
+	if(fwrite(Buffer, len, NUM_SIZE_WRITES, fp)==NUM_SIZE_WRITES)
+	{
+		// fall below
+	}
+	else
+	{
+		LogEvent(Buffer,INFO_MSG);
+	}
+	fclose(fp);
+	return ;
+}
+

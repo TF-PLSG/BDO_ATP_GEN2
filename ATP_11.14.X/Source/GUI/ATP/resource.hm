@@ -1,0 +1,4 @@
+// Microsoft Developer Studio generated Help ID include file.
+// Used by Atp.rc
+//
+#define HIDC_PVKEY_IND_LBL              0x80a60514    // IDD_CARDS_PIN_VERIF_VISA

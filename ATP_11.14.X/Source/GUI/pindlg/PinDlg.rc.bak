@@ -1,0 +1,472 @@
+//Microsoft Developer Studio generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+#endif //_WIN32
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
+    "#define _AFX_NO_OLE_RESOURCES\r\n"
+    "#define _AFX_NO_TRACKER_RESOURCES\r\n"
+    "#define _AFX_NO_PROPERTY_RESOURCES\r\n"
+    "\r\n"
+    "#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)\r\n"
+    "#ifdef _WIN32\r\n"
+    "LANGUAGE 9, 1\r\n"
+    "#pragma code_page(1252)\r\n"
+    "#endif\r\n"
+    "#include ""res\\PinDlg.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
+    "#include ""afxres.rc""         // Standard components\r\n"
+    "#endif\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDR_MAINFRAME           ICON    DISCARDABLE     "res\\PinDlg.ico"
+IDI_LOGO                ICON    DISCARDABLE     "res\\icon1.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_ABOUTBOX DIALOG DISCARDABLE  0, 0, 217, 63
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About PinDlg"
+FONT 10, "Arial"
+BEGIN
+    CONTROL         144,IDC_STATIC,"Static",SS_BITMAP,18,18,24,28
+    LTEXT           "Ascendent - Dialog Manager",IDC_STATIC_APPVERSION,51,11,
+                    121,18,SS_NOPREFIX
+    LTEXT           "Copyright © 1999,   Hypercom Inc.",IDC_STATIC,51,30,119,
+                    8
+    DEFPUSHBUTTON   "OK",IDOK,178,7,32,14,WS_GROUP
+    LTEXT           "All Rights Reserverd.",IDC_STATIC,51,40,110,8
+END
+
+IDD_DIALOG DIALOG DISCARDABLE  0, 0, 346, 259
+STYLE WS_CHILD | WS_DISABLED | WS_CAPTION | WS_SYSMENU
+CAPTION "Dialog"
+FONT 10, "Arial"
+BEGIN
+    PUSHBUTTON      "",IDC_CONNECT_BUTTON,180,26,54,15
+    PUSHBUTTON      "&About...",IDC_ABOUT_BUTTON,16,230,50,14
+    CONTROL         "Trace",IDC_TRACE_CHECK,"Button",BS_AUTOCHECKBOX | 
+                    BS_VCENTER | WS_TABSTOP,14,51,33,14
+    EDITTEXT        IDC_INMESSAGE_ED,19,83,305,23,ES_MULTILINE | WS_HSCROLL | 
+                    NOT WS_TABSTOP
+    GROUPBOX        "",IDC_STATIC,7,62,332,156
+    GROUPBOX        "",IDC_STATIC,7,7,332,42
+    GROUPBOX        "Incoming Messages",IDC_INCOMMING_GRB,13,74,316,57
+    LTEXT           "TPDU String",IDC_INTPDU_LBL,18,111,41,8
+    LTEXT           "Message Length",IDC_INMESLEN_LBL,234,112,55,8
+    EDITTEXT        IDC_INTPDU_ED,62,111,120,14,ES_AUTOHSCROLL | NOT 
+                    WS_TABSTOP
+    EDITTEXT        IDC_INMESLEN_ED,293,112,30,14,ES_AUTOHSCROLL | NOT 
+                    WS_TABSTOP
+    GROUPBOX        "Outgoing Messages",IDC_OUTGOING_GRB,13,137,316,57
+    EDITTEXT        IDC_OUTMESSAGE_ED,19,147,305,23,ES_MULTILINE | 
+                    WS_HSCROLL | NOT WS_TABSTOP
+    LTEXT           "TPDU String",IDC_OUTTPDU_LBL,18,175,41,8
+    LTEXT           "Message Length",IDC_OUTMESLEN_LBL,234,176,55,8
+    EDITTEXT        IDC_OUTTPDU_ED,62,176,119,14,ES_AUTOHSCROLL | NOT 
+                    WS_TABSTOP
+    EDITTEXT        IDC_OUTMESLEN_ED,293,176,30,14,ES_AUTOHSCROLL | NOT 
+                    WS_TABSTOP
+    LTEXT           "Trace File Name",IDC_TRACE_FNAME_LBL,199,199,54,8
+    EDITTEXT        IDC_TRACE_FNAME_ED,261,199,69,13,ES_AUTOHSCROLL | NOT 
+                    WS_TABSTOP
+    CONTROL         "",IDC_ONOFF_INDICATOR,"Static",SS_BITMAP | 
+                    SS_REALSIZEIMAGE | WS_BORDER,237,26,14,12
+    GROUPBOX        "",IDC_STATIC,7,217,332,35
+    PUSHBUTTON      "Exit",IDC_CLOSE1,226,230,49,13
+    PUSHBUTTON      "Broadcast",IDC_APPLY1,172,230,49,13,WS_DISABLED
+    PUSHBUTTON      "Help",IDC_HELP1,280,230,49,13,WS_DISABLED | NOT 
+                    WS_TABSTOP
+    COMBOBOX        IDC_SERVICES_LIST,14,26,162,100,CBS_DROPDOWN | 
+                    CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Select Service To Monitor:",IDC_STATIC,14,15,160,8
+    PUSHBUTTON      "Refresh",IDC_REFRESH,293,26,38,14
+END
+
+IDD_COMM_SETUP DIALOG DISCARDABLE  0, 0, 346, 259
+STYLE WS_CHILD | WS_DISABLED | WS_CAPTION | WS_SYSMENU
+CAPTION "Communication Setup"
+FONT 10, "Arial"
+BEGIN
+    COMBOBOX        IDC_COMTYPE_COMBO,174,31,86,51,CBS_DROPDOWNLIST | 
+                    CBS_SORT | WS_TABSTOP
+    CONTROL         "9600",IDC_9600_RADIO,"Button",BS_AUTORADIOBUTTON | 
+                    WS_GROUP | WS_TABSTOP,106,93,32,10
+    CONTROL         "19200",IDC_19200_RADIO,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,106,103,36,10
+    CONTROL         "38400",IDC_38400_RADIO,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,106,113,36,10
+    CONTROL         "8",IDC_BTS8_RADIO,"Button",BS_AUTORADIOBUTTON | 
+                    WS_GROUP | WS_TABSTOP,28,154,20,10
+    CONTROL         "7",IDC_BTS7_RADIO,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,28,166,20,10
+    CONTROL         "None",IDC_PAR_NONE_RADIO,"Button",BS_AUTORADIOBUTTON | 
+                    WS_GROUP | WS_TABSTOP,70,154,33,10
+    CONTROL         "Odd",IDC_PAR_ODD_RADIO,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,70,166,29,10
+    CONTROL         "Even",IDC_PAR_EVEN_RADIO,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,70,178,33,10
+    CONTROL         "1",IDC_STOPB1_RADIO,"Button",BS_AUTORADIOBUTTON | 
+                    WS_GROUP | WS_TABSTOP,125,154,20,10
+    CONTROL         "1.5",IDC_STOPB15_RADIO,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,125,166,26,10
+    CONTROL         "2",IDC_STOPB2_RADIO,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,125,178,20,10
+    EDITTEXT        IDC_TCPIP_PORT_ED,253,164,65,12,ES_AUTOHSCROLL
+    GROUPBOX        "Serial Setup",IDC_SERIAL_SETUP_GRB,7,58,157,145
+    GROUPBOX        "Baud Rate",IDC_BAUD_RATE_GRB,90,79,68,50
+    GROUPBOX        "Com Port",IDC_COM_PORT_GRB,14,79,68,50,WS_GROUP
+    GROUPBOX        "Byte Size",IDC_BYTE_SIZE_GRB,14,137,45,60
+    GROUPBOX        "Parity",IDC_PARITY_GRB,63,137,45,60
+    GROUPBOX        "Stop Bits",IDC_STOPBITS_GRB,112,137,45,60
+    LTEXT           "Communication Type",IDC_COMTYPE_LBL,174,19,76,8,NOT 
+                    WS_GROUP
+    GROUPBOX        "TCP/IP Setup",IDC_TCPIP_SETUP_GRB,173,110,166,93
+    LTEXT           "TCP/IP Port Number",IDC_PORT_LBL,186,164,65,8
+    PUSHBUTTON      "Save",IDC_SETBTN,14,230,49,13
+    GROUPBOX        "",IDC_STATIC,7,213,332,39
+    PUSHBUTTON      "Exit",IDC_CLOSE0,228,230,49,13
+    PUSHBUTTON      "Broadcast",IDC_APPLY0,174,230,49,13,WS_DISABLED
+    PUSHBUTTON      "Help",IDC_HELP0,282,230,49,13,WS_DISABLED | NOT 
+                    WS_TABSTOP
+    LTEXT           "Host Name or IP Address",IDC_HOST_NAME_LBL,186,180,63,
+                    19
+    EDITTEXT        IDC_HOST_NAME_ED,253,184,80,12,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL
+    LTEXT           "Service ",IDC_STATIC,23,19,56,10
+    LTEXT           "",IDC_SERVICE,23,31,142,24
+    EDITTEXT        IDC_HEADER_LENGTH_ED,253,89,40,14,ES_AUTOHSCROLL | 
+                    ES_NUMBER
+    LTEXT           "Header Length",IDC_HEADER_LENGTH_LBL,189,90,49,8
+    CONTROL         "Client",IDC_CLIENT_SOCKET_RADIO,"Button",
+                    BS_AUTORADIOBUTTON | WS_GROUP,197,133,35,10
+    CONTROL         "Server",IDC_SERVER_SOCKET_RADIO,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,197,143,37,10
+    GROUPBOX        "Socket is a ",IDC_SOCKET_TYPE_GRB,186,121,62,37
+    CONTROL         "With a TPDU",IDC_WITH_TPDU_RADIO,"Button",
+                    BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,179,66,59,10
+    CONTROL         "Without a TPDU",IDC_WITHOUT_TPDU_RADIO,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,246,66,70,10
+    GROUPBOX        "Message Properties",IDC_TPDU_GRB,173,58,166,48
+    CONTROL         "With a TPDU but IGNORED",IDC_IGNORE_TPDU_RADIO,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,179,76,108,10
+    EDITTEXT        IDC_COMM_PORT,19,93,40,14,ES_UPPERCASE | ES_AUTOHSCROLL
+    CONTROL         "Single Thread",IDC_SINGLE_THREAD_CHECK,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,19,113,61,10
+END
+
+IDD_TPDU_ROUTER DIALOG DISCARDABLE  0, 0, 387, 260
+STYLE WS_CHILD | WS_DISABLED | WS_CAPTION | WS_SYSMENU
+CAPTION "TPDU / Router"
+FONT 10, "Arial"
+BEGIN
+    LISTBOX         IDC_TPDU_TBL_LST,14,32,316,65,LBS_USETABSTOPS | 
+                    LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    LISTBOX         IDC_ROUTER_TBL_LST,14,143,316,65,LBS_USETABSTOPS | 
+                    LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    GROUPBOX        "TPDU Table",IDC_TPDU_TBL_GRB,6,7,330,99
+    GROUPBOX        "Router Table",IDC_ROUTER_TBL_GRB,6,113,330,101
+    LTEXT           "TPDU ID",IDC_TPDUID_LBL,13,21,35,8
+    LTEXT           "Transaction ID Length",IDC_TRANLEN_LBL,80,14,40,16
+    LTEXT           "TPDU String",IDC_TPDUSTR_LBL,250,21,41,8
+    LTEXT           "Destination Address Length",IDC_DESTLEN_LBL,130,14,54,
+                    16
+    LTEXT           "Destination Queue",IDC_DESTQUE_LBL,17,125,50,15
+    LTEXT           "Service Description",IDC_APPDESC_LBL,73,132,76,8
+    LTEXT           "Originator Address Length",IDC_SRCLEN_LBL,190,14,54,16
+    LTEXT           "Byte Offset",IDC_OFFSET_LBL,177,124,21,16
+    LTEXT           "Length",IDC_LENGTH_LBL,202,132,23,8
+    LTEXT           "Data Type",IDC_DTTYPE_LBL,231,124,28,16
+    LTEXT           "Low Range",IDC_LORANGE_LBL,269,122,23,18
+    LTEXT           "High Range",IDC_HIRANGE_LBL,301,124,23,16
+    PUSHBUTTON      "Add",IDC_ADD,15,231,49,13
+    PUSHBUTTON      "Modify",IDC_EDIT,68,231,49,13
+    PUSHBUTTON      "Delete",IDC_DELETE,121,231,49,13
+    GROUPBOX        "",IDC_STATIC,6,219,330,35
+    PUSHBUTTON      "Exit",IDC_CLOSE2,227,231,49,13
+    PUSHBUTTON      "Broadcast",IDC_APPLY2,174,231,49,13,WS_DISABLED
+    PUSHBUTTON      "Help",IDC_HELP2,280,231,49,13,WS_DISABLED | NOT 
+                    WS_TABSTOP
+END
+
+IDD_TPDUREC DIALOG DISCARDABLE  0, 0, 314, 114
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "TPDU Record"
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_TPDUID,108,7,90,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_TRANSLEN,108,26,60,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_DESTLEN,108,47,60,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_SRCLEN,108,66,60,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_TPDUSTR,108,87,199,14,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,257,7,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,257,25,50,14
+    LTEXT           "TPDU ID",IDC_TPDUID_LBL,73,7,29,8
+    LTEXT           "Transaction ID Length",IDC_TRANSLEN_LBL,30,26,77,8
+    RTEXT           "Destination Address Length",IDC_DESTLEN_LBL,7,47,95,8
+    LTEXT           "Originator Address Length",IDC_SRCLEN_LBL,20,66,82,8
+    LTEXT           "TPDU String",IDC_TPDUSTR_LBL,61,87,41,8
+END
+
+IDD_ROUTREC DIALOG DISCARDABLE  0, 0, 249, 159
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Router Record"
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_DESTQUE,88,7,60,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_APPDESC,88,27,120,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_OFFSET,88,47,60,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_LENGTH,88,67,60,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_DATATYPE,88,87,28,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_LORANGE,88,107,60,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_HIRANGE,88,127,60,14,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,192,107,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,192,127,50,14
+    LTEXT           "Destination Queue",IDC_DESTQUE_LBL,21,7,60,8
+    LTEXT           "Service Description",IDC_APPDESC_LBL,19,27,62,8
+    LTEXT           "Byte Offset",IDC_OFFSET_LBL,45,47,36,8
+    LTEXT           "Length",IDC_LENGTH_LBL,58,67,23,8
+    LTEXT           "Data Type",IDC_DATATYPE_LBL,47,87,34,8
+    LTEXT           "Low Range",IDC_LORANGE_LBL,43,107,38,8
+    LTEXT           "High Range",IDC_HIRANGE_LBL,42,127,39,8
+END
+
+IDD_IDLE_LOGIN DIALOG DISCARDABLE  0, 0, 212, 119
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Pin Dialog Idle Login"
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_UID,100,25,96,16,ES_UPPERCASE | ES_AUTOHSCROLL
+    EDITTEXT        IDC_PWD,100,49,96,16,ES_PASSWORD | ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,48,91,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,120,90,50,14
+    LTEXT           "USERID",IDC_STATIC_USER,28,28,54,14
+    LTEXT           "PASSWORD",IDC_STATIC_PWD,27,52,54,14
+END
+
+
+#ifndef _MAC
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,0,1
+ PRODUCTVERSION 1,0,0,1
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "Comments", "ATP_5.18.0\0"
+            VALUE "CompanyName", "\0"
+            VALUE "FileDescription", "PINDLG MFC Application\0"
+            VALUE "FileVersion", "5, 0, 7, 0\0"
+            VALUE "InternalName", "PINDLG\0"
+            VALUE "LegalCopyright", "ThoughtFocus Copyright © 2012\0"
+            VALUE "LegalTrademarks", "\0"
+            VALUE "OriginalFilename", "PINDLG.EXE\0"
+            VALUE "PrivateBuild", "\0"
+            VALUE "ProductName", "PINDLG Application\0"
+            VALUE "ProductVersion", "5, 0, 7, 0\0"
+            VALUE "SpecialBuild", "\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+#endif    // !_MAC
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO DISCARDABLE 
+BEGIN
+    IDD_ABOUTBOX, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 210
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 56
+    END
+
+    IDD_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 339
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 252
+    END
+
+    IDD_COMM_SETUP, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 339
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 252
+    END
+
+    IDD_TPDU_ROUTER, DIALOG
+    BEGIN
+        RIGHTMARGIN, 381
+        BOTTOMMARGIN, 254
+    END
+
+    IDD_TPDUREC, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 307
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 107
+    END
+
+    IDD_ROUTREC, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 242
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 152
+    END
+
+    IDD_IDLE_LOGIN, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 205
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 112
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog Info
+//
+
+IDD_COMM_SETUP DLGINIT
+BEGIN
+    IDC_COMTYPE_COMBO, 0x403, 7, 0
+0x4553, 0x4952, 0x4c41, "\000" 
+    IDC_COMTYPE_COMBO, 0x403, 7, 0
+0x4354, 0x2f50, 0x5049, "\000" 
+    0
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDB_OffLine             BITMAP  DISCARDABLE     "res\\offline.bmp"
+IDB_OnLine              BITMAP  DISCARDABLE     "res\\online.bmp"
+IDB_LOGO                BITMAP  DISCARDABLE     "pinn256.bmp"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    IDS_ABOUTBOX            "&About PinDlg..."
+    IDS_MUSTVAL             "%1 must be entered."
+    IDS_COMERROR            "Failed to get proper response from Dialog Manager Server.\n%1"
+    IDS_SENDERROR           "Message to Dialog Manager Service did not get through.\n%1"
+    IDC_MSGBLDERROR         "Failed to build message to Dialog Manager server."
+    IDS_PRODUCT_VERSION     "ATP_5.18.0"
+END
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+#define _AFX_NO_SPLITTER_RESOURCES
+#define _AFX_NO_OLE_RESOURCES
+#define _AFX_NO_TRACKER_RESOURCES
+#define _AFX_NO_PROPERTY_RESOURCES
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE 9, 1
+#pragma code_page(1252)
+#endif
+#include "res\PinDlg.rc2"  // non-Microsoft Visual C++ edited resources
+#include "afxres.rc"         // Standard components
+#endif
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

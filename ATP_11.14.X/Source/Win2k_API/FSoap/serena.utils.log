@@ -1,0 +1,8 @@
+2007-02-02 14:05:41,265 [2512] INFO  serena.vs.capabilities.IssuingBPM - Enter: GetTeamTrackServer
+2007-02-02 14:05:41,312 [2512] INFO  serena.vs.capabilities.IssuingBPM - Enter: GetTeamTrackServerProperties
+2007-02-02 14:05:41,500 [2512] INFO  Serena.UVE.Provider.VMPro.UveBridge - VM_DIR: C:\Program Files\Serena\vm
+2007-02-02 14:05:41,500 [2512] INFO  Serena.UVE.Provider.VMPro.UveBridge - JVM dll: C:\Program Files\Serena\vm\common\jre\win32\bin\client\jvm.dll
+2007-02-02 14:05:41,500 [2512] INFO  Serena.UVE.Provider.VMPro.UveBridge - UVE_LIB: C:\Program Files\Serena\vm\common\lib
+2007-02-02 14:05:41,500 [2512] INFO  Serena.UVE.Provider.VMPro.UveBridge - CLASSPATH: C:\Program Files\Serena\vm\common\lib;C:\Program Files\Serena\vm\common\lib\uvebridge.jar;C:\Program Files\Serena\vm\common\lib\uvebridge-lt.jar;C:\Program Files\Serena\vm\common\lib\uve-vmpro.jar;C:\Program Files\Serena\vm\common\lib\log4j-1.2.8.jar;C:\Program Files\Serena\vm\common\lib\serena-logger-1.0.jar;C:\Program Files\Serena\vm\common\lib\uca-common.jar;C:\Program Files\Serena\vm\common\lib\ulwm.jar;C:\Program Files\Serena\vm\common\lib\ulwm-bridge.jar;C:\Program Files\Serena\vm\common\lib\uca.jar;C:\Program Files\Serena\vm\common\lib\uve.jar;C:\Program Files\Serena\vm\common\lib\LtXmlLib3.jar;C:\Program Files\Serena\vm\common\lib\vm.jar
+2007-02-02 14:05:45,718 [2512] INFO  serena.vs.capabilities.IssuingBPM - Leave: GetTeamTrackServerProperties
+2007-02-02 14:05:45,718 [2512] INFO  serena.vs.capabilities.IssuingBPM - Leave: GetTeamTrackServer

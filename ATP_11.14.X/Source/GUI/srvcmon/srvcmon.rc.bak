@@ -1,0 +1,443 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United States) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
+    "#define _AFX_NO_OLE_RESOURCES\r\n"
+    "#define _AFX_NO_TRACKER_RESOURCES\r\n"
+    "#define _AFX_NO_PROPERTY_RESOURCES\r\n"
+    "\r\n"
+    "#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)\r\n"
+    "#ifdef _WIN32\r\n"
+    "LANGUAGE 9, 1\r\n"
+    "#pragma code_page(1252)\r\n"
+    "#endif\r\n"
+    "#include ""res\\srvcmon.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
+    "#include ""afxres.rc""         // Standard components\r\n"
+    "#endif\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDR_MAINFRAME           ICON                    "res\\idr_main.ico"
+IDR_SRVCMOTYPE          ICON                    "res\\srvcmonDoc.ico"
+IDI_SETUP               ICON                    "res\\nt_comp.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDR_MAINFRAME MENU
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&New\tCtrl+N",                ID_FILE_NEW
+        MENUITEM "&Open...\tCtrl+O",            ID_FILE_OPEN
+        MENUITEM "&Save\tCtrl+S",               ID_FILE_SAVE
+        MENUITEM "Save &As...",                 ID_FILE_SAVE_AS
+        MENUITEM SEPARATOR
+        MENUITEM "Recent File",                 ID_FILE_MRU_FILE1, GRAYED
+        MENUITEM SEPARATOR
+        MENUITEM "E&xit",                       ID_APP_EXIT
+    END
+    POPUP "&Edit"
+    BEGIN
+        MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
+        MENUITEM SEPARATOR
+        MENUITEM "Cu&t\tCtrl+X",                ID_EDIT_CUT
+        MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY
+        MENUITEM "&Paste\tCtrl+V",              ID_EDIT_PASTE
+    END
+    POPUP "&View"
+    BEGIN
+        MENUITEM "&Status Bar",                 ID_VIEW_STATUS_BAR
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&About srvcmon...",           ID_APP_ABOUT
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Accelerator
+//
+
+IDR_MAINFRAME ACCELERATORS
+BEGIN
+    "N",            ID_FILE_NEW,            VIRTKEY, CONTROL
+    "O",            ID_FILE_OPEN,           VIRTKEY, CONTROL
+    "S",            ID_FILE_SAVE,           VIRTKEY, CONTROL
+    "Z",            ID_EDIT_UNDO,           VIRTKEY, CONTROL
+    "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL
+    "C",            ID_EDIT_COPY,           VIRTKEY, CONTROL
+    "V",            ID_EDIT_PASTE,          VIRTKEY, CONTROL
+    VK_BACK,        ID_EDIT_UNDO,           VIRTKEY, ALT
+    VK_DELETE,      ID_EDIT_CUT,            VIRTKEY, SHIFT
+    VK_INSERT,      ID_EDIT_COPY,           VIRTKEY, CONTROL
+    VK_INSERT,      ID_EDIT_PASTE,          VIRTKEY, SHIFT
+    VK_F6,          ID_NEXT_PANE,           VIRTKEY 
+    VK_F6,          ID_PREV_PANE,           VIRTKEY, SHIFT
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_ABOUTBOX DIALOG 0, 0, 217, 55
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About Service Monitor"
+FONT 8, "MS Sans Serif"
+BEGIN
+    ICON            IDR_MAINFRAME,IDC_STATIC,11,17,20,20
+    LTEXT           "Ascendent Service Monitor",IDC_STATIC_APPVERSION,40,10,119,20,SS_NOPREFIX
+    LTEXT           "Copyright © 2006, Hypercom Inc.",IDC_STATIC,40,34,119,8
+    DEFPUSHBUTTON   "OK",IDOK,178,7,32,14,WS_GROUP
+END
+
+IDD_SRVCMON_DIALOG DIALOGEX 0, 0, 414, 331
+STYLE DS_SETFONT | WS_CHILD
+FONT 6, "System", 0, 0, 0x0
+BEGIN
+    LISTBOX         IDC_SERVICE_LIST,32,54,289,168,LBS_USETABSTOPS | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "      Service Name                          Service Status            Trace            Ping Status",IDC_STATIC,41,40,276,8
+    CONTROL         "Tab1",IDC_SERVICE_TAB,"SysTabControl32",0x0,27,15,300,212
+    PUSHBUTTON      "&Start",IDC_START,27,231,41,14
+    PUSHBUTTON      "Sto&p",IDC_STOP,27,249,41,14
+    PUSHBUTTON      "Start &All",IDC_STARTALL,70,231,41,14,WS_DISABLED
+    PUSHBUTTON      "Stop A&ll",IDC_STOPALL,70,249,41,14,WS_DISABLED
+    PUSHBUTTON      "&Enable",IDC_ENABLE,113,231,41,14
+    PUSHBUTTON      "&Disable",IDC_DISABLE,113,249,41,14
+    PUSHBUTTON      "&Trace On",IDC_TRACEON,156,231,41,14
+    PUSHBUTTON      "Trace &Off",IDC_TRACEOFF,156,249,41,14
+    PUSHBUTTON      "&Ping",IDC_PING,199,231,41,14
+    PUSHBUTTON      "Pin&g All",IDC_PINGALL,199,249,41,14
+    PUSHBUTTON      "&Refresh",IDC_REFRESH,242,231,41,14
+    PUSHBUTTON      "&Close",IDC_CLOSE,242,249,41,14
+    PUSHBUTTON      "Sys Config",IDC_SYS_CONFIG,285,231,41,14,WS_DISABLED
+    PUSHBUTTON      "Encrypt On",IDC_ENCRYPT_ON,27,267,41,14,WS_DISABLED
+    PUSHBUTTON      "Encrypt Off",IDC_ENCRYPT_OFF,70,267,41,14,WS_DISABLED
+    PUSHBUTTON      "MRA On",IDC_MRA_ON,113,267,41,14,WS_DISABLED
+    PUSHBUTTON      "MRA Off",IDC_MRA_OFF,156,267,41,14,WS_DISABLED
+    PUSHBUTTON      "Falcon On",IDC_FALCON_ON,199,267,41,14,WS_DISABLED
+    PUSHBUTTON      "Falcon Off",IDC_FALCON_OFF,242,267,41,14,WS_DISABLED
+    PUSHBUTTON      "&NULL CHECK ON",IDC_NULL_CHECK_ON,285,248,58,14
+    PUSHBUTTON      "&NULL CHECK OFF",IDC_NULL_CHECK_OFF,285,267,60,14
+    PUSHBUTTON      "&DB STATICS ON",IDC_DB_STATICS_ON,24,285,60,14
+    PUSHBUTTON      "&DB STATICS OFF",IDC_DB_STATICS_OFF,87,284,60,14
+    PUSHBUTTON      "&LOAD RPS FLAG",IDC_LOAD_RPS_FLAG,151,285,60,14
+    PUSHBUTTON      "Load OBS Records",IDC_RELOAD_OBS,151,301,64,14,WS_DISABLED
+    PUSHBUTTON      "Load VISA3DS2",IDC_RELOAD_VISA3DS2,279,302,60,14,WS_DISABLED
+    PUSHBUTTON      "Load AMEX3DS2",IDC_RELOAD_AMEX3DS2,27,300,60,14,WS_DISABLED
+    PUSHBUTTON      "Load DCI3DS2",IDC_RELOAD_DINERS3DS2,90,300,60,14,WS_DISABLED
+    PUSHBUTTON      "Load JCB3DS2",IDC_RELOAD_JCB3DS2,216,301,60,14,WS_DISABLED
+    PUSHBUTTON      "Load CUP3DS2",IDC_RELOAD_CUP3DS2,283,285,60,14,WS_DISABLED
+    PUSHBUTTON      "Load MIDCPNG",IDC_RELOAD_MIDCPNG_TFINI,216,284,60,14,WS_DISABLED
+    PUSHBUTTON      "&FALCON RT ON",IDC_FALCONRT_ON,154,316,58,14
+    PUSHBUTTON      "&FALCON RT OFF",IDC_FALCONRT_OFF,91,315,60,14
+    PUSHBUTTON      "&RELOAD FALCON",IDC_FALCONRT_RELOAD,27,316,60,14
+END
+
+IDD_SYS_CONFIG DIALOG 0, 0, 318, 172
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Primary/Secondary System Configuration"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "Return To Main Menu",IDOK,219,73,92,14
+    LTEXT           "",IDC_HIGH_AVAILABILITY_INDICATOR,18,28,188,11
+    LTEXT           "",IDC_THIS_MACHINE_ID,18,91,188,11
+    LTEXT           "",IDC_OTHER_MACHINE_ID,18,127,188,11
+    LTEXT           "",IDC_THIS_XIPC_INSTANCE,18,109,188,11
+    LTEXT           "",IDC_OTHER_XIPC_INSTANCE,18,145,188,11
+    GROUPBOX        "Current Setup",IDC_CURRENT_SETUP,7,13,205,152,WS_GROUP
+    LTEXT           "",IDC_PRIMARY_SERVER,18,47,188,11
+    LTEXT           "",IDC_SECONDARY_SERVER,18,65,188,11
+    PUSHBUTTON      "Make This Server Primary",IDC_MAKE_THIS_SERVER_PRIMARY,219,13,92,14
+    PUSHBUTTON      "Make Other Server Primary",IDC_MAKE_OTHER_SERVER_PRIMARY,219,33,92,14
+    PUSHBUTTON      "Switch Prim/Sec Servers",IDC_SWITCH_PRIMARY_SECONDARY,219,53,92,14
+END
+
+IDD_IDLE_LOGIN DIALOG 0, 0, 224, 118
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Service Monitor Idle Login"
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_EDIT_UID,100,23,92,16,ES_UPPERCASE | ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_PWD,100,51,93,16,ES_PASSWORD | ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,48,87,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,128,87,50,14
+    LTEXT           "USERID",IDC_STATIC_UID,33,26,59,15
+    LTEXT           "PASSWORD",IDC_STATIC_PWD,32,52,63,17
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION	11,0,0,0
+ PRODUCTVERSION 11,0,0,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "Comments", "ATP_11.0.0\0"
+            VALUE "CompanyName", "\0"
+            VALUE "FileDescription", "SRVCMON MFC Application\0"
+            VALUE "FileVersion", "11, 0, 0, 0\0"
+            VALUE "InternalName", "SRVCMON\0"
+            VALUE "LegalCopyright", "ThoughtFocus Copyright © 2012\0"
+            VALUE "LegalTrademarks", "\0"
+            VALUE "OriginalFilename", "SRVCMON.EXE\0"
+            VALUE "PrivateBuild", "\0"
+            VALUE "ProductName", "Ascendent\0"
+            VALUE "ProductVersion", "11, 0, 0, 0\0"
+            VALUE "SpecialBuild", "\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_ABOUTBOX, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 210
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 48
+    END
+
+    IDD_SRVCMON_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 352
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 299
+    END
+
+    IDD_SYS_CONFIG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 311
+        TOPMARGIN, 6
+        BOTTOMMARGIN, 165
+    END
+
+    IDD_IDLE_LOGIN, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 217
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 111
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE
+BEGIN
+    IDR_MAINFRAME           "Ascendent Services Monitor"
+END
+
+STRINGTABLE
+BEGIN
+    AFX_IDS_APP_TITLE       "Ascendent Services Monitor"
+    AFX_IDS_IDLEMESSAGE     "Ready"
+END
+
+STRINGTABLE
+BEGIN
+    ID_INDICATOR_EXT        "EXT"
+    ID_INDICATOR_CAPS       "CAP"
+    ID_INDICATOR_NUM        "NUM"
+    ID_INDICATOR_SCRL       "SCRL"
+    ID_INDICATOR_OVR        "OVR"
+    ID_INDICATOR_REC        "REC"
+END
+
+STRINGTABLE
+BEGIN
+    ID_FILE_NEW             "Create a new document\nNew"
+    ID_FILE_OPEN            "Open an existing document\nOpen"
+    ID_FILE_CLOSE           "Close the active document\nClose"
+    ID_FILE_SAVE            "Save the active document\nSave"
+    ID_FILE_SAVE_AS         "Save the active document with a new name\nSave As"
+END
+
+STRINGTABLE
+BEGIN
+    ID_APP_ABOUT            "Display program information, version number and copyright\nAbout"
+    ID_APP_EXIT             "Quit the application; prompts to save documents\nExit"
+END
+
+STRINGTABLE
+BEGIN
+    ID_FILE_MRU_FILE1       "Open this document"
+    ID_FILE_MRU_FILE2       "Open this document"
+    ID_FILE_MRU_FILE3       "Open this document"
+    ID_FILE_MRU_FILE4       "Open this document"
+    ID_FILE_MRU_FILE5       "Open this document"
+    ID_FILE_MRU_FILE6       "Open this document"
+    ID_FILE_MRU_FILE7       "Open this document"
+    ID_FILE_MRU_FILE8       "Open this document"
+    ID_FILE_MRU_FILE9       "Open this document"
+    ID_FILE_MRU_FILE10      "Open this document"
+    ID_FILE_MRU_FILE11      "Open this document"
+    ID_FILE_MRU_FILE12      "Open this document"
+    ID_FILE_MRU_FILE13      "Open this document"
+    ID_FILE_MRU_FILE14      "Open this document"
+    ID_FILE_MRU_FILE15      "Open this document"
+    ID_FILE_MRU_FILE16      "Open this document"
+END
+
+STRINGTABLE
+BEGIN
+    ID_NEXT_PANE            "Switch to the next window pane\nNext Pane"
+    ID_PREV_PANE            "Switch back to the previous window pane\nPrevious Pane"
+END
+
+STRINGTABLE
+BEGIN
+    ID_WINDOW_SPLIT         "Split the active window into panes\nSplit"
+END
+
+STRINGTABLE
+BEGIN
+    ID_EDIT_CLEAR           "Erase the selection\nErase"
+    ID_EDIT_CLEAR_ALL       "Erase everything\nErase All"
+    ID_EDIT_COPY            "Copy the selection and put it on the Clipboard\nCopy"
+    ID_EDIT_CUT             "Cut the selection and put it on the Clipboard\nCut"
+    ID_EDIT_FIND            "Find the specified text\nFind"
+    ID_EDIT_PASTE           "Insert Clipboard contents\nPaste"
+    ID_EDIT_REPEAT          "Repeat the last action\nRepeat"
+    ID_EDIT_REPLACE         "Replace specific text with different text\nReplace"
+    ID_EDIT_SELECT_ALL      "Select the entire document\nSelect All"
+    ID_EDIT_UNDO            "Undo the last action\nUndo"
+    ID_EDIT_REDO            "Redo the previously undone action\nRedo"
+END
+
+STRINGTABLE
+BEGIN
+    ID_VIEW_STATUS_BAR      "Show or hide the status bar\nToggle StatusBar"
+END
+
+STRINGTABLE
+BEGIN
+    AFX_IDS_SCSIZE          "Change the window size"
+    AFX_IDS_SCMOVE          "Change the window position"
+    AFX_IDS_SCMINIMIZE      "Reduce the window to an icon"
+    AFX_IDS_SCMAXIMIZE      "Enlarge the window to full size"
+    AFX_IDS_SCNEXTWINDOW    "Switch to the next document window"
+    AFX_IDS_SCPREVWINDOW    "Switch to the previous document window"
+    AFX_IDS_SCCLOSE         "Close the active window and prompts to save the documents"
+END
+
+STRINGTABLE
+BEGIN
+    AFX_IDS_SCRESTORE       "Restore the window to normal size"
+    AFX_IDS_SCTASKLIST      "Activate Task List"
+    IDS_PRODUCT_VERSION     "ATP_11.0.0"
+END
+
+#endif    // English (United States) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+#define _AFX_NO_SPLITTER_RESOURCES
+#define _AFX_NO_OLE_RESOURCES
+#define _AFX_NO_TRACKER_RESOURCES
+#define _AFX_NO_PROPERTY_RESOURCES
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE 9, 1
+#pragma code_page(1252)
+#endif
+#include "res\srvcmon.rc2"  // non-Microsoft Visual C++ edited resources
+#include "afxres.rc"         // Standard components
+#endif
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

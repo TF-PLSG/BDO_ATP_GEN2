@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <springProperty scope="context" name="LOGS" source="logging.path" defaultValue="${ASCENDENTROOT}/trace"/>
+    <springProperty scope="context" name="includeConsoleAppender" source="include.console.appender" defaultValue="true" />
+    <springProperty scope="context" name="consolePattern" source="logging.pattern.console" defaultValue="%black(%d{ISO8601}) %highlight(%-5level): %msg%n%throwable" />
+    <springProperty scope="context" name="logPattern" source="logging.file.pattern" defaultValue="%d %p %m%n" />
+    <springProperty scope="context" name="loggingFileName" source="logging.file.name" defaultValue="faircv.log" />
+    <springProperty scope="context" name="logFileNamePattern" source="logging.file.fileNamePattern" defaultValue="faircv-%d{yyyy-MM-dd}.%i.log" />
+    <springProperty scope="context" name="logMaxFileSize" source="logging.file.maxFileSize" defaultValue="1024MB" />
+    
+    <appender name="Console"
+        class="ch.qos.logback.core.ConsoleAppender">
+        <layout class="ch.qos.logback.classic.PatternLayout">
+            <Pattern>
+                ${consolePattern}
+            </Pattern>
+        </layout>
+    </appender>
+
+      <appender name="RollingFile"
+        class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOGS}/${loggingFileName}</file>
+        <encoder
+            class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <Pattern>${logPattern}</Pattern>
+        </encoder>
+
+          <rollingPolicy
+            class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOGS}/${logFileNamePattern}
+            </fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy
+                class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>${logMaxFileSize}</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+        </rollingPolicy>
+    </appender>
+    
+	<logger name="com.thoughtfocus" level="debug" additivity="false">
+		<appender-ref ref="RollingFile" />
+		<if condition='property("includeConsoleAppender").equals("true")'>
+			<then>
+				<appender-ref ref="Console" />
+			</then>
+		</if>
+	</logger>
+
+</configuration>

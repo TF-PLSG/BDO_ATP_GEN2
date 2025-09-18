@@ -1,0 +1,2 @@
+#define BIN_GENERAL        159
+#define BIN_CONFIGURATION  169

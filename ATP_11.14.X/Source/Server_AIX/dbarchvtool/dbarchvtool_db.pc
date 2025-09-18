@@ -1,0 +1,743 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#ifdef WIN32
+   #include <sqlproto.h>
+#endif
+
+#include <math.h>
+#include <time.h>
+#include <sys/timeb.h>
+#include <ctype.h>
+
+#include "basictyp.h"
+#include "pte.h"
+#include "pteipc.h"
+#include "ptemsg.h"
+#include "ptestats.h"
+#include "ptesystm.h"
+#include "ptetimer.h"
+#include "ptetime.h"
+#include "ntutils.h"
+#include "logger.h"
+#include "dbcommon.h"
+#include "app_info.h"
+#include "equitdb.h"
+#include "dc_dbstruct.h"
+#include "tx_dbstruct.h"
+#include "dc_database.h"
+#include "nc_dbstruct.h"
+#include "memmnger.h"
+#include "dstimer.h"
+#include "txutils.h"
+#include "genutil.h"
+#include "timings.h"
+#include "dbarchvtool.h"
+#include "ntutils.h"
+
+/* Function prototypes */
+extern void format_date(pCHAR temp);
+void genutil_bin_to_ascii (BYTE bstring[], INT blen, pCHAR astr, INT astr_len);
+
+
+/* Oracle error codes */
+#define NULL_COLUMN_DATA                -1405
+#define NO_DATA_FOUND                   1403
+#define NOT_CONNECTED_TO_DB             -3114
+#define NOT_LOGGED_INTO_DB              -1012
+#define TNS_PACKET_WRITER_FAILED        -12571
+#define SHUTDOWN_OR_STARTUP_IN_PROGRESS -1033
+#define VIEW_ERRORS  			-4063
+#define UNIQUE_CONSTRAINT    5
+
+extern  INT CashBonusWinner;
+
+/* For DB statics added by raghu */
+
+double start_time;
+double end_time  ;
+double duration  ; 
+char er_buf[512];
+INT    db_error_statics_flag;
+double db_error_statics_value;
+BYTE DB_rcode;
+/* End   */
+
+#ifdef _DEBUG
+   #define PRINT( X ) printf( X )
+#else
+   #define PRINT( X )
+#endif
+
+extern CHAR app_name[];
+SQL01  Sql01;
+INT    rtnval;
+
+EXEC SQL INCLUDE sqlca;
+
+
+
+extern CHAR p_archive_start_date[9];
+extern CHAR p_archive_end_date[9];
+extern LONG look_back_days;
+extern CHAR BackuptableName[30];
+extern CHAR BackuptableName_BCH10[30];
+extern CHAR p_batch_status[2];
+extern char batch_nbr[7];
+
+
+
+typedef struct
+{
+   WORD len;
+   BYTE pin_data[100];
+}RAWPINDATA;
+
+typedef struct
+{
+   WORD len;
+   BYTE pin_data[300];
+
+}RAWEMVDATA;
+
+/* Database Timing Measurements */
+extern TIMINGS_LIST  TimingStats;
+extern INT           DB_Timing_Flag; /* True = Do DB Timing Stats, False = don't do */
+
+
+EXEC SQL BEGIN DECLARE SECTION;
+
+   /* error code variable */
+   long    SQLCODE;
+   long    SQL_CODE;
+
+
+EXEC SQL TYPE RAWPINDATA is VARRAW(5000);
+EXEC SQL TYPE RAWEMVDATA is VARRAW(5000);
+
+struct
+{
+   char  device_id                                 [9];
+   char  batch_nbr                                 [7];
+   char  merchant_id                               [16];
+   char  total_credit_cnt                          [5];
+   char  total_credit_amt                          [13];
+   char  total_credit_refund_cnt                   [5];
+   char  total_credit_refund_amt                   [13];
+   char  total_debit_cnt                           [5];
+   char  total_debit_amt                           [13];
+   char  total_debit_refund_cnt                    [5];
+   char  total_debit_refund_amt                    [13];
+   char  total_void_credit_cnt                     [5];
+   char  total_void_credit_amt                     [13];
+   char  total_void_credit_refund_cnt              [5];
+   char  total_void_credit_refund_amt              [13];
+   char  open_date                                 [9];
+   char  open_time                                 [7];
+   char  release_date                              [9];
+   char  release_time                              [7];
+   char  batch_status                              [2];      /*R-released;C-closed;A-active*/
+   char  visa_merchant_id                          [16];
+
+}pte_bch01_mp;
+
+struct
+{
+   varchar  device_id                                 [9];
+   varchar  batch_nbr                                 [7];
+   varchar  merchant_id                               [16];
+   varchar  total_credit_cnt                          [5];
+   varchar  total_credit_amt                          [13];
+   varchar  total_credit_refund_cnt                   [5];
+   varchar  total_credit_refund_amt                   [13];
+   varchar  total_debit_cnt                           [5];
+   varchar  total_debit_amt                           [13];
+   varchar  total_debit_refund_cnt                    [5];
+   varchar  total_debit_refund_amt                    [13];
+   varchar  total_void_credit_cnt                     [5];
+   varchar  total_void_credit_amt                     [13];
+   varchar  total_void_credit_refund_cnt              [5];
+   varchar  total_void_credit_refund_amt              [13];
+   varchar  open_date                                 [9];
+   varchar  open_time                                 [7];
+   varchar  release_date                              [9];
+   varchar  release_time                              [7];
+   varchar  batch_status                              [2];      /*R-released;C-closed;A-active*/
+   varchar  visa_merchant_id                          [16];
+
+}db_bch01_mp;
+
+
+EXEC SQL END DECLARE SECTION;
+
+/*************************************************************/
+
+/*************************************************************************************/
+/* convert oracle return codes to  pte result codes                                  */
+/*************************************************************************************/
+BYTE dbarchvtool_oracle_to_pte_rcode ( LONG oracle_rcode, pCHAR ErrorMsg )
+{
+   switch (oracle_rcode)
+   {
+      case NO_DATA_FOUND:
+         sprintf(ErrorMsg,"Errorcode:- %l -The Specified row was not found",oracle_rcode);
+         return (PTEMSG_NOT_FOUND);
+
+      case NOT_CONNECTED_TO_DB:
+      case NOT_LOGGED_INTO_DB:
+      case TNS_PACKET_WRITER_FAILED:
+      case SHUTDOWN_OR_STARTUP_IN_PROGRESS:
+         sprintf (ErrorMsg,"Errorcode:- %l -Not Connected to Database",oracle_rcode);
+         return (PTEMSG_NOT_CONNECTED_TO_DB);
+	   case VIEW_ERRORS: /* View errors, Enc /DEC due to fuction not exist*/
+		 sprintf (ErrorMsg, "ErrCode- %l- Encryption key not set!! Pl generate ENC key using 'Dual Control' user Menu",oracle_rcode);
+		 return (PTEMSG_DATABASE_ERROR);
+      default:
+         sprintf(ErrorMsg, "Errorcode:- %",oracle_rcode);
+         return (PTEMSG_DATABASE_ERROR);
+   }
+}
+
+BYTE dbarchvtool_connect ( pCHAR username,pCHAR password,pCHAR alias,pCHAR database,pCHAR ErrorMsg)
+{
+EXEC SQL BEGIN DECLARE SECTION;
+      // login values 
+      char  db_username[21];
+      char  db_password[21];
+      char  db_alias[21];
+      char  db_database[21];
+EXEC SQL END DECLARE SECTION;
+   // Connect to ORACLE. 
+   strcpy( db_username, username);
+   strcpy( db_password, password);
+   strcpy( db_alias,    alias   );
+   strcpy( db_database, database);
+   // Read from TF.ini
+
+#ifdef WIN32
+   if (stricmp("core", username) == 0)
+#else
+   if (strcasecmp("core", username) == 0)
+#endif
+   {
+    GetCoreServiceName(db_alias );
+    GetCorePassword   (db_password);
+    GetCoreUserId     (db_username);
+   }
+   else
+   {
+    GetAppServiceName(db_alias );
+    GetAppPassword   (db_password);
+    GetAppUserId     (db_username);
+   }
+   // EXEC SQL CONNECT :db_username IDENTIFIED BY :db_password  AT :db_alias using :db_database;
+   EXEC SQL CONNECT :db_username  IDENTIFIED BY :db_password  USING :db_alias;
+
+   if (SQLCODE != 0)
+      return (dbarchvtool_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+   return (PTEMSG_OK);
+}
+
+   
+BYTE db_table_archive_tlf01_stip(pCHAR ErrorMsg)
+{
+     
+    EXEC SQL BEGIN DECLARE SECTION;
+    BYTE DB_rcode 		 = 0;
+    long srctablecount   = 0;
+    long bkuptablecount  = 0;
+    char sql[2000] = {0};
+    EXEC SQL END DECLARE SECTION;  
+
+    p_archive_start_date[8] = '\0';
+    p_archive_end_date[8] = '\0';
+   
+    /* 1. First select check for availability of the table */
+    memset(sql,0x00,sizeof(sql));
+    sprintf(sql,"%s%s%s","SELECT * FROM ",BackuptableName," WHERE rownum = 1" );
+	EXEC SQL PREPARE sql_stmt FROM :sql;	
+	EXEC SQL EXECUTE sql_stmt;
+    
+    if(SQLCODE == TABLE_NOT_EXIST)
+    {
+	    /*2. If table does not exist create Table*/
+		sprintf(sql,"%s%s%s","CREATE TABLE ",BackuptableName," AS SELECT * FROM TLF01_STIP WHERE 1=2");
+		EXEC SQL PREPARE sql_stmt FROM :sql;	
+		EXEC SQL EXECUTE sql_stmt;
+		
+		if ( SQLCODE != 0 )
+	    {
+	        DB_rcode=dbarchvtool_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+	        strcat(ErrorMsg," Table creation failed\n");
+	        write_into_log_file(ErrorMsg);
+	        return DB_rcode;
+	    }
+	    /* table created with table name*/
+    	sprintf(ErrorMsg,"%s%s%s","Backup Table" ,BackuptableName, "is created\n");
+    	write_into_log_file(ErrorMsg);
+    }
+    else if(SQLCODE != NULL_COLUMN_DATA && SQLCODE !=  NO_DATA_FOUND && SQLCODE != 0 )
+    {
+        DB_rcode=dbarchvtool_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+        sprintf(ErrorMsg,"Error in selecting the %s table\n",BackuptableName);
+    	write_into_log_file(ErrorMsg);
+        return DB_rcode;
+    }
+    
+    /*3. Get the count from source table, if count is more than 0 continue else return */
+    EXEC SQL SELECT COUNT(*) INTO srctablecount FROM tlf01_stip WHERE  DATE_YYYYMMDD <= :p_archive_start_date AND DATE_YYYYMMDD >= :p_archive_end_date;
+    
+    if ( SQLCODE != 0 )
+    {
+        DB_rcode=dbarchvtool_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+        strcat(ErrorMsg," Error in getting count from tlf01_stip\n");
+    	write_into_log_file(ErrorMsg);
+     	EXEC SQL ROLLBACK WORK;
+        return DB_rcode;
+    }
+    else if( srctablecount<0 ) /* if count is less than or equal to 0*/
+    {
+	    sprintf(ErrorMsg,"%s%l\n"," Obtained invalid count in tlf01_stip",srctablecount);
+	    printf("%s",ErrorMsg);
+	    write_into_log_file(ErrorMsg);
+	    return 0;
+    }
+    else if(srctablecount == 0)
+    { 	
+    	sprintf(ErrorMsg,"%s start date: %s and End date: %s\n"," No rows are available in the provided date range",
+    	p_archive_start_date,p_archive_end_date);
+    	printf("%s\n",ErrorMsg);
+	    write_into_log_file(ErrorMsg);
+	    return 0;
+    }
+    sprintf(ErrorMsg,"%s%ld\n"," Transaction count in tlf01_stip is ",srctablecount);
+    write_into_log_file(ErrorMsg);
+    
+    
+    /*4. Select from source table and insert into backup table */
+    memset(sql,0x00,sizeof(sql));
+    sprintf(sql,"%s%s%s%s","INSERT INTO ",BackuptableName," SELECT * FROM  tlf01_stip WHERE DATE_YYYYMMDD<=",p_archive_start_date," AND DATE_YYYYMMDD>=",p_archive_end_date);
+	EXEC SQL PREPARE sql_stmt FROM :sql;	
+	EXEC SQL EXECUTE sql_stmt;
+	
+    if ( SQLCODE != 0 )
+    {
+        DB_rcode=dbarchvtool_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+        printf("Insert into backup table failed\n");
+        sprintf(ErrorMsg," Insert into backup table failed\n");
+        write_into_log_file(ErrorMsg);
+        EXEC SQL ROLLBACK WORK;
+        return DB_rcode;
+    }
+    sprintf(ErrorMsg," Successfully inserted into tlf01_stip_backup\n");
+    write_into_log_file(ErrorMsg);
+    
+  	/*6. Delete the rows from source table*/
+    EXEC SQL DELETE FROM tlf01_stip WHERE DATE_YYYYMMDD <= :p_archive_start_date AND DATE_YYYYMMDD >= :p_archive_end_date;
+
+    if ( SQLCODE != 0 )
+    {
+        DB_rcode=dbarchvtool_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+		sprintf(ErrorMsg," Delete from tlf01_stip failed\n");
+	    write_into_log_file(ErrorMsg);
+	    EXEC SQL ROLLBACK WORK;
+        return DB_rcode;
+    }       
+
+	printf("Archiving successful!\n");
+    EXEC SQL COMMIT WORK;
+    return PTEMSG_OK;
+}
+BYTE db_table_archive_bch01_mp(pCHAR ErrorMsg)
+{
+     
+    EXEC SQL BEGIN DECLARE SECTION;
+    BYTE DB_rcode 		 = 0;
+    long srctablecount   = 0;
+    long bch10srctablecount = 0;
+    long bkuptablecount  = 0;
+    char sql[2000] = {0};
+    char device_id[9] = {0};
+    char batch_nbr[7] = {0};
+    char batch_status[2] = {0};
+	char merchant_id[16] = {0};
+	CHAR ndevice_id[9]= {0};
+	CHAR nbatch_nbr[7]= {0};
+	CHAR nbatch_status[2]= {0};
+	CHAR nmerchant_id[16]= {0};
+	CHAR nrelease_date[9]= {0};
+    int temp = 0;
+    EXEC SQL END DECLARE SECTION;  
+	
+    p_archive_start_date[8] = '\0';
+    p_archive_end_date[8] = '\0';
+    
+   
+    /* 1. First select check for availability of the table */
+    memset(sql,0x00,sizeof(sql));
+    sprintf(sql,"%s%s%s","SELECT * FROM ",BackuptableName," WHERE rownum = 1" );
+	EXEC SQL PREPARE sql_stmt FROM :sql;	
+	EXEC SQL EXECUTE sql_stmt;
+    
+    if(SQLCODE == TABLE_NOT_EXIST)
+    {
+	    /*2. If table does not exist create Table*/
+		sprintf(sql,"%s%s%s","CREATE TABLE ",BackuptableName," AS SELECT * FROM BCH01_MP WHERE 1=2");
+		EXEC SQL PREPARE sql_stmt FROM :sql;	
+		EXEC SQL EXECUTE sql_stmt;
+		
+		if ( SQLCODE != 0 )
+	    {
+	        DB_rcode=dbarchvtool_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+	        strcat(ErrorMsg," Table creation failed\n");
+	        write_into_log_file(ErrorMsg);
+	        return DB_rcode;
+	    }
+	    /* table created with table name*/
+    	sprintf(ErrorMsg,"%s%s%s"," Backup Table" ,BackuptableName, "is created\n");
+    	write_into_log_file(ErrorMsg);
+    }
+    else if(SQLCODE != NULL_COLUMN_DATA && SQLCODE !=  NO_DATA_FOUND && SQLCODE != 0 )
+    {
+        DB_rcode=dbarchvtool_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+        sprintf(ErrorMsg," Error in selecting the %s table\n",BackuptableName);
+    	write_into_log_file(ErrorMsg);
+        return DB_rcode;
+    }
+    
+    /* 3. First check for availability of the bch10 table */
+    
+    memset(sql,0x00,sizeof(sql));
+    sprintf(sql,"%s%s%s","SELECT * FROM ",BackuptableName_BCH10," WHERE rownum = 1" );
+	EXEC SQL PREPARE sql_stmt FROM :sql;	
+	EXEC SQL EXECUTE sql_stmt;
+    
+    if(SQLCODE == TABLE_NOT_EXIST)
+    {
+	    /*. If table does not exist create Table*/
+		sprintf(sql,"%s%s%s","CREATE TABLE ",BackuptableName_BCH10," AS SELECT * FROM BCH10 WHERE 1=2");
+		EXEC SQL PREPARE sql_stmt FROM :sql;	
+		EXEC SQL EXECUTE sql_stmt;
+		
+		if ( SQLCODE != 0 )
+	    {
+	        DB_rcode=dbarchvtool_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+	        strcat(ErrorMsg," Table creation failed\n");
+	        write_into_log_file(ErrorMsg);
+	        return DB_rcode;
+	    }
+	    /* table created with table name*/
+    	sprintf(ErrorMsg,"%s%s%s"," Backup Table" ,BackuptableName_BCH10, "is created\n");
+    	write_into_log_file(ErrorMsg);
+    }
+    else if(SQLCODE != NULL_COLUMN_DATA && SQLCODE !=  NO_DATA_FOUND && SQLCODE != 0 )
+    {
+        DB_rcode=dbarchvtool_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+        sprintf(ErrorMsg," Error in selecting the %s table\n",BackuptableName_BCH10);
+    	write_into_log_file(ErrorMsg);
+        return DB_rcode;
+    }
+    
+    
+    /*3. Get the count from source table, if count is more than 0 continue else return */
+    EXEC SQL SELECT COUNT(*) INTO srctablecount FROM BCH01_MP WHERE RELEASE_DATE <= :p_archive_start_date AND RELEASE_DATE >=:p_archive_end_date AND batch_nbr!='ACTIVE';
+    
+    if ( SQLCODE != 0 )
+    {
+        DB_rcode=dbarchvtool_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+        strcat(ErrorMsg," Error in getting count from bch01_mp \n");
+    	write_into_log_file(ErrorMsg);
+     	EXEC SQL ROLLBACK WORK;
+        return DB_rcode;
+    }
+    else if( srctablecount<0 ) /* if count is less than or equal to 0*/
+    {
+	    sprintf(ErrorMsg,"%s%ld\n"," Obtained invalid count in bch01_mp",srctablecount);
+	    printf("%s\n",ErrorMsg);
+	    write_into_log_file(ErrorMsg);
+	    return 0;
+    }
+    else if(srctablecount == 0)
+    { 	
+    	sprintf(ErrorMsg,"%s start date: %s and End date: %s\n"," No rows are available in the provided date range for BCH01_MP Where",
+    	p_archive_start_date,p_archive_end_date);
+    	printf("%s\n",ErrorMsg);
+	    write_into_log_file(ErrorMsg);
+	    return 0;
+    }
+    sprintf(ErrorMsg,"%s %ld\n","Transaction count in bch01_mp is",srctablecount);
+    write_into_log_file(ErrorMsg);
+    
+    memset(sql,0x00,sizeof(sql));
+    sprintf(sql,"%s%s%s%s%s%s%s","INSERT INTO ",BackuptableName," SELECT * FROM  bch01_mp WHERE RELEASE_DATE<=",p_archive_start_date," AND RELEASE_DATE>=",p_archive_end_date," AND BATCH_NBR!='ACTIVE'");
+	EXEC SQL PREPARE sql_stmt FROM :sql;	
+	EXEC SQL EXECUTE sql_stmt;
+    
+    /*4. Select from source table and insert into backup table */
+    
+    EXEC SQL DECLARE bch01_mp_cursor2 CURSOR FOR
+      SELECT * from bch01_mp WHERE  
+      		BATCH_NBR 	 != 'ACTIVE' AND
+      		RELEASE_DATE <= :p_archive_start_date AND 
+      		RELEASE_DATE >= :p_archive_end_date;
+      		
+   
+   if ( db_error_statics_flag == true )
+   {
+     	 end_time = ptetime_get_time();
+     	 duration = end_time - start_time;
+    	 if(duration >= db_error_statics_value)
+	     {
+	  		 memset(ErrorMsg,0x00,sizeof(ErrorMsg));
+			 sprintf(ErrorMsg,"%s","Exceeded query\n");
+			 Log_Db_Statics_And_Oracle_Db_Error_To_File(ErrorMsg);
+	  	 }
+   }
+   
+   EXEC SQL WHENEVER SQLERROR goto sql_error;
+   EXEC SQL OPEN  bch01_mp_cursor2;
+   
+   EXEC SQL WHENEVER SQLERROR goto sql_error2;
+   EXEC SQL WHENEVER NOTFOUND DO break;
+   
+   for ( temp = 0; temp < srctablecount; temp++ )
+   {
+      memset(&db_bch01_mp, 0x00, sizeof(db_bch01_mp));
+      EXEC SQL FETCH bch01_mp_cursor2 INTO :db_bch01_mp;
+
+      sql_error2:
+      if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+      {
+         SQL_CODE = SQLCODE;
+         EXEC SQL CLOSE bch01_mp_cursor2;
+        strcat(ErrorMsg," Cursor cannot be opened!\n");
+    	write_into_log_file(ErrorMsg);
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+		return DB_rcode;
+      }
+      
+      strncpy(ndevice_id,db_bch01_mp.device_id.arr,db_bch01_mp.device_id.len);
+      strncpy(nmerchant_id,db_bch01_mp.merchant_id.arr,db_bch01_mp.merchant_id.len);
+      strncpy(nbatch_nbr,db_bch01_mp.batch_nbr.arr,db_bch01_mp.batch_nbr.len);
+	  strncpy(nrelease_date,db_bch01_mp.release_date.arr,db_bch01_mp.release_date.len);
+      
+      /* get the count from bch10 for particular batch in bch01_mp*/
+		EXEC SQL SELECT COUNT(*) INTO bch10srctablecount FROM bch10 WHERE device_id=:ndevice_id AND merchant_id=:nmerchant_id AND batch_nbr=:nbatch_nbr;
+		if ( SQLCODE != 0 )
+		{
+		    DB_rcode=dbarchvtool_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+		    strcat(ErrorMsg," Error in getting count from bch10 \n");
+			write_into_log_file(ErrorMsg);
+		 	EXEC SQL ROLLBACK WORK;
+		    return DB_rcode;
+		}
+		else if( bch10srctablecount<0 ) /* if count is less than or equal to 0*/
+		{
+		    sprintf(ErrorMsg,"%s%ld\n"," Obtained invalid count in bch10",bch10srctablecount);
+		    printf("%s\n",ErrorMsg);
+		    write_into_log_file(ErrorMsg);
+		    return 0;
+		}
+		else if(bch10srctablecount == 0)
+		{ 	
+			sprintf(ErrorMsg," No records are available for this batch in BCH10 table with Device_id:%s, Merchant_id:%s and Batch_nbr:%s\n",
+			ndevice_id,nmerchant_id,nbatch_nbr);
+		    write_into_log_file(ErrorMsg);
+		}
+		else
+		{   // count is valid
+				sprintf(ErrorMsg,"%s%ld\n"," Transaction count in bch10 is ",bch10srctablecount);
+				write_into_log_file(ErrorMsg);
+				
+					/* INSERT INTO BCH10 backup*/
+				memset(sql,0x00,sizeof(sql));
+				sprintf(sql,"%s%s%s%s%s%s%s%s","INSERT INTO ",BackuptableName_BCH10," SELECT * FROM bch10 WHERE DEVICE_ID=",ndevice_id," AND MERCHANT_ID=",nmerchant_id," AND BATCH_NBR=",nbatch_nbr);
+				EXEC SQL PREPARE sql_stmt FROM :sql;	
+				EXEC SQL EXECUTE sql_stmt;
+				
+				if ( SQLCODE != 0 )
+				{
+				    DB_rcode=dbarchvtool_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+				    printf(" Insert into backup table failed\n");
+				    sprintf(ErrorMsg," Insert into backup table failed\n");
+				    write_into_log_file(ErrorMsg);
+				    EXEC SQL ROLLBACK WORK;
+				    return DB_rcode;
+				}
+	
+				
+				/*6.1 Delete the rows from BCH10 source table*/
+				EXEC SQL DELETE FROM bch10 WHERE 
+						DEVICE_ID=:ndevice_id		AND 
+					 	MERCHANT_ID=:nmerchant_id	AND
+						BATCH_NBR =:nbatch_nbr;
+				
+				if ( SQLCODE != 0 )
+				{
+				    DB_rcode=dbarchvtool_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+					sprintf(ErrorMsg," Delete from bch10 failed\n");
+				    write_into_log_file(ErrorMsg);
+				    EXEC SQL ROLLBACK WORK;
+				    return DB_rcode;
+				}  
+				sprintf(ErrorMsg," Archiving of BCH10 successfull\n");
+				write_into_log_file(ErrorMsg);
+		}
+		/*Delete from bch01_mp source table*/
+		EXEC SQL DELETE FROM bch01_mp WHERE 
+ 					DEVICE_ID   =:ndevice_id	AND 
+				 	MERCHANT_ID =:nmerchant_id	AND
+					BATCH_NBR   =:nbatch_nbr	AND
+					RELEASE_DATE=:nrelease_date;
+		  		
+		if ( SQLCODE != 0 )
+		{
+		    DB_rcode=dbarchvtool_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+			sprintf(ErrorMsg," Delete from bch01_mp failed\n");
+		    write_into_log_file(ErrorMsg);
+		    EXEC SQL ROLLBACK WORK;
+		    return DB_rcode;
+		}  
+		sprintf(ErrorMsg," Archiving of BCH01_MP successfull!\n");
+		write_into_log_file(ErrorMsg);
+   }
+
+   EXEC SQL CLOSE bch01_mp_cursor2;
+ 	
+   printf(" Archiving successfull!\n");
+   EXEC SQL COMMIT WORK;
+   return PTEMSG_OK;
+    
+sql_error:
+   EXEC SQL WHENEVER SQLERROR CONTINUE;
+   EXEC SQL WHENEVER NOTFOUND CONTINUE;
+   
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+		strcat(ErrorMsg," Cursor creation failed\n");
+    	write_into_log_file(ErrorMsg);
+		return DB_rcode;
+}
+
+BYTE db_table_archive_bch10(pCHAR ErrorMsg)
+{
+     
+    EXEC SQL BEGIN DECLARE SECTION;
+    BYTE DB_rcode 		 = 0;
+    long srctablecount   = 0;
+    long bkuptablecount  = 0;
+    char sql[2000] = {0};
+    EXEC SQL END DECLARE SECTION;  
+
+    p_archive_start_date[8] = '\0';
+    p_archive_end_date[8] = '\0';
+   
+    /* 1. First select check for availability of the table */
+    memset(sql,0x00,sizeof(sql));
+    sprintf(sql,"%s%s%s","SELECT * FROM ",BackuptableName," WHERE rownum = 1" );
+	EXEC SQL PREPARE sql_stmt FROM :sql;	
+	EXEC SQL EXECUTE sql_stmt;
+    
+    if(SQLCODE == TABLE_NOT_EXIST)
+    {
+	    /*2. If table does not exist create Table*/
+		sprintf(sql,"%s%s%s","CREATE TABLE ",BackuptableName," AS SELECT * FROM BCH10 WHERE 1=2");
+		EXEC SQL PREPARE sql_stmt FROM :sql;	
+		EXEC SQL EXECUTE sql_stmt;
+		
+		if ( SQLCODE != 0 )
+	    {
+	        DB_rcode=dbarchvtool_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+	        strcat(ErrorMsg," Table creation failed\n");
+	        write_into_log_file(ErrorMsg);
+	        return DB_rcode;
+	    }
+	    /* table created with table name*/
+    	sprintf(ErrorMsg,"%s%s%s"," Backup Table" ,BackuptableName, "is created\n");
+    	write_into_log_file(ErrorMsg);
+    }
+    else if(SQLCODE != NULL_COLUMN_DATA && SQLCODE !=  NO_DATA_FOUND && SQLCODE != 0 )
+    {
+        DB_rcode=dbarchvtool_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+        sprintf(ErrorMsg," Error in selecting the %s table\n",BackuptableName);
+    	write_into_log_file(ErrorMsg);
+        return DB_rcode;
+    }
+    
+    /*3. Get the count from source table, if count is more than 0 continue else return */
+    EXEC SQL SELECT COUNT(*) INTO srctablecount FROM BCH10 WHERE TRAN_DATE <= :p_archive_start_date AND TRAN_DATE >= :p_archive_end_date AND BATCH_NBR!='ACTIVE';
+    
+    if ( SQLCODE != 0 )
+    {
+        DB_rcode=dbarchvtool_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+        strcat(ErrorMsg," Error in getting count from BCH10");
+    	write_into_log_file(ErrorMsg);
+     	EXEC SQL ROLLBACK WORK;
+        return DB_rcode;
+    }
+    else if( srctablecount<0 ) /* if count is less than or equal to 0*/
+    {
+	    sprintf(ErrorMsg,"%s%ld\n"," Obtained invalid count in BCH10",srctablecount);
+	    printf("%s\n",ErrorMsg);
+	    write_into_log_file(ErrorMsg);
+	    return 0;
+    }
+    else if(srctablecount == 0)
+    { 	
+    	sprintf(ErrorMsg,"%s start date: %s and End date: %s\n"," No rows are available in the provided date range",
+    	p_archive_start_date,p_archive_end_date);
+    	printf("%s\n",ErrorMsg);
+	    write_into_log_file(ErrorMsg);
+	    return 0;
+    }
+    sprintf(ErrorMsg,"%s%ld\n"," Transaction count in BCH10 is ",srctablecount);
+    write_into_log_file(ErrorMsg);
+    
+    
+    /*4. Select from source table and insert into backup table*/
+    memset(sql,0x00,sizeof(sql));
+    sprintf(sql,"%s%s%s%s%s%s","INSERT INTO ",BackuptableName," SELECT * FROM  BCH10 WHERE TRAN_DATE <= ",p_archive_start_date," AND TRAN_DATE>= ",p_archive_end_date," AND BATCH_NBR!='ACTIVE'");
+	EXEC SQL PREPARE sql_stmt FROM :sql;	
+	EXEC SQL EXECUTE sql_stmt;
+	
+    if ( SQLCODE != 0 )
+    {
+        DB_rcode=dbarchvtool_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+        printf("Insert into backup table failed\n");
+        sprintf(ErrorMsg," Insert into backup table failed\n");
+        write_into_log_file(ErrorMsg);
+        EXEC SQL ROLLBACK WORK;
+        return DB_rcode;
+    }
+    sprintf(ErrorMsg," Successfully inserted into BCH10 backup\n");
+    write_into_log_file(ErrorMsg);
+    
+  	/*6. Delete the rows from source table*/
+    EXEC SQL DELETE FROM BCH10 WHERE TRAN_DATE <= :p_archive_start_date AND TRAN_DATE >= :p_archive_end_date AND BATCH_NBR!='ACTIVE';
+
+    if ( SQLCODE != 0 )
+    {
+        DB_rcode=dbarchvtool_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+		sprintf(ErrorMsg," Delete from BCH10 failed\n");
+	    write_into_log_file(ErrorMsg);
+	    EXEC SQL ROLLBACK WORK;
+        return DB_rcode;
+    }       
+
+	printf("Archiving successfull!\n");
+    EXEC SQL COMMIT WORK;
+    return PTEMSG_OK;
+}
+
+   
+BYTE dbarchvtool_disconnect( pCHAR ErrorMsg )
+{
+   /* Disconnect from ORACLE. */   
+   EXEC SQL ROLLBACK WORK;   
+   if (SQLCODE < 0)
+      return (dbarchvtool_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+   return PTEMSG_OK;
+}
+
+/*************************************************************************************/

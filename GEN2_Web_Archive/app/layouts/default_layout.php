@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="cache-control" content="no-cache"/>
+    <!-- tells browser not to cache -->
+    <meta http-equiv="expires" content="0" />
+    <!-- says that the cache expires 'now' -->
+    <meta http-equiv="pragma" content="no-cache" />
+    <title>BDO Unibank</title>
+        <!-- Favicon -->
+    <link rel="icon" href="<?php echo WEBPATH; ?>favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="<?php echo WEBPATH; ?>favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="<?php echo WEBPATH; ?>css/bootstrap.min.css">
+    <link href="<?php echo WEBPATH; ?>css/bootstrap-datetimepicker.css" rel="stylesheet">
+    <link rel="stylesheet" href="<?php echo WEBPATH; ?>css/style.css">
+	<script type="text/javascript" src="<?php echo WEBPATH; ?>js/jquery-3.6.1.min.js"></script>
+	<script type="text/javascript" src="<?php echo WEBPATH; ?>js/bootstrap.min.js"></script>
+	<script type="text/javascript" src="<?php echo WEBPATH; ?>js/bootstrap-datetimepicker.js"></script>
+	<script type="text/javascript" src="<?php echo WEBPATH; ?>js/user_login.js"></script>
+	<link href="<?php echo WEBPATH; ?>font-awesome-4.1.0/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+</head>
+<body>
+ <div id="wrapper">
+
+	<!-- Navigation -->
+	<nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+		<!-- Brand and toggle get grouped for better mobile display -->
+		<div class="navbar-header">
+			<button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-ex1-collapse">
+				<span class="sr-only">Toggle navigation</span>
+				<span class="icon-bar"></span>
+				<span class="icon-bar"></span>
+				<span class="icon-bar"></span>
+			</button>
+			<a class="navbar-brand" href="index.html"><img src="<?php echo WEBPATH; ?>images/bdo-unibank-logo.png" alt="BDO Unibank"/></a>
+		</div>
+		<!-- Top Menu Items -->
+		<ul class="nav navbar-right top-nav">
+			<!--li class="dropdown"><a href="index.html"><i class="fa fa-home"></i> Return to Home</a></li-->
+			<li class="dropdown">
+				<a href="#" class="dropdown-toggle" data-toggle="dropdown"><i class="fa fa-user"></i> <?php echo isset($_SESSION['user']['NAME'])? $_SESSION['user']['NAME']:'User Name';?> <b class="caret"></b></a>
+				<ul class="dropdown-menu">
+					<li>
+						<a href="<?php echo PATHURL; ?>user/logout/"><i class="fa fa-fw fa-power-off"></i> Log Out</a>
+					</li>
+				</ul>
+			</li>
+		</ul>
+	</nav>
+		<?php echo $content; ?>
+	</div> 
+
+</<body>

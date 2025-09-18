@@ -1,0 +1,1520 @@
+/*******************************************************************************
+  
+ MODULE:      ebcleanup.c
+  
+ TITLE:       
+  
+ DESCRIPTION: Cleanup Module for Equitable
+
+ APPLICATION: Ascendent Cleanup Processor
+
+ AUTHOR:  DurgaPrasad Dabberu
+
+ Revision History: 1.0
+
+ $Log:   N:\POS\PVCS6.6\EPICPORTZ\PTE\Equitable\cleanup\eqcleanup.pc  $   
+   
+      Rev 1.25   Dec 06 2006 09:36:42   DIrby
+   Changed cleanup of TLF01 to use system date instead of date yyyymmdd.
+   This is being done in conjunction with a simplification of indexes
+   on TLF01.  Date_yyyymmdd will no longer be used as an index.
+   System date is the only date field being used now.
+   
+      Rev 1.24   Jul 24 2006 17:13:04   dirby
+   Updated version to 4.4.1.5
+   Added FGUARD as a cleanup option.
+   
+      Rev 1.23   Jul 12 2006 18:36:06   dirby
+   Implemented functionality to gather statistics on database SQL calls.
+   SCR 12299
+   
+      Rev 1.22   Nov 30 2005 17:22:14   dirby
+   1.  Simplified the cleaning of EMV tables to not be based on tran id
+       from TLF01, but instead just use system_date from within the
+       EMV tables.  No joins are required.
+       SCR 17023
+   
+   2.  Changed the cleaning of the BCH tables to not be based on
+       batches, but instead use tran_date in BCH10 and BCH11 and
+       and use release_date in BCH01.  No joins are required.
+       SCRs 17591 and 17805
+   
+      Rev 1.21   Oct 03 2005 17:05:24   dirby
+   Commented out a fix from revision 1.18 at the request of EB.
+   This is replaced by functionality in the settlement application.
+   SCR 15009
+   
+      Rev 1.20   Apr 05 2005 14:09:48   dirby
+   Updated version to 4.4.1.1
+   SCR 12785
+   
+      Rev 1.19   Feb 22 2005 10:59:44   mbysani
+   added cleanup of tables emv01 and emv_raw 
+   scr 13560
+   
+      Rev 1.18   Dec 06 2004 13:37:40   dirby
+   Modified to delete all BCH10/11 records that are older than the
+   input date when the ALL option is chosen.  This means records
+   that are not associated with a batch in BCH01 can be deleted as
+   well as old records from a recent batch (in the case of a terminal
+   waiting 45 days to settle).
+   SCR 12479
+   
+      Rev 1.17   Jul 08 2004 16:40:26   dirby
+   Updated version to 4.4.0.1
+   SCRs 1287 & 1388
+   
+      Rev 1.16   May 27 2004 17:03:42   dirby
+   Updated version to 4.3.0.1
+   SCR 1380
+   
+      Rev 1.15   Apr 21 2004 13:34:26   lmitchel
+   Ver 4.2.0.3- removed 'where batch_status = 'A' from the cleanup sql to delete active batches when the 'all' argrment is used.
+   
+      Rev 1.14   Apr 20 2004 16:24:22   dirby
+   Cleanup would core dump when printing its usage.  Buffer size
+   was too small.  Enlarged the buffer from 256 to 500.
+   SCR 1367
+   
+      Rev 1.13   Apr 20 2004 15:56:26   lmitchel
+   Added optional argument 'all'  to be used with BCH01 table to signify that cleanup should delete ACTIVE batches as well as Closed and Released batches.  If the ALL argument is used, bch01 and bch10 records with an ACTIVE batch based on the Batch status will be deleted where the open_date is older than the cutoff date parameter.
+   
+      Rev 1.12   Feb 19 2003 16:17:52   dirby
+   Updated version to 4.2.0.1
+   SCR 955
+   
+      Rev 1.11   Nov 20 2002 16:33:26   dirby
+   Modified to set rollback segment offline after the commit or
+   rollback is completed.
+   SCR 904
+   
+      Rev 1.10   Nov 20 2002 13:57:42   dirby
+   Message that logs number of records deleted was not being
+   logged for BCHnn records.  Moved this statement out of the
+   'IF' statement for internet transactions.
+   SCR 904
+   
+      Rev 1.9   Nov 20 2002 13:43:56   dirby
+   Modified to not give errors if no records are deleted in BCH10
+   or BCH11 when cleaning BCH01.
+   SCR 904
+   
+      Rev 1.8   Nov 20 2002 10:27:50   dirby
+   Modified to log cutoff date for cleanups.  Previously, this info was
+   just going to the screen.  Now it's logged to syslog.
+   SCR 904
+   
+      Rev 1.7   Nov 20 2002 09:43:12   dirby
+   1.  Updated version to 4.1.1.2
+   2.  Log number of records deleted.
+   3.  Use rollback segment RBS37.
+   4.  Keep rollback segment Offline except when using it for cleanup.
+   5.  Clean NCF21 and NCF30 separately.
+   SCRs 904 and 909
+   
+      Rev 1.6   Aug 22 2002 12:00:40   dirby
+   Updated version to 4.1.1.1
+   SCR 255
+   
+      Rev 1.5   Aug 02 2000 09:33:58   dirby
+   Corrected some compile errors.
+   
+      Rev 1.4   Jul 31 2000 09:52:30   dirby
+   Modified to display version number at startup and shutdown.
+   
+   
+      Rev 1.3   Apr 28 2000 15:20:10   gdaniels
+   add offus velocity and ccf10
+   
+      Rev 1.2   Mar 14 2000 14:25:28   ddabberu
+   BCH10,NCF30 removed from appdata_table
+   
+      Rev 1.1   Mar 14 2000 13:48:02   ddabberu
+   INFO_MESSG,ERROR_MESSG 
+      
+*******************************************************************************/
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+#ifdef WIN32
+#include <sqlproto.h>
+#endif
+
+#include <math.h>
+#include <time.h>
+#include <sys/timeb.h>
+
+
+#include "basictyp.h"
+#include "app_info.h"
+#include "pte.h"
+#include "ptemsg.h"
+#include "ptetimer.h"
+#include "nc_dbstruct.h"
+#include "nc_database.h"
+#include "dbcommon.h"
+#include "txutils.h"
+#include "ptetime.h"
+#include "ntutils.h"
+#include "logger.h"
+#include "timings.h"
+
+/* Function prototypes */
+extern long Txutils_Calculate_Julian_Date(BYTE * );
+extern void Txutils_Calculate_Gregorian_Date(LONG , pCHAR );
+extern void genutil_format_date(pCHAR temp);
+
+/* Oracle error codes */
+#define EQ_NULL_COLUMN_DATA (-1405)
+#define EQ_NO_DATA_FOUND    1403
+
+EXEC SQL INCLUDE sqlca;
+
+void ErrorHandler(void);
+BYTE dbcommon_oracle_to_pte_rcode ( LONG oracle_rcode, pCHAR ErrorMsg );
+BYTE db_delete_ncf21_by_date( pCHAR Date_yyyymmdd, pCHAR ErrorMsg);
+
+EXEC SQL BEGIN DECLARE SECTION;
+   /* error code variable */
+   long    SQLCODE;
+   long    SQL_CODE;
+   long    num_items;
+   long    num_bch01_recs;
+   long    num_bch10_recs;
+   long    num_bch11_recs;
+   char    network_id[11];
+EXEC SQL END DECLARE SECTION;
+
+#define OFFSET_YEAR 1900
+#define OFFSET_MONTH 1
+
+#define UID   "equitable"
+#define PWD   "equitable"
+#define ALIAS "equitable"
+
+#define ERROR_MESSG 1
+#define INFO_MESSSG 2
+
+#define DATE_SIZE 9
+
+#ifdef USER
+#undef USER
+#endif
+
+CHAR   NumberOfItemsProcessed[100];
+
+struct appdata_struct 
+{
+	CHAR appdata_str[20];
+	BYTE appdata_type;
+}; 
+
+static struct appdata_struct appdata_table[] = 
+{
+   { "HST01",    HST01_DATA },
+   { "hst01",    HST01_DATA },
+   { "TLF01",    TLF01_DATA },
+   { "tlf01",    TLF01_DATA },
+   { "BCH01",    BCH01_DATA },
+   { "bch01",    BCH01_DATA },
+   { "BCH20",    BCH20_DATA },
+   { "bch20",    BCH20_DATA },
+   { "NCF21",    NCF21_DATA },
+   { "ncf21",    NCF21_DATA },
+   { "NCF30",    NCF30_DATA },
+   { "ncf30",    NCF30_DATA },
+   { "CCF10",    CCF10_DATA },
+   { "ccf10",    CCF10_DATA },
+   { "OFFUS",    OFFUS_VELOCITY_DATA },
+   { "offus",    OFFUS_VELOCITY_DATA },
+   { "FGUARD",   FGUARD_DATA },
+   { "fguard",   FGUARD_DATA }
+};
+
+#define N_APPDATATYPES ( sizeof( appdata_table ) / sizeof( struct appdata_struct ) )
+
+INT close_active_flag = 0;
+
+
+
+/***************************************************************************/
+/*********************** GLOBAL VARIABLES **********************************/
+
+CHAR      Version[] = "ATP_11.1.0";//TF praneeth version update
+
+/* Database Timing Measurements */
+TIMINGS_LIST  TimingStats;
+INT           DB_Timing_Flag; /* True = Do DB Timing Stats, False = don't do */
+INT           ForceReport;
+CHAR          ReportTime[5];
+
+/****************************************************************************
+       NAME:               find_appdata_type
+
+       DESCRIPTION:        scan through the globally declared appdata_table and
+			   locate the string for the appdata_type passed in by the
+			   user.
+       INPUTS:
+	   app_data_str    points to the user specified string indicating the appdata_type
+			   to operate on.
+       OUTPUTS:
+
+       RETURNS:            appdata_struct if the lookup succeeds.
+			   NULL_PTR on failure.
+	   
+
+       AUTHOR:             Ram Malathkar
+*************************************************************************************/
+struct appdata_struct *find_appdata_type( pCHAR appdata_str )
+{
+    INT i;
+
+    /* loop through the appdata table and look for the app data string*/
+    for( i = 0; i < N_APPDATATYPES; i++ )
+    {
+	if( strcmp( appdata_table[i].appdata_str, appdata_str ) == 0 )
+	    return( &appdata_table[i] );
+    }
+
+    /* if we reached here, app data type was not found*/
+    return NULL_PTR;
+
+}
+
+/*************************************************************************************/
+/*Delete Tlf01 recs. that are older than 'date'                                      */
+/*************************************************************************************/
+
+BYTE db_delete_tlf01_by_date( pCHAR Date_yyyymmdd, pCHAR ErrorMsg)
+{
+   BYTE    ret_val = true;
+   INT     num_tlf01_recs  = 0;
+   INT     num_emv01_recs  = 0;
+   INT     num_emvraw_recs = 0;
+   double  start_time;
+   double  end_time;
+   double  duration;
+
+   EXEC SQL BEGIN DECLARE SECTION;
+      char  yyyymmdd[9]="";
+   EXEC SQL END DECLARE SECTION;
+
+   strncpy(yyyymmdd, Date_yyyymmdd,sizeof(yyyymmdd));
+   yyyymmdd[8] = '\0';
+   num_items = 0;
+
+   if ( DB_Timing_Flag == true )
+      start_time = ptetime_get_time();
+
+   /* Force the use of the index on field "System_Date". */
+   EXEC SQL
+      DELETE /*+ index(TLF01 IDX_TLF01_AUTHLOG) */
+      FROM   tlf01
+      WHERE  system_date <= :yyyymmdd;
+
+   if ( DB_Timing_Flag == true )
+   {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      update_timing_stats( ST1_DB_DELETE, ST2_NONE, TLF01_DATA,
+                           (float)duration, &TimingStats );
+   }
+
+   if (( SQLCODE != 0 ) && ( SQLCODE != EQ_NO_DATA_FOUND))
+   {
+      dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+      ret_val = false;
+   }
+   else
+   {
+      num_items = sqlca.sqlerrd[2];
+      EXEC SQL COMMIT WORK;
+      if (( SQLCODE != 0 ) )
+      {
+         dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+         ret_val = false;
+      }
+      else
+      {
+         num_tlf01_recs = num_items;
+      }
+   }
+	
+   if ( DB_Timing_Flag == true )
+      start_time = ptetime_get_time();
+
+   /* Force the use of the index on field "System_Date". */
+   EXEC SQL
+      DELETE /*+ index(EMV01 IDX_EMV_DATE) */
+      FROM   emv01 
+      WHERE  system_date <= :yyyymmdd;
+
+   if ( DB_Timing_Flag == true )
+   {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      update_timing_stats( ST1_DB_DELETE, ST2_NONE, EMV01_DATA,
+                           (float)duration, &TimingStats );
+   }
+
+   if (( SQLCODE != 0 ) && ( SQLCODE != EQ_NO_DATA_FOUND))
+   {
+      dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+      ret_val = false;
+   }
+   else
+   {
+      num_items = sqlca.sqlerrd[2];
+      EXEC SQL COMMIT WORK;
+      if (( SQLCODE != 0 ) )
+      {
+         dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+         ret_val = false;
+      }
+      else
+      {
+         num_emv01_recs = num_items;
+      }
+   }
+
+
+   if ( DB_Timing_Flag == true )
+      start_time = ptetime_get_time();
+
+   /* Force the use of the index on field "System_Date". */
+   EXEC SQL
+      DELETE /*+ index(EMV_RAW IDX_EMV_RAW_DATE) */
+      FROM   EMV_RAW
+      WHERE  system_date <= :yyyymmdd;
+
+   if ( DB_Timing_Flag == true )
+   {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      update_timing_stats( ST1_DB_DELETE, 1, EMV01_DATA,
+                           (float)duration, &TimingStats );
+   }
+
+   if (( SQLCODE != 0 ) && ( SQLCODE != EQ_NO_DATA_FOUND))
+   {
+      dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+      ret_val = false;
+   }
+   else
+   {
+      num_items = sqlca.sqlerrd[2];
+      EXEC SQL COMMIT WORK;
+      if (( SQLCODE != 0 ) )
+      {
+         dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+         ret_val = false;
+      }
+      else
+      {
+         num_emvraw_recs = num_items;
+      }
+   }
+
+   sprintf( NumberOfItemsProcessed,
+           "Records deleted TLF01 %ld,  EMV01 %ld,  EMV_RAW %ld",
+            num_tlf01_recs, num_emv01_recs, num_emvraw_recs );
+
+   return( ret_val );
+}
+
+
+
+/******************************************************************************
+ *
+ *  This function deletes records from NCF30 where TRAN_DATE contains
+ *  a date earlier than the input parameter.  
+ *
+ *  If a network Id was provided as the optional 3rd parameter, then
+ *  only records with that network Id will be deleted.
+ *
+ ******************************************************************************/
+BYTE db_delete_ncf30_by_date( pCHAR Date_yyyymmdd, pCHAR ErrorMsg)
+{
+   BYTE  ret_val   = true;
+   CHAR  netid[20] = "";
+   double  start_time;
+   double  end_time;
+   double  duration;
+
+   EXEC SQL BEGIN DECLARE SECTION;
+      char  yyyymmdd[9] = "";
+   EXEC SQL END DECLARE SECTION;
+
+   strncpy( yyyymmdd, Date_yyyymmdd, sizeof(yyyymmdd)-1 );
+   yyyymmdd[8] = '\0';
+   num_items = 0;
+
+   if ( DB_Timing_Flag == true )
+      start_time = ptetime_get_time();
+
+   if ( network_id[0] == 0x00 )
+   {
+      /* Delete all old records in NCF30 */
+      strcpy( netid, "All networks" );
+
+      /* Force the use of the index on field "Tran_Date". */
+      EXEC SQL
+         DELETE /*+ index(NCF30 NCF30_TRANDATE) */
+         FROM   ncf30
+         WHERE  tran_date <= :yyyymmdd;
+   }
+   else
+   {
+      /* Delete only old records with a single network Id. */
+      strcpy( netid, network_id );
+      strcat( netid, " only"    );
+
+      /* Force the use of the index on field "Tran_Date". */
+      EXEC SQL
+         DELETE /*+ index(NCF30 NCF30_TRANDATE) */
+         FROM   ncf30
+         WHERE  tran_date  <= :yyyymmdd
+           AND  network_id = :network_id;
+   }
+
+   if ( DB_Timing_Flag == true )
+   {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      update_timing_stats( ST1_DB_DELETE, ST2_NONE, NCF30_DATA,
+                           (float)duration, &TimingStats );
+   }
+
+   if ( (SQLCODE != 0) && (SQLCODE != EQ_NO_DATA_FOUND) )
+   {
+      dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+      ret_val = false;
+   }
+   else
+   {
+      num_items = sqlca.sqlerrd[2];
+      EXEC SQL COMMIT WORK;
+      if ( SQLCODE != 0 )
+      {
+         dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+         ret_val = false;
+      }
+      else
+      {
+         sprintf( NumberOfItemsProcessed,
+                 "Deleted %ld records from NCF30 (%s)",
+                  num_items, netid );
+      }
+   }
+
+   return( ret_val );
+}
+
+/******************************************************************************/
+/*Delete bch20 recs. that are older than 'date'                               */
+/******************************************************************************/
+BYTE db_delete_bch20_by_date( pCHAR Date_yyyymmdd, pCHAR ErrorMsg)
+{
+   BYTE  ret_val = true;
+   double  start_time;
+   double  end_time;
+   double  duration;
+
+   EXEC SQL BEGIN DECLARE SECTION;
+      char  yyyymmdd[9]="";
+   EXEC SQL END DECLARE SECTION;
+   
+   strncpy(yyyymmdd, Date_yyyymmdd,sizeof(yyyymmdd));
+   yyyymmdd[8] = '\0';
+   num_items = 0;
+
+   if ( DB_Timing_Flag == true )
+      start_time = ptetime_get_time();
+
+   /* Force the use of the index on field "Tran_Date". */
+   EXEC SQL
+      DELETE /*+ index(BCH20 INDEX_DATE) */
+      FROM   bch20
+      WHERE  tran_date <= :yyyymmdd;
+
+   if ( DB_Timing_Flag == true )
+   {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      update_timing_stats( ST1_DB_DELETE, ST2_NONE, BCH20_DATA,
+                           (float)duration, &TimingStats );
+   }
+
+   if (( SQLCODE != 0 ) && ( SQLCODE != EQ_NO_DATA_FOUND))
+   {
+	  dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+	  ret_val = false;
+   }
+   else
+   {
+      num_items = sqlca.sqlerrd[2];
+      EXEC SQL COMMIT WORK;
+      if ( SQLCODE != 0 )
+      {
+         dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+         ret_val = false;
+      }
+      else
+      {
+         sprintf( NumberOfItemsProcessed,
+                 "Deleted %ld records from BCH20",
+                  num_items );
+      }
+   }
+   return( ret_val );
+}
+
+
+/*************************************************************************************/
+BYTE db_delete_hst01_by_date( pCHAR Date_yyyymmdd, pCHAR ErrorMsg)
+{
+   BYTE  ret_val = true;
+   double  start_time;
+   double  end_time;
+   double  duration;
+
+   EXEC SQL BEGIN DECLARE SECTION;
+      char  yyyymmdd[9]="";
+   EXEC SQL END DECLARE SECTION;
+
+   strncpy(yyyymmdd, Date_yyyymmdd,sizeof(yyyymmdd));
+   yyyymmdd[8] = '\0';
+   num_items = 0;
+
+   if ( DB_Timing_Flag == true )
+      start_time = ptetime_get_time();
+
+   /* Force the use of the index on field "Date_Modified". */
+   EXEC SQL
+      DELETE /*+ index(HST01 IDX_HIST01_CLEANUP) */
+      FROM   hst01
+      WHERE  date_modified <= :yyyymmdd;
+
+   if ( DB_Timing_Flag == true )
+   {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      update_timing_stats( ST1_DB_DELETE, ST2_NONE, HST01_DATA,
+                           (float)duration, &TimingStats );
+   }
+
+   if (( SQLCODE != 0 ) && ( SQLCODE != EQ_NO_DATA_FOUND))
+   {
+      dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+      ret_val = false;
+   }
+   else
+   {
+      num_items = sqlca.sqlerrd[2];
+      EXEC SQL COMMIT WORK;
+      if (( SQLCODE != 0 ) )
+      {
+         dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+         ret_val = false;
+      }
+      else
+      {
+         sprintf( NumberOfItemsProcessed,
+                 "Deleted %ld records from HST01",
+                  num_items );
+      }
+   }
+   return( ret_val );
+}
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE  db_delete_ccf10_by_date(  pCHAR Date_yyyymmdd, pCHAR ErrorMsg )
+{
+   BYTE  ret_val = true;
+   double  start_time;
+   double  end_time;
+   double  duration;
+
+   EXEC SQL BEGIN DECLARE SECTION;
+      char  yyyymmdd[9]="";
+   EXEC SQL END DECLARE SECTION;
+
+   strncpy(yyyymmdd, Date_yyyymmdd,sizeof(yyyymmdd));
+   yyyymmdd[8] = '\0';
+   num_items = 0;
+
+   if ( DB_Timing_Flag == true )
+      start_time = ptetime_get_time();
+
+   /* Force the use of the index on field "Tran_Date". */
+   EXEC SQL
+      DELETE /*+ index(CCF10 IDX_CCF10_CLEANUP) */
+      FROM   ccf10
+      WHERE  tran_date <= :yyyymmdd;
+
+   if ( DB_Timing_Flag == true )
+   {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      update_timing_stats( ST1_DB_DELETE, ST2_NONE, CCF10_DATA,
+                           (float)duration, &TimingStats );
+   }
+
+   if (( SQLCODE != 0 ) && ( SQLCODE != EQ_NO_DATA_FOUND))
+   {
+      dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+      ret_val = false;
+   }
+   else
+   {
+      num_items = sqlca.sqlerrd[2];
+      EXEC SQL COMMIT WORK;
+      if (( SQLCODE != 0 ) )
+      {
+         dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+         ret_val = false;
+      }
+      else
+      {
+         sprintf( NumberOfItemsProcessed,
+                 "Deleted %ld records from CCF10",
+                  num_items );
+      }
+   }
+   return( ret_val );
+}
+
+BYTE db_delete_offus_velocity( pCHAR ErrorMsg )
+{
+   BYTE  ret_val = true;
+   double  start_time;
+   double  end_time;
+   double  duration;
+
+   num_items = 0;
+
+   if ( DB_Timing_Flag == true )
+      start_time = ptetime_get_time();
+
+   EXEC SQL TRUNCATE TABLE offus_velocity;
+
+   if ( DB_Timing_Flag == true )
+   {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      update_timing_stats( ST1_DB_DELETE, ST2_NONE, OFFUS_VELOCITY_DATA,
+                           (float)duration, &TimingStats );
+   }
+
+   if (( SQLCODE != 0 ) && ( SQLCODE != EQ_NO_DATA_FOUND))
+   {
+      dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+      ret_val = false;
+   }
+   else
+   {
+      num_items = sqlca.sqlerrd[2];
+      sprintf( NumberOfItemsProcessed,
+              "Deleted %ld records from OffUs_Velocity",
+               num_items );
+   }
+   return( ret_val );
+}
+
+
+/******************************************************************************/
+/*Delete FGUARD and FG_RAW recs. that are older than 'date'                   */
+/******************************************************************************/
+
+BYTE db_delete_fguard_by_date( pCHAR Date_yyyymmdd, pCHAR ErrorMsg)
+{
+   BYTE    ret_val = true;
+   double  start_time;
+   double  end_time;
+   double  duration;
+   INT     num_fguard_recs = 0;
+   INT     num_fgraw_recs  = 0;
+
+   EXEC SQL BEGIN DECLARE SECTION;
+      char  yyyymmdd[9]="";
+   EXEC SQL END DECLARE SECTION;
+
+   strncpy(yyyymmdd, Date_yyyymmdd,sizeof(yyyymmdd));
+   yyyymmdd[8] = '\0';
+   num_items = 0;
+
+   if ( DB_Timing_Flag == true )
+      start_time = ptetime_get_time();
+
+   /* Force the use of the index on field "System_Date". */
+   EXEC SQL
+      DELETE /*+ index(FGUARD IDX_FG_DATE) */
+      FROM   fguard
+      WHERE  system_date <= :yyyymmdd;
+
+   if ( DB_Timing_Flag == true )
+   {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      update_timing_stats( ST1_DB_DELETE, ST2_NONE, FGUARD_DATA,
+                           (float)duration, &TimingStats );
+   }
+
+   if (( SQLCODE != 0 ) && ( SQLCODE != EQ_NO_DATA_FOUND))
+   {
+      dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+      ret_val = false;
+   }
+   else
+   {
+      num_items = sqlca.sqlerrd[2];
+      EXEC SQL COMMIT WORK;
+      if (( SQLCODE != 0 ) )
+      {
+         dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+         ret_val = false;
+      }
+      else
+      {
+         num_fguard_recs = num_items;
+      }
+   }
+
+
+   if ( DB_Timing_Flag == true )
+      start_time = ptetime_get_time();
+
+   EXEC SQL
+      DELETE /*+ index(FG_RAW IDX_FGRAW_DATE) */
+      FROM   FG_RAW 
+      WHERE  system_date <= :yyyymmdd;
+
+   if ( DB_Timing_Flag == true )
+   {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      update_timing_stats( ST1_DB_DELETE, 1, FGRAW_DATA,
+                           (float)duration, &TimingStats );
+   }
+
+   if (( SQLCODE != 0 ) && ( SQLCODE != EQ_NO_DATA_FOUND))
+   {
+      dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+      ret_val = false;
+   }
+   else
+   {
+      num_items = sqlca.sqlerrd[2];
+      EXEC SQL COMMIT WORK;
+      if (( SQLCODE != 0 ) )
+      {
+         dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+         ret_val = false;
+      }
+      else
+      {
+         num_fgraw_recs = num_items;
+      }
+   }
+
+   sprintf( NumberOfItemsProcessed,
+           "Records deleted FGUARD %ld,  FG_RAW %ld",
+            num_fguard_recs, num_fgraw_recs );
+
+   return( ret_val );
+}
+
+
+/*****************************************************************************
+ *
+ * Delete records in BCH01, BCH10, and BCH11.
+ *
+ * NORMAL CLEAN:
+ *    Delete BCH01 where release_date is old and status is C or R.
+ *    Delete BCH10 where tran_date is old and batch number is not ACTIVE.
+ *    Delete BCH11 where tran_date is old.
+ *
+ * ALL OPTION:
+ *    Delete BCH01 where open_date is old.
+ *    Delete BCH10 where tran_date is old.
+ *    Delete BCH11 where tran_date is old.
+ *
+ *****************************************************************************/
+BYTE db_delete_bchrecs_for_cleanup( pCHAR date_yyyymmdd, pCHAR ErrorMsg )
+{
+   BYTE  ret_val = true;
+   CHAR  Buffer[200] = "";
+   double  start_time;
+   double  end_time;
+   double  duration;
+
+   EXEC SQL BEGIN DECLARE SECTION;  
+      char date   [9]="";
+   EXEC SQL END DECLARE SECTION;
+
+   strncpy( date, date_yyyymmdd, sizeof(date) );
+   date[8] = '\0';
+
+   num_bch01_recs = 0;
+   num_bch10_recs = 0;
+   num_bch11_recs = 0;
+
+   if ( DB_Timing_Flag == true )
+      start_time = ptetime_get_time();
+
+   /* Start with BCH11 because its query is same for both options. */
+   EXEC SQL
+      DELETE /*+ index(BCH11 IDX_BCH11_TDATE) */
+      FROM   bch11
+      WHERE  tran_date <= :date;
+
+   if ( DB_Timing_Flag == true )
+   {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      update_timing_stats( ST1_DB_DELETE, ST2_NONE, BCH11_DATA,
+                           (float)duration, &TimingStats );
+   }
+
+   if ( (SQLCODE != 0) && (SQLCODE != EQ_NO_DATA_FOUND) )
+   {  /* 1 */
+      dbcommon_oracle_to_pte_rcode( SQLCODE, Buffer );
+      strcpy( ErrorMsg, "BCH11: " );
+      strcat( ErrorMsg, Buffer );
+      ret_val =  false;
+   }
+   else
+   {
+      EXEC SQL COMMIT WORK;
+      if ( SQLCODE != 0 )
+      {  /* 2 */
+         dbcommon_oracle_to_pte_rcode( SQLCODE, Buffer );
+         strcpy( ErrorMsg, "BCH11 Commit: " );
+         strcat( ErrorMsg, Buffer );
+         ret_val = false;
+      }
+      else
+      {
+         num_bch11_recs = sqlca.sqlerrd[2];
+
+         if ( close_active_flag == 0 )
+         {
+            /* ------------- */
+            /* NORMAL OPTION */
+            /* ------------- */
+            if ( DB_Timing_Flag == true )
+               start_time = ptetime_get_time();
+
+            EXEC SQL
+               DELETE /*+ index(BCH10 INDX_TRAN_DATE) */
+               FROM   bch10
+               WHERE  tran_date <= :date
+                 AND  batch_nbr != 'ACTIVE';
+
+            if ( DB_Timing_Flag == true )
+            {
+               end_time = ptetime_get_time();
+               duration = end_time - start_time;
+               update_timing_stats( ST1_DB_DELETE, ST2_NONE, BCH10_DATA,
+                                    (float)duration, &TimingStats );
+            }
+
+            if ( (SQLCODE != 0) && (SQLCODE != EQ_NO_DATA_FOUND) )
+            {  /* 3 */
+               dbcommon_oracle_to_pte_rcode( SQLCODE, Buffer );
+               strcpy( ErrorMsg, "BCH10 (N): " );
+               strcat( ErrorMsg, Buffer );
+               ret_val =  false;
+            }
+            else
+            {
+               EXEC SQL COMMIT WORK;
+               if ( SQLCODE != 0 )
+               {  /* 4 */
+                  dbcommon_oracle_to_pte_rcode( SQLCODE, Buffer );
+                  strcpy( ErrorMsg, "BCH10 Commit (N): " );
+                  strcat( ErrorMsg, Buffer );
+                  ret_val = false;
+               }
+               else
+               {
+                  num_bch10_recs = sqlca.sqlerrd[2];
+
+                  if ( DB_Timing_Flag == true )
+                     start_time = ptetime_get_time();
+
+                  EXEC SQL
+                     DELETE /*+ index(BCH01 IDX_BCH01_CLEANUP) */
+                     FROM   bch01
+                     WHERE  release_date <= :date
+                       AND (batch_status = 'C' OR batch_status = 'R' OR 
+					   batch_status = 'P' OR batch_status = 'W');
+
+                  if ( DB_Timing_Flag == true )
+                  {
+                     end_time = ptetime_get_time();
+                     duration = end_time - start_time;
+                     update_timing_stats( ST1_DB_DELETE, ST2_NONE, BCH01_DATA,
+                                          (float)duration, &TimingStats );
+                  }
+
+                  if ( (SQLCODE != 0) && (SQLCODE != EQ_NO_DATA_FOUND) )
+                  {  /* 5 */
+                     dbcommon_oracle_to_pte_rcode( SQLCODE, Buffer );
+                     strcpy( ErrorMsg, "BCH01 (N): " );
+                     strcat( ErrorMsg, Buffer );
+                     ret_val =  false;
+                  }
+                  else
+                  {
+                     EXEC SQL COMMIT WORK;
+                     if ( SQLCODE != 0 )
+                     {  /* 6 */
+                        dbcommon_oracle_to_pte_rcode( SQLCODE, Buffer );
+                        strcpy( ErrorMsg, "BCH01 Commit (N): " );
+                        strcat( ErrorMsg, Buffer );
+                        ret_val = false;
+                     }
+                     else
+                     {
+                        num_bch01_recs = sqlca.sqlerrd[2];
+                     }
+                  }/*5*/
+               }/*4*/
+            }/*3*/
+         }
+         else
+         {
+            /* ---------- */
+            /* ALL OPTION */
+            /* ---------- */
+            if ( DB_Timing_Flag == true )
+               start_time = ptetime_get_time();
+
+            EXEC SQL
+               DELETE /*+ index(BCH10 INDX_TRAN_DATE) */
+               FROM   bch10
+               WHERE  tran_date <= :date;
+
+            if ( DB_Timing_Flag == true )
+            {
+               end_time = ptetime_get_time();
+               duration = end_time - start_time;
+               update_timing_stats( ST1_DB_DELETE, ST2_NONE, BCH10_DATA,
+                                    (float)duration, &TimingStats );
+            }
+
+            if ( (SQLCODE != 0) && (SQLCODE != EQ_NO_DATA_FOUND) )
+            {  /* 7 */
+               dbcommon_oracle_to_pte_rcode( SQLCODE, Buffer );
+               strcpy( ErrorMsg, "BCH10 (A): " );
+               strcat( ErrorMsg, Buffer );
+               ret_val =  false;
+            }
+            else
+            {
+               EXEC SQL COMMIT WORK;
+               if ( SQLCODE != 0 )
+               {  /* 8 */
+                  dbcommon_oracle_to_pte_rcode( SQLCODE, Buffer );
+                  strcpy( ErrorMsg, "BCH10 Commit (A): " );
+                  strcat( ErrorMsg, Buffer );
+                  ret_val = false;
+               }
+               else
+               {
+                  num_bch10_recs = sqlca.sqlerrd[2];
+
+                  if ( DB_Timing_Flag == true )
+                     start_time = ptetime_get_time();
+
+                  EXEC SQL
+                     DELETE /*+ index(BCH01 IDX_BCH01_CLEANUP) */
+                     FROM   bch01
+                     WHERE  open_date <= :date;
+
+                  if ( DB_Timing_Flag == true )
+                  {
+                     end_time = ptetime_get_time();
+                     duration = end_time - start_time;
+                     update_timing_stats( ST1_DB_DELETE, ST2_NONE, BCH01_DATA,
+                                          (float)duration, &TimingStats );
+                  }
+
+                  if ( (SQLCODE != 0) && (SQLCODE != EQ_NO_DATA_FOUND) )
+                  {  /* 9 */
+                     dbcommon_oracle_to_pte_rcode( SQLCODE, Buffer );
+                     strcpy( ErrorMsg, "BCH01 (A): " );
+                     strcat( ErrorMsg, Buffer );
+                     ret_val =  false;
+                  }
+                  else
+                  {
+                     EXEC SQL COMMIT WORK;
+                     if ( SQLCODE != 0 )
+                     {  /* 10 */
+                        dbcommon_oracle_to_pte_rcode( SQLCODE, Buffer );
+                        strcpy( ErrorMsg, "BCH01 Commit (A): " );
+                        strcat( ErrorMsg, Buffer );
+                        ret_val = false;
+                     }
+                     else
+                     {
+                        num_bch01_recs = sqlca.sqlerrd[2];
+                     }
+                  }/*9*/
+               }/*8*/
+            }/*7*/
+         }/*Close Active flag */
+      }/*2*/
+   }/*1*/
+
+
+   sprintf( NumberOfItemsProcessed,
+           "Records deleted BCH01 %ld,  BCH10 %ld,  BCH11 %ld",
+            num_bch01_recs,
+            num_bch10_recs,
+            num_bch11_recs );
+
+   /* Safety Commit */
+   EXEC SQL COMMIT WORK;
+   if ( SQLCODE != 0 )
+   {
+      dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+      ret_val = false;
+   }
+
+   return( ret_val );
+
+} /* end function db_delete_bchrecs_for_cleanup */
+	
+
+
+
+/******************************************************************************
+   NAME:         Perform_Cleanup
+
+   DESCRIPTION:  This function delete records in the specified
+                 table earlier than the specified date.
+
+   INPUTS:       app_data_type - Indicates the database table for the delete
+                 date            Indicates the cutoff date for deleting records
+                 print_date      Date displayed in msg = date + 1 day
+                 error_msg       Pointer to an error msg string.
+
+   OUTPUTS:      None
+
+   RETURNS:      1 on success.
+                 0 on failure.
+
+   AUTHOR:       Ram Malathkar
+*******************************************************************************/
+INT Perform_Cleanup( BYTE  app_data_type, pCHAR date,
+                     pCHAR print_date,   pCHAR error_msg )
+{
+   INT result_code = true;
+   CHAR  msg_buffer[100] = "";
+
+   EXEC SQL BEGIN DECLARE SECTION;
+      char db_uid[21]="";
+      char db_pwd[21]="";
+      char db_alias[21]="";
+      char db_user_password[50]="";
+   EXEC SQL END DECLARE SECTION;
+
+   strcpy(db_uid,UID);
+   strcpy(db_pwd,PWD);
+   strcpy(db_alias,ALIAS);
+   strcpy(db_user_password, UID);
+   strcpy(db_user_password, ".");
+   strcat(db_user_password, UID);
+   printf("Trying to connect to database...\n");
+
+   EXEC SQL CONNECT :db_uid  IDENTIFIED BY :db_pwd  USING :db_alias;
+
+   if(SQLCODE == 0)
+   {
+      strcpy( msg_buffer, "Connected to database." );
+      LogEvent( msg_buffer, INFO_MESSSG );
+   }
+   else
+   {
+      sprintf( msg_buffer,
+              "Unable to connect to database %s, SQLCODE = %d",
+               ALIAS, SQLCODE );
+      LogEvent( msg_buffer, ERROR_MESSG );
+   }
+   printf( "%s\n", msg_buffer );
+
+   /* Turn large rollback segment Online, then set it to be used for cleanup */
+   EXEC SQL   COMMIT WORK;
+   EXEC SQL   ALTER ROLLBACK SEGMENT "RBS37" ONLINE;
+   EXEC SQL   SET TRANSACTION USE ROLLBACK SEGMENT RBS37;
+
+   switch( app_data_type )
+   {
+      case TLF01_DATA:
+
+         sprintf( msg_buffer,
+                 "Request to delete tlf01 records older than %s", print_date );
+         printf( "%s\n", msg_buffer );
+         LogEvent( msg_buffer, INFO_MESSSG );
+         result_code = db_delete_tlf01_by_date( ( pCHAR )date, error_msg );
+         break;
+
+      case NCF21_DATA:
+
+         if ( network_id[0] == 0x00 )
+         {
+            sprintf( msg_buffer,
+                    "Request to delete ncf21 records older than %s", print_date );
+         }
+         else
+         {
+            sprintf( msg_buffer,
+                    "Request to delete ncf21 records older than %s for %s",
+                     print_date, network_id );
+         }
+         printf( "%s\n", msg_buffer );
+         LogEvent( msg_buffer, INFO_MESSSG );
+         result_code = db_delete_ncf21_by_date( ( pCHAR )date, error_msg );
+         break;
+
+      case NCF30_DATA:
+
+         if ( network_id[0] == 0x00 )
+         {
+            sprintf( msg_buffer,
+                    "Request to delete ncf30 records older than %s", print_date );
+         }
+         else
+         {
+            sprintf( msg_buffer,
+                    "Request to delete ncf30 records older than %s for %s",
+                     print_date, network_id );
+         }
+         printf( "%s\n", msg_buffer );
+         LogEvent( msg_buffer, INFO_MESSSG );
+         result_code = db_delete_ncf30_by_date( ( pCHAR )date, error_msg );
+         break;
+
+      case CCF10_DATA:
+
+         sprintf( msg_buffer,
+                 "Request to delete ccf10 records older than %s", print_date );
+         printf( "%s\n", msg_buffer );
+         LogEvent( msg_buffer, INFO_MESSSG );
+         result_code = db_delete_ccf10_by_date( ( pCHAR )date, error_msg );
+         break;
+
+      case BCH20_DATA:
+
+         sprintf( msg_buffer,
+                 "Request to delete bch20 records older than %s", print_date );
+         printf( "%s\n", msg_buffer );
+         LogEvent( msg_buffer, INFO_MESSSG );
+         result_code = db_delete_bch20_by_date( ( pCHAR )date, error_msg );
+         break;
+
+      case OFFUS_VELOCITY_DATA:
+
+         strcpy( msg_buffer, "Request to delete offus_velocity table" );
+         printf( "%s\n", msg_buffer );
+         LogEvent( msg_buffer, INFO_MESSSG );
+         result_code = db_delete_offus_velocity( error_msg );
+         break;
+
+
+      case HST01_DATA:
+
+         sprintf( msg_buffer,
+                 "Request to delete hst01 records older than %s", print_date );
+         printf( "%s\n", msg_buffer );
+         LogEvent( msg_buffer, INFO_MESSSG );
+         result_code = db_delete_hst01_by_date( ( pCHAR )date, error_msg );
+         break;
+
+
+      case BCH01_DATA:
+
+         /* Delete all records in BCH01, BCH10 and BCH11 with status C or R
+          * and older than specified 'date'.  If status is A and the ALL input
+		  * argument was entered, delete all active batches where the open date
+		  * is older than the specified date.
+          */
+         sprintf( msg_buffer,
+                 "Request to delete bch01, bch10, bch11 records older than %s",
+                  print_date );
+         printf( "%s\n", msg_buffer );
+         LogEvent( msg_buffer, INFO_MESSSG );
+         result_code =  db_delete_bchrecs_for_cleanup( (pCHAR )date, error_msg );
+         break;
+
+      case FGUARD_DATA:
+
+         sprintf( msg_buffer,
+                 "Request to delete FGUARD records older than %s", print_date );
+         printf( "%s\n", msg_buffer );
+         LogEvent( msg_buffer, INFO_MESSSG );
+         result_code = db_delete_fguard_by_date( ( pCHAR )date, error_msg );
+         break;
+
+      default:
+         result_code = PTEMSG_INVALID_DATATYPE;
+         printf(" Invalid table name \n");
+         break;
+   }
+
+   return result_code;
+}
+
+
+
+
+/******************************************************************************
+   NAME:          process_cleanup_command
+
+   DESCRIPTION:   Process the user supplied parameters, figure out the table
+                  name and the cutoff date for cleaning up the table, then
+                  execute the SQL to perform the cleanup.
+
+   INPUTS:        None
+
+   OUTPUTS:       None
+
+   RETURNS:       None
+
+   AUTHOR:        Ram Malathkar
+*******************************************************************************/
+void process_cleanup_command( pCHAR num_days_str, pCHAR table_name )
+{
+   struct appdata_struct *appdata_ptr = NULL_PTR;
+   BYTE   app_data_type;
+   CHAR   buffer[256]="";
+   struct tm * cur_time ;
+   time_t aclock;
+   CHAR   current_date[12]="";
+   LONG   num_days;
+   LONG   julian_current_date, julian_cutoff_date;
+   CHAR   gregorian_cutoff_date[DATE_SIZE]="";
+   CHAR   print_date[DATE_SIZE]="";
+
+   /* Convert the table name to an internal appdata type */
+   appdata_ptr = find_appdata_type( table_name );
+   if( appdata_ptr == NULL_PTR )
+   {
+      sprintf( buffer, "Invalid table name parameter: %s", table_name );
+      printf( "%s\n", buffer );
+      LogEvent( buffer, ERROR_MESSG );
+      return;
+   }
+
+   app_data_type = appdata_ptr->appdata_type;
+
+   /* convert the num_days to a date */
+   /* everything before this date will be deleted */
+   time( &aclock );
+   cur_time = localtime( &aclock ) ;
+   sprintf( current_date, "%04d%02d%02d", cur_time->tm_year + OFFSET_YEAR,
+   cur_time->tm_mon + OFFSET_MONTH, cur_time->tm_mday ) ;
+
+   if( app_data_type != OFFUS_VELOCITY_DATA)
+   {
+      num_days = atoi( num_days_str );
+      if( num_days == 0 && ( strcmp( num_days_str, "0" ) != 0 ) )
+      {
+         sprintf( buffer, "Invalid day parameter: %s", num_days_str );
+         printf( "%s\n", buffer );
+         LogEvent( buffer, ERROR_MESSG );
+         return;
+      }
+
+      julian_current_date = Txutils_Calculate_Julian_Date( (pBYTE)current_date );
+      julian_cutoff_date = julian_current_date - num_days;
+      Txutils_Calculate_Gregorian_Date( julian_cutoff_date, print_date );
+
+      /* Subtract one day so we can use "<=" instead of "<".
+       * This makes for a faster Oracle query.
+       */
+      julian_cutoff_date = julian_current_date - num_days - 1;
+      Txutils_Calculate_Gregorian_Date( julian_cutoff_date, gregorian_cutoff_date );
+   }
+
+   /* Now perform the request using the Pro C SQLs. */
+   memset( NumberOfItemsProcessed, 0x00, sizeof(NumberOfItemsProcessed) );
+   if( !Perform_Cleanup(app_data_type,gregorian_cutoff_date,print_date,buffer))
+   {
+      EXEC SQL ROLLBACK WORK;
+      printf( "%s\n", buffer );
+      LogEvent( buffer, ERROR_MESSG );
+
+      if ( app_data_type == BCH01_DATA )
+      {
+         LogEvent( NumberOfItemsProcessed, INFO_MESSSG );
+      }
+   }
+   else
+   {
+      LogEvent( NumberOfItemsProcessed, INFO_MESSSG );
+   }
+
+   /* Take large rollback segment offline. */
+   EXEC SQL   ALTER ROLLBACK SEGMENT "RBS37" OFFLINE;
+
+   return;
+}
+
+
+
+
+/***************************************************************************/
+/***************************************************************************/
+void main( int argc, char *argv[] )
+{
+   CHAR buffer[500]="";
+   INT  temp, argnum, arg, num_sql, ret_code;
+
+   /* Initialise Event Logging Mechanism */
+   InitEventLogging();
+
+   /* Log event indicating service was started along with command line arguments*/
+   sprintf( buffer, "Starting the Cleanup Process Version %s with Arguments:", Version);
+   argnum = argc;
+   for (arg=0; arg < argnum; arg++)
+   {
+	   strcat (buffer, argv[arg] );
+	   strcat (buffer, " " );
+   }
+   LogEvent( buffer, INFO_MSG );
+   printf( "%s\n", buffer );
+
+   /*Check number of args */
+   if(( argc < 3 ) || (argc >4))
+   {
+      strcpy( buffer, "\n\nCleanup requires 3 parameters usage:\n   cleanup <No. days> <table name> <optional: NetWorkId> <optional: ALL>\n" );
+      strcat( buffer, "\nExample: cleanup 30 TLF01 -> will delete from TLF01 records older than 30 days.\n" );
+      strcat( buffer, "\nExample: cleanup 45 NCF30 ncvisa -> including the optional network id with the NCF30 or NCF21 argument deletes only ncvisa txns\n");
+	  strcat( buffer, "\nExample: cleanup 90 BCH01 all -> including the optional 'all' parameter with the BCH01 argument will delete all batches with the A, C, or R status\n");
+      printf( "%s\n\n", buffer );
+      LogEvent( buffer, ERROR_MESSG );
+
+      printf( "The following are valid table names for cleanup:\n\n" );
+      for( temp = 0; temp < N_APPDATATYPES; temp++ )
+      {
+         if( (temp % 2) == 0 )
+         {
+            printf( appdata_table[temp].appdata_str );
+            printf( "\n" );
+         }
+      }
+      exit( 0 );
+   }
+
+   memset( network_id, 0x00, sizeof(network_id) );
+   if ( argc > 3 )
+   {
+	  if( (strcmp(argv[3], "all") == 0) || (strcmp(argv[3], "ALL") == 0) )
+		 close_active_flag = 1;
+	  else
+	  {
+		  strcpy( network_id, argv[3] );
+		  network_id[10] = '\0';
+	  }
+   }
+
+   /* Get Database Timing Parameters to gather statistics about each query. */
+   memset( ReportTime, 0x00, sizeof(ReportTime) );
+   memset( buffer,     0x00, sizeof(buffer)     );
+   ret_code = get_timing_parameters( &DB_Timing_Flag, ReportTime, &ForceReport, buffer );
+   LogEvent( buffer, INFO_MSG );
+
+   /* Initialize the DB Timing Statistics Data Structure. */
+   if ( DB_Timing_Flag == true )
+      reset_timing_stats( &TimingStats );
+
+   process_cleanup_command( argv[1], argv[2] );
+
+   /* Report the DB timing measurement statistics before exiting. */
+   num_sql = log_timing_statistics_report( &TimingStats );
+
+   memset( buffer, 0x00, sizeof(buffer) );
+   sprintf( buffer,
+           "%s logged stats for %d SQLs",
+            argv[0], num_sql );
+   LogEvent( buffer, INFO_MSG );
+
+   /* Log event indicating completion */
+   sprintf( buffer, "Ascendent Cleanup Process completed, version %s", Version);
+   LogEvent( buffer, INFO_MSG );
+   ShutDownEventLogging();
+   return;
+}
+
+
+
+/******************************************************************************
+
+   This function deletes records from NCF21 where OPEN_DATE contains
+   a date earlier than the input parameter.  
+
+   If a network Id was provided as the optional 3rd parameter, then
+   only records with that network Id will be deleted.
+
+*******************************************************************************/
+BYTE db_delete_ncf21_by_date( pCHAR Date_yyyymmdd, pCHAR ErrorMsg)
+{
+   BYTE  ret_val = true;
+   CHAR  netid[20] = "";
+
+   EXEC SQL BEGIN DECLARE SECTION;
+      char  yyyymmdd[9]="";
+   EXEC SQL END DECLARE SECTION;
+   
+
+   strncpy(yyyymmdd, Date_yyyymmdd,sizeof(yyyymmdd));
+   yyyymmdd[8] = '\0';
+   num_items = 0;
+
+   if ( network_id[0] == 0x00 )
+   {
+      /* Delete all old records in NCF21. */
+      strcpy( netid, "All networks" );
+      EXEC SQL DELETE NCF21 WHERE open_date <= :yyyymmdd;
+   }
+   else
+   {
+      /* Delete records in NCF21 for a single network Id. */
+      strcpy( netid, network_id );
+      strcat( netid, " only" );
+      EXEC SQL  DELETE NCF21
+                WHERE  open_date <= :yyyymmdd
+                  AND  network_id = :network_id;
+   }
+
+   if (( SQLCODE != 0 ) && ( SQLCODE != EQ_NO_DATA_FOUND))
+   {
+      dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+      ret_val = false;
+   }
+   else
+   {
+      num_items = sqlca.sqlerrd[2];
+      EXEC SQL COMMIT WORK;
+      if ( SQLCODE != 0 )
+      {
+         dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+         ret_val = false;
+      }
+      else
+      {
+         sprintf( NumberOfItemsProcessed,
+                 "Deleted %ld records from NCF21 (%s).",
+                  num_items, netid );
+      }
+  }
+
+  return( ret_val );
+}

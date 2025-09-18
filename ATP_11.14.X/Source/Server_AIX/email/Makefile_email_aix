@@ -1,0 +1,20 @@
+BINDIR=../bin
+LIBDIR=../lib
+CFLAGS = -c -g -I../include -I$(XIPCROOT)/include
+LFLAGS = -L$(LIBDIR) -L$(XIPCROOT)/lib/threads
+CC=cc
+
+email: email.o notify.o
+	$(CC) -o $(BINDIR)/email email.o notify.o $(LIBDIR)/daemon.o $(LFLAGS) -lptecom -lpte -lpteipc -lptelog -lxipc_r -lnxipctcp_r -lthread -lsocket -lnsl -lposix4 
+
+email.o: email.c
+	$(CC) $(CFLAGS) email.c
+
+notify.o: notify.c
+	$(CC) $(CFLAGS) notify.c
+
+clean:
+	-@rm *.o
+
+empty:
+	-@rm *.[o,c,h]

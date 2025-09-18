@@ -1,0 +1,1658 @@
+
+/******************************************************************************
+
+               MERCHBATCH - EFTPOS UTILITY - THOUGHTFOCUS
+   
+******************************************************************************/
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#ifdef WIN32
+#include <sqlproto.h>
+#endif
+
+#include <math.h>
+#include <time.h>
+#include <sys/timeb.h>
+
+#include "basictyp.h"
+#include "pte.h"
+#include "ptemsg.h"
+#include "app_info.h"
+#include "equitdb.h"
+#include "dc_dbstruct.h"
+#include "dc_database.h"
+#include "ptetimer.h"
+#include "dbcommon.h"
+#include "txutils.h"
+#include "ptetime.h"
+#include "ntutils.h"
+#include "settle.h"
+#include "timings.h"
+
+/* Oracle error codes */
+#define NULL_COLUMN_DATA -1405
+#define NO_DATA_FOUND    1403
+
+BCH01  auth_tx_total;
+extern BCH10 auth_tx_detail;  
+extern DCF01 terminal;
+
+
+
+
+extern CHAR  CurrentDate[9];
+
+/* Database Timing Measurements */
+extern TIMINGS_LIST  TimingStats;
+extern INT           DB_Timing_Flag;
+
+
+
+EXEC SQL INCLUDE sqlca;
+
+EXEC SQL BEGIN DECLARE SECTION;
+
+
+/* error code variable */
+long    SQLCODE;
+long    SQL_CODE;
+
+struct
+{
+   char  device_id                                 [9];
+   char  batch_nbr                                 [7]; 
+   char  merchant_id                               [16];
+   char  total_credit_cnt                          [5];
+   char  total_credit_amt                          [13];
+   char  total_credit_refund_cnt                   [5];
+   char  total_credit_refund_amt                   [13];
+   char  total_debit_cnt                           [5];
+   char  total_debit_amt                           [13];
+   char  total_debit_refund_cnt                    [5];
+   char  total_debit_refund_amt                    [13];
+   char  total_void_credit_cnt                     [5];
+   char  total_void_credit_amt                     [13];
+   char  total_void_credit_refund_cnt              [5];
+   char  total_void_credit_refund_amt              [13];
+   char  open_date                                 [9];
+   char  open_time                                 [7];
+   char  release_date                              [9];
+   char  release_time                              [7];
+   char  batch_status                              [2]; /*R-released;C-closed;A-active*/
+   char  visa_merchant_id                          [16];
+
+}pte_bch01;
+
+struct
+{
+   varchar  device_id                              [9];
+   varchar  batch_nbr                              [7];
+   varchar  merchant_id                            [16];
+   varchar  total_credit_cnt                       [5];
+   varchar  total_credit_amt                       [13];
+   varchar  total_credit_refund_cnt                [5];
+   varchar  total_credit_refund_amt                [13];
+   varchar  total_debit_cnt                        [5];
+   varchar  total_debit_amt                        [13];
+   varchar  total_debit_refund_cnt                 [5];
+   varchar  total_debit_refund_amt                 [13];
+   varchar  total_void_credit_cnt                  [5];
+   varchar  total_void_credit_amt                  [13];
+   varchar  total_void_credit_refund_cnt           [5];
+   varchar  total_void_credit_refund_amt           [13];
+   varchar  open_date                              [9];
+   varchar  open_time                              [7];
+   varchar  release_date                           [9];
+   varchar  release_time                           [7];
+   varchar  batch_status                           [2]; /*R-released;C-closed;A-active*/
+   varchar  visa_merchant_id                       [16];
+
+}db_bch01;
+
+struct
+{
+   varchar  device_id                              [9];
+   varchar  batch_nbr                              [7];
+   varchar  retrieval_ref_num                      [13];
+   varchar  merchant_id                            [16];
+   varchar  processing_code                        [7];
+   varchar  tran_amount                            [13];
+   varchar  response_code                          [3];
+   varchar  auth_number                            [7];
+   varchar  tran_date                              [9];
+   varchar  tran_time                              [7];
+   varchar  transaction_id                         [21];
+   varchar  message_type                           [5];
+   varchar  card_nbr                               [20];
+   varchar  invoice_nbr                            [9];
+   varchar  settle_file_prefix                     [7];
+   varchar  product_code                           [9];
+   varchar  odometer                               [7];
+   varchar  sys_trace_audit_num                    [7];
+   varchar  tx_key                                 [1];
+   varchar  bin_type                               [1];
+   varchar  type_of_data                           [3];
+   varchar  down_payment                           [13];
+   varchar  period                                 [3];
+   varchar  interest_rate                          [5];
+   varchar  total_interest                         [13];
+   varchar  redemption_amount                      [13];
+   varchar  vehicle_number                         [9];
+   varchar  pos_entry_mode                         [5];
+   varchar  profile                                [3];
+   varchar  nbr_of_prod_codes                      [3];
+   varchar  product1_code                          [7];
+   varchar  product1_quantity                      [3];
+   varchar  product1_amount                        [13];
+   varchar  product2_code                          [7];
+   varchar  product2_quantity                      [3];
+   varchar  product2_amount                        [13];
+   varchar  product3_code                          [7];
+   varchar  product3_quantity                      [3];
+   varchar  product3_amount                        [13];
+   varchar  product4_code                          [7];
+   varchar  product4_quantity                      [3];
+   varchar  product4_amount                        [13];
+   varchar  product5_code                          [7];
+   varchar  product5_quantity                      [3];
+   varchar  product5_amount                        [13];
+   varchar  product6_code                          [7];
+   varchar  product6_quantity                      [3];
+   varchar  product6_amount                        [13];
+   varchar  product7_code                          [7];
+   varchar  product7_quantity                      [3];
+   varchar  product7_amount                        [13];
+   varchar  product8_code                          [7];
+   varchar  product8_quantity                      [3];
+   varchar  product8_amount                        [13];
+   varchar  product9_code                          [7];
+   varchar  product9_quantity                      [3];
+   varchar  product9_amount                        [13];
+   varchar  product10_code                         [7];
+   varchar  product10_quantity                     [3];
+   varchar  product10_amount                       [13];
+   varchar  product11_code                         [7];
+   varchar  product11_quantity                     [3];
+   varchar  product11_amount                       [13];
+   varchar  product12_code                         [7];
+   varchar  product12_quantity                     [3];
+   varchar  product12_amount                       [13];
+   varchar  product13_code                         [7];
+   varchar  product13_quantity                     [3];
+   varchar  product13_amount                       [13];
+   varchar  product14_code                         [7];
+   varchar  product14_quantity                     [3];
+   varchar  product14_amount                       [13];
+   varchar  product15_code                         [7];
+   varchar  product15_quantity                     [3];
+   varchar  product15_amount                       [13];
+   varchar  product16_code                         [7];
+   varchar  product16_quantity                     [3];
+   varchar  product16_amount                       [13];
+   varchar  product17_code                         [7];
+   varchar  product17_quantity                     [3];
+   varchar  product17_amount                       [13];
+   varchar  product18_code                         [7];
+   varchar  product18_quantity                     [3];
+   varchar  product18_amount                       [13];
+   varchar  product19_code                         [7];
+   varchar  product19_quantity                     [3];
+   varchar  product19_amount                       [13];
+   varchar  product20_code                         [7];
+   varchar  product20_quantity                     [3];
+   varchar  product20_amount                       [13];
+   varchar  aportionment_flag                      [2];
+   varchar  exp_date                               [5];
+   varchar  open_date                              [9];
+   varchar  open_time                              [7];
+   varchar  cash_bonus                             [2];
+   varchar  transmission_timestamp                 [11];
+   varchar  mcard_banknet                          [51];
+   varchar  ticket_nbr                             [16];
+   varchar  def_gross_amt                          [13];
+   varchar  term                                   [4];
+
+}db_bch10;
+
+struct
+{
+   varchar  device_id                              [9];
+   varchar  batch_nbr                              [7];
+   varchar  retrieval_ref_num                      [13];
+   varchar  merchant_id                            [16];
+   varchar  processing_code                        [7];
+   varchar  tran_amount                            [13];
+   varchar  response_code                          [3];
+   varchar  auth_number                            [7];
+   varchar  tran_date                              [9];
+   varchar  tran_time                              [7];
+   varchar  transaction_id                         [21];
+   varchar  message_type                           [5];
+   varchar  card_nbr                               [20];
+   varchar  invoice_nbr                            [9];
+   varchar  settle_file_prefix                     [7];
+   varchar  product_code                           [9];
+   varchar  odometer                               [7];
+   varchar  sys_trace_audit_num                    [7];
+   varchar  tx_key                                 [1];
+   varchar  bin_type                               [1];
+   varchar  type_of_data                           [3];
+   varchar  down_payment                           [13];
+   varchar  period                                 [3];
+   varchar  interest_rate                          [5];
+   varchar  total_interest                         [13];
+   varchar  redemption_amount                      [13];
+   varchar  vehicle_number                         [9];
+   varchar  pos_entry_mode                         [5];
+   varchar  profile                                [3];
+   varchar  nbr_of_prod_codes                      [3];
+   varchar  product1_code                          [7];
+   varchar  product1_quantity                      [3];
+   varchar  product1_amount                        [13];
+   varchar  product2_code                          [7];
+   varchar  product2_quantity                      [3];
+   varchar  product2_amount                        [13];
+   varchar  product3_code                          [7];
+   varchar  product3_quantity                      [3];
+   varchar  product3_amount                        [13];
+   varchar  product4_code                          [7];
+   varchar  product4_quantity                      [3];
+   varchar  product4_amount                        [13];
+   varchar  product5_code                          [7];
+   varchar  product5_quantity                      [3];
+   varchar  product5_amount                        [13];
+   varchar  product6_code                          [7];
+   varchar  product6_quantity                      [3];
+   varchar  product6_amount                        [13];
+   varchar  product7_code                          [7];
+   varchar  product7_quantity                      [3];
+   varchar  product7_amount                        [13];
+   varchar  product8_code                          [7];
+   varchar  product8_quantity                      [3];
+   varchar  product8_amount                        [13];
+   varchar  product9_code                          [7];
+   varchar  product9_quantity                      [3];
+   varchar  product9_amount                        [13];
+   varchar  product10_code                         [7];
+   varchar  product10_quantity                     [3];
+   varchar  product10_amount                       [13];
+   varchar  product11_code                         [7];
+   varchar  product11_quantity                     [3];
+   varchar  product11_amount                       [13];
+   varchar  product12_code                         [7];
+   varchar  product12_quantity                     [3];
+   varchar  product12_amount                       [13];
+   varchar  product13_code                         [7];
+   varchar  product13_quantity                     [3];
+   varchar  product13_amount                       [13];
+   varchar  product14_code                         [7];
+   varchar  product14_quantity                     [3];
+   varchar  product14_amount                       [13];
+   varchar  product15_code                         [7];
+   varchar  product15_quantity                     [3];
+   varchar  product15_amount                       [13];
+   varchar  product16_code                         [7];
+   varchar  product16_quantity                     [3];
+   varchar  product16_amount                       [13];
+   varchar  product17_code                         [7];
+   varchar  product17_quantity                     [3];
+   varchar  product17_amount                       [13];
+   varchar  product18_code                         [7];
+   varchar  product18_quantity                     [3];
+   varchar  product18_amount                       [13];
+   varchar  product19_code                         [7];
+   varchar  product19_quantity                     [3];
+   varchar  product19_amount                       [13];
+   varchar  product20_code                         [7];
+   varchar  product20_quantity                     [3];
+   varchar  product20_amount                       [13];
+   varchar  aportionment_flag                      [2];
+   varchar  exp_date                               [5];
+   varchar  open_date                              [9];
+   varchar  open_time                              [7];
+   varchar  cash_bonus                             [2];
+   varchar  transmission_timestamp                 [11];
+   varchar  mcard_banknet                          [51];
+   varchar  ticket_nbr                             [16];  
+   varchar  def_gross_amt                          [13];
+   varchar  term                                   [4];
+
+}db_bch11;
+
+struct
+{
+   char  device_id                                 [9];
+   char  short_name                                [10];
+   char  phone                                     [18];
+   char  industry_code                             [4];
+   char  category_code                             [5];
+   char  contact                                   [21];
+   char  device_type                               [3];
+   char  date_added                                [9];
+   char  current_bus_date                          [9];
+   char  dept_nbr                                  [3];
+   char  organization_id                           [5];
+   char  merchant_id                               [16];
+   char  aba_nbr                                   [10];
+   char  status                                    [2];
+   char  totals_ind                                [2];
+   char  statistics_ind                            [2];
+   char  valid_transactions                        [41]; /* 8583 table 'Y' or 'N' */
+   char  draft_capture_type                        [2];
+   char  amex_charge_desc                          [24];
+   char  diners_charge_desc                        [24];
+   char  additional_pos_information                [7];
+   char  batch_nbr                                 [7];
+   char  rental_program                            [4];
+   char  nsp_process                               [16];
+   char  pin_type                                  [2];
+   char  kc                                        [17];
+   char  encr_type                                 [2];
+   char  pad_char                                  [2];
+   char  keyxchange_cnt                            [4];
+   char  txn_cnt                                   [4];
+   char  cwk                                       [49];
+   char  kek                                       [17];
+   char  retired_cwk                               [49];
+   char  icv                                       [17];
+   char  pin_block_format                          [2];
+   char  encryption_method                         [2];
+   char  pin_key                                   [17];
+   char  communication_key                         [17];
+   char  auto_init_activation                      [2];
+   char  auto_init_time                            [6];
+   char  auto_init_ref_number                      [7];
+   char  auto_program_load_activation              [2];
+   char  auto_program_load_time                    [6];
+   char  auto_program_load_ref_number              [7];
+   char  auto_icepac_activation                    [2];
+
+}pte_dcf01;
+
+ struct
+{
+
+   varchar  transaction_id            [21];
+   varchar  system_date               [9];
+   varchar  DATA_LENGTH               [4];
+   varchar  RAW_DATA                  [300];
+   
+} db_emv_raw;
+
+EXEC SQL VAR db_emv_raw.RAW_DATA IS LONG RAW;  
+
+EXEC SQL END DECLARE SECTION;
+
+
+void bch01_to_db (pBCH01 bch01_ptr)
+{
+   memcpy (&pte_bch01, bch01_ptr, sizeof(pte_bch01));
+}
+
+/*************************************************************************************/
+/*************************************************************************************/
+void db_to_bch01 ( pBCH01 bch01_ptr)
+{
+	memset(bch01_ptr, 0, sizeof(BCH01));
+	memcpy(bch01_ptr->primary_key.device_id, db_bch01.device_id.arr, db_bch01.device_id.len);
+	memcpy(bch01_ptr->primary_key.batch_nbr, db_bch01.batch_nbr.arr, db_bch01.batch_nbr.len);
+	memcpy(bch01_ptr->merchant_id, db_bch01.merchant_id.arr, db_bch01.merchant_id.len);
+	memcpy(bch01_ptr->batch_status, db_bch01.batch_status.arr, db_bch01.batch_status.len);
+	memcpy(bch01_ptr->total_credit_cnt, db_bch01.total_credit_cnt.arr, db_bch01.total_credit_cnt.len);
+	memcpy(bch01_ptr->total_credit_amt, db_bch01.total_credit_amt.arr, db_bch01.total_credit_amt.len);
+	memcpy(bch01_ptr->total_credit_refund_cnt, db_bch01.total_credit_refund_cnt.arr, db_bch01.total_credit_refund_cnt.len);
+	memcpy(bch01_ptr->total_credit_refund_amt, db_bch01.total_credit_refund_amt.arr, db_bch01.total_credit_refund_amt.len);
+	memcpy(bch01_ptr->total_debit_cnt, db_bch01.total_debit_cnt.arr, db_bch01.total_debit_cnt.len);
+	memcpy(bch01_ptr->total_debit_amt, db_bch01.total_debit_amt.arr, db_bch01.total_debit_amt.len);
+	memcpy(bch01_ptr->total_debit_refund_cnt, db_bch01.total_debit_refund_cnt.arr, db_bch01.total_debit_refund_cnt.len);
+	memcpy(bch01_ptr->total_debit_refund_amt, db_bch01.total_debit_refund_amt.arr, db_bch01.total_debit_refund_amt.len);
+	memcpy(bch01_ptr->total_void_credit_cnt, db_bch01.total_void_credit_cnt.arr, db_bch01.total_void_credit_cnt.len);
+	memcpy(bch01_ptr->total_void_credit_amt, db_bch01.total_void_credit_amt.arr, db_bch01.total_void_credit_amt.len);
+	memcpy(bch01_ptr->total_void_credit_refund_cnt, db_bch01.total_void_credit_refund_cnt.arr, db_bch01.total_void_credit_refund_cnt.len);
+	memcpy(bch01_ptr->total_void_credit_refund_amt, db_bch01.total_void_credit_refund_amt.arr, db_bch01.total_void_credit_refund_amt.len);
+	memcpy(bch01_ptr->open_date, db_bch01.open_date.arr, db_bch01.open_date.len);
+	memcpy(bch01_ptr->open_time, db_bch01.open_time.arr, db_bch01.open_time.len);
+	memcpy(bch01_ptr->release_date, db_bch01.release_date.arr, db_bch01.release_date.len);
+	memcpy(bch01_ptr->release_time, db_bch01.release_time.arr, db_bch01.release_time.len);
+	memcpy(bch01_ptr->visa_merchant_id, db_bch01.visa_merchant_id.arr, db_bch01.visa_merchant_id.len);
+}
+
+/*************************************************************************************/
+/*************************************************************************************/
+void db_to_bch10 ( pBCH10 bch10_ptr)
+{
+   memset(bch10_ptr, 0, sizeof(BCH10));
+   memcpy(bch10_ptr->primary_key.device_id, db_bch10.device_id.arr, db_bch10.device_id.len);
+   memcpy(bch10_ptr->primary_key.batch_nbr, db_bch10.batch_nbr.arr, db_bch10.batch_nbr.len);
+   memcpy(bch10_ptr->primary_key.retrieval_ref_num, db_bch10.retrieval_ref_num.arr, db_bch10.retrieval_ref_num.len);
+   memcpy(bch10_ptr->merchant_id, db_bch10.merchant_id.arr, db_bch10.merchant_id.len);
+   memcpy(bch10_ptr->processing_code, db_bch10.processing_code.arr, db_bch10.processing_code.len);
+   memcpy(bch10_ptr->tran_amount, db_bch10.tran_amount.arr, db_bch10.tran_amount.len);
+   memcpy(bch10_ptr->response_code, db_bch10.response_code.arr, db_bch10.response_code.len);
+   memcpy(bch10_ptr->auth_number, db_bch10.auth_number.arr, db_bch10.auth_number.len);
+   memcpy(bch10_ptr->tran_date, db_bch10.tran_date.arr, db_bch10.tran_date.len);
+   memcpy(bch10_ptr->tran_time, db_bch10.tran_time.arr, db_bch10.tran_time.len);
+   memcpy(bch10_ptr->transaction_id, db_bch10.transaction_id.arr, db_bch10.transaction_id.len);
+   memcpy(bch10_ptr->message_type, db_bch10.message_type.arr, db_bch10.message_type.len);
+   memcpy(bch10_ptr->card_nbr, db_bch10.card_nbr.arr, db_bch10.card_nbr.len);
+   memcpy(bch10_ptr->invoice_nbr, db_bch10.invoice_nbr.arr, db_bch10.invoice_nbr.len);
+   memcpy(bch10_ptr->settle_file_prefix, db_bch10.settle_file_prefix.arr, db_bch10.settle_file_prefix.len);
+   memcpy(bch10_ptr->product_code, db_bch10.product_code.arr, db_bch10.product_code.len);
+   memcpy(bch10_ptr->odometer, db_bch10.odometer.arr, db_bch10.odometer.len);
+   memcpy(bch10_ptr->sys_trace_audit_num, db_bch10.sys_trace_audit_num.arr, db_bch10.sys_trace_audit_num.len);
+   bch10_ptr->tx_key = db_bch10.tx_key.arr[0];
+   bch10_ptr->bin_type = db_bch10.bin_type.arr[0];
+   memcpy(bch10_ptr->type_of_data, db_bch10.type_of_data.arr, db_bch10.type_of_data.len);
+   memcpy(bch10_ptr->down_payment, db_bch10.down_payment.arr, db_bch10.down_payment.len);
+   memcpy(bch10_ptr->period, db_bch10.period.arr, db_bch10.period.len);
+   memcpy(bch10_ptr->interest_rate, db_bch10.interest_rate.arr, db_bch10.interest_rate.len);
+   memcpy(bch10_ptr->total_interest, db_bch10.total_interest.arr, db_bch10.total_interest.len);
+   memcpy(bch10_ptr->redemption_amount, db_bch10.redemption_amount.arr, db_bch10.redemption_amount.len);
+   memcpy(bch10_ptr->vehicle_number, db_bch10.vehicle_number.arr, db_bch10.vehicle_number.len);
+   memcpy(bch10_ptr->pos_entry_mode, db_bch10.pos_entry_mode.arr, db_bch10.pos_entry_mode.len);
+   memcpy(bch10_ptr->profile, db_bch10.profile.arr, db_bch10.profile.len);
+   memcpy(bch10_ptr->nbr_of_prod_codes, db_bch10.nbr_of_prod_codes.arr, db_bch10.nbr_of_prod_codes.len);  
+   memcpy(bch10_ptr->product_codes[0].code, db_bch10.product1_code.arr, db_bch10.product1_code.len);
+   memcpy(bch10_ptr->product_codes[0].quantity, db_bch10.product1_quantity.arr, db_bch10.product1_quantity.len);
+   memcpy(bch10_ptr->product_codes[0].amount, db_bch10.product1_amount.arr, db_bch10.product1_amount.len);   
+   memcpy(bch10_ptr->product_codes[1].code, db_bch10.product2_code.arr, db_bch10.product2_code.len);
+   memcpy(bch10_ptr->product_codes[1].quantity, db_bch10.product2_quantity.arr, db_bch10.product2_quantity.len);
+   memcpy(bch10_ptr->product_codes[1].amount, db_bch10.product2_amount.arr, db_bch10.product2_amount.len);
+   memcpy(bch10_ptr->product_codes[2].code, db_bch10.product3_code.arr, db_bch10.product3_code.len);
+   memcpy(bch10_ptr->product_codes[2].quantity, db_bch10.product3_quantity.arr, db_bch10.product3_quantity.len);
+   memcpy(bch10_ptr->product_codes[2].amount, db_bch10.product3_amount.arr, db_bch10.product3_amount.len);
+   memcpy(bch10_ptr->product_codes[3].code, db_bch10.product4_code.arr, db_bch10.product4_code.len);
+   memcpy(bch10_ptr->product_codes[3].quantity, db_bch10.product4_quantity.arr, db_bch10.product4_quantity.len);
+   memcpy(bch10_ptr->product_codes[3].amount, db_bch10.product4_amount.arr, db_bch10.product4_amount.len);
+   memcpy(bch10_ptr->product_codes[4].code, db_bch10.product5_code.arr, db_bch10.product5_code.len);
+   memcpy(bch10_ptr->product_codes[4].quantity, db_bch10.product5_quantity.arr, db_bch10.product5_quantity.len);
+   memcpy(bch10_ptr->product_codes[4].amount, db_bch10.product5_amount.arr, db_bch10.product5_amount.len);
+   memcpy(bch10_ptr->product_codes[5].code, db_bch10.product6_code.arr, db_bch10.product6_code.len);
+   memcpy(bch10_ptr->product_codes[5].quantity, db_bch10.product6_quantity.arr, db_bch10.product6_quantity.len);
+   memcpy(bch10_ptr->product_codes[5].amount, db_bch10.product6_amount.arr, db_bch10.product6_amount.len);
+   memcpy(bch10_ptr->product_codes[6].code, db_bch10.product7_code.arr, db_bch10.product7_code.len);
+   memcpy(bch10_ptr->product_codes[6].quantity, db_bch10.product7_quantity.arr, db_bch10.product7_quantity.len);
+   memcpy(bch10_ptr->product_codes[6].amount, db_bch10.product7_amount.arr, db_bch10.product7_amount.len);
+   memcpy(bch10_ptr->product_codes[7].code, db_bch10.product8_code.arr, db_bch10.product8_code.len);
+   memcpy(bch10_ptr->product_codes[7].quantity, db_bch10.product8_quantity.arr, db_bch10.product8_quantity.len);
+   memcpy(bch10_ptr->product_codes[7].amount, db_bch10.product8_amount.arr, db_bch10.product8_amount.len);
+   memcpy(bch10_ptr->product_codes[8].code, db_bch10.product9_code.arr, db_bch10.product9_code.len);
+   memcpy(bch10_ptr->product_codes[8].quantity, db_bch10.product9_quantity.arr, db_bch10.product9_quantity.len);
+   memcpy(bch10_ptr->product_codes[8].amount, db_bch10.product9_amount.arr, db_bch10.product9_amount.len);
+   memcpy(bch10_ptr->product_codes[9].code, db_bch10.product10_code.arr, db_bch10.product10_code.len);
+   memcpy(bch10_ptr->product_codes[9].quantity, db_bch10.product10_quantity.arr, db_bch10.product10_quantity.len);
+   memcpy(bch10_ptr->product_codes[9].amount, db_bch10.product10_amount.arr, db_bch10.product10_amount.len);
+   memcpy(bch10_ptr->product_codes[10].code, db_bch10.product11_code.arr, db_bch10.product11_code.len);
+   memcpy(bch10_ptr->product_codes[10].quantity, db_bch10.product11_quantity.arr, db_bch10.product11_quantity.len);
+   memcpy(bch10_ptr->product_codes[10].amount, db_bch10.product11_amount.arr, db_bch10.product11_amount.len);
+   memcpy(bch10_ptr->product_codes[11].code, db_bch10.product12_code.arr, db_bch10.product12_code.len);
+   memcpy(bch10_ptr->product_codes[11].quantity, db_bch10.product12_quantity.arr, db_bch10.product12_quantity.len);
+   memcpy(bch10_ptr->product_codes[11].amount, db_bch10.product12_amount.arr, db_bch10.product12_amount.len);
+   memcpy(bch10_ptr->product_codes[12].code, db_bch10.product13_code.arr, db_bch10.product13_code.len);
+   memcpy(bch10_ptr->product_codes[12].quantity, db_bch10.product13_quantity.arr, db_bch10.product13_quantity.len);
+   memcpy(bch10_ptr->product_codes[12].amount, db_bch10.product13_amount.arr, db_bch10.product13_amount.len);
+   memcpy(bch10_ptr->product_codes[13].code, db_bch10.product14_code.arr, db_bch10.product14_code.len);
+   memcpy(bch10_ptr->product_codes[13].quantity, db_bch10.product14_quantity.arr, db_bch10.product14_quantity.len);
+   memcpy(bch10_ptr->product_codes[13].amount, db_bch10.product14_amount.arr, db_bch10.product14_amount.len);
+   memcpy(bch10_ptr->product_codes[14].code, db_bch10.product15_code.arr, db_bch10.product15_code.len);
+   memcpy(bch10_ptr->product_codes[14].quantity, db_bch10.product15_quantity.arr, db_bch10.product15_quantity.len);
+   memcpy(bch10_ptr->product_codes[14].amount, db_bch10.product15_amount.arr, db_bch10.product15_amount.len);
+   memcpy(bch10_ptr->product_codes[15].code, db_bch10.product16_code.arr, db_bch10.product16_code.len);
+   memcpy(bch10_ptr->product_codes[15].quantity, db_bch10.product16_quantity.arr, db_bch10.product16_quantity.len);
+   memcpy(bch10_ptr->product_codes[15].amount, db_bch10.product16_amount.arr, db_bch10.product16_amount.len);
+   memcpy(bch10_ptr->product_codes[16].code, db_bch10.product17_code.arr, db_bch10.product17_code.len);
+   memcpy(bch10_ptr->product_codes[16].quantity, db_bch10.product17_quantity.arr, db_bch10.product17_quantity.len);
+   memcpy(bch10_ptr->product_codes[16].amount, db_bch10.product17_amount.arr, db_bch10.product17_amount.len);
+   memcpy(bch10_ptr->product_codes[17].code, db_bch10.product18_code.arr, db_bch10.product18_code.len);
+   memcpy(bch10_ptr->product_codes[17].quantity, db_bch10.product18_quantity.arr, db_bch10.product18_quantity.len);
+   memcpy(bch10_ptr->product_codes[17].amount, db_bch10.product18_amount.arr, db_bch10.product18_amount.len);
+   memcpy(bch10_ptr->product_codes[18].code, db_bch10.product19_code.arr, db_bch10.product19_code.len);
+   memcpy(bch10_ptr->product_codes[18].quantity, db_bch10.product19_quantity.arr, db_bch10.product19_quantity.len);
+   memcpy(bch10_ptr->product_codes[18].amount, db_bch10.product19_amount.arr, db_bch10.product19_amount.len);
+   memcpy(bch10_ptr->product_codes[19].code, db_bch10.product20_code.arr, db_bch10.product20_code.len);
+   memcpy(bch10_ptr->product_codes[19].quantity, db_bch10.product20_quantity.arr, db_bch10.product20_quantity.len);
+   memcpy(bch10_ptr->product_codes[19].amount, db_bch10.product20_amount.arr, db_bch10.product20_amount.len);
+   memcpy(bch10_ptr->aportionment_flag, db_bch10.aportionment_flag.arr, db_bch10.aportionment_flag.len);
+   memcpy(bch10_ptr->exp_date, db_bch10.exp_date.arr, db_bch10.exp_date.len);
+   memcpy(bch10_ptr->open_date, db_bch10.open_date.arr, db_bch10.open_date.len);
+   memcpy(bch10_ptr->open_time, db_bch10.open_time.arr, db_bch10.open_time.len);
+   memcpy(bch10_ptr->cash_bonus, db_bch10.cash_bonus.arr, db_bch10.cash_bonus.len);
+   memcpy(bch10_ptr->transmission_timestamp,  db_bch10.transmission_timestamp.arr, db_bch10.transmission_timestamp.len);
+   memcpy(bch10_ptr->mcard_banknet, db_bch10.mcard_banknet.arr, db_bch10.mcard_banknet.len);
+   memcpy(bch10_ptr->ticket_nbr, db_bch10.ticket_nbr.arr, db_bch10.ticket_nbr.len);
+   memcpy(bch10_ptr->def_gross_amt, db_bch10.def_gross_amt.arr, db_bch10.def_gross_amt.len);
+   memcpy(bch10_ptr->term, db_bch10.term.arr, db_bch10.term.len);
+}
+
+/*************************************************************************************/
+void db_to_bch11 ( pBCH11 bch11_ptr)
+{
+   memset(bch11_ptr, 0, sizeof(BCH10));
+   memcpy(bch11_ptr->primary_key.device_id, db_bch11.device_id.arr, db_bch11.device_id.len);
+   memcpy(bch11_ptr->primary_key.batch_nbr, db_bch11.batch_nbr.arr, db_bch11.batch_nbr.len);
+   memcpy(bch11_ptr->primary_key.retrieval_ref_num, db_bch11.retrieval_ref_num.arr, db_bch11.retrieval_ref_num.len);
+   memcpy(bch11_ptr->merchant_id, db_bch11.merchant_id.arr, db_bch11.merchant_id.len);
+   memcpy(bch11_ptr->processing_code, db_bch11.processing_code.arr, db_bch11.processing_code.len);
+   memcpy(bch11_ptr->tran_amount, db_bch11.tran_amount.arr, db_bch11.tran_amount.len);
+   memcpy(bch11_ptr->response_code, db_bch11.response_code.arr, db_bch11.response_code.len);
+   memcpy(bch11_ptr->auth_number, db_bch11.auth_number.arr, db_bch11.auth_number.len);
+   memcpy(bch11_ptr->tran_date, db_bch11.tran_date.arr, db_bch11.tran_date.len);
+   memcpy(bch11_ptr->tran_time, db_bch11.tran_time.arr, db_bch11.tran_time.len);
+   memcpy(bch11_ptr->transaction_id, db_bch11.transaction_id.arr, db_bch11.transaction_id.len);
+   memcpy(bch11_ptr->message_type, db_bch11.message_type.arr, db_bch11.message_type.len);
+   memcpy(bch11_ptr->card_nbr, db_bch11.card_nbr.arr, db_bch11.card_nbr.len);
+   memcpy(bch11_ptr->invoice_nbr, db_bch11.invoice_nbr.arr, db_bch11.invoice_nbr.len);
+   memcpy(bch11_ptr->settle_file_prefix, db_bch11.settle_file_prefix.arr, db_bch11.settle_file_prefix.len);
+   memcpy(bch11_ptr->product_code, db_bch11.product_code.arr, db_bch11.product_code.len);
+   memcpy(bch11_ptr->odometer, db_bch11.odometer.arr, db_bch11.odometer.len);
+   memcpy(bch11_ptr->sys_trace_audit_num, db_bch11.sys_trace_audit_num.arr, db_bch11.sys_trace_audit_num.len);
+   bch11_ptr->tx_key = db_bch11.tx_key.arr[0];
+   bch11_ptr->bin_type = db_bch11.bin_type.arr[0];
+   memcpy(bch11_ptr->type_of_data, db_bch11.type_of_data.arr, db_bch11.type_of_data.len);
+   memcpy(bch11_ptr->down_payment, db_bch11.down_payment.arr, db_bch11.down_payment.len);
+   memcpy(bch11_ptr->period, db_bch11.period.arr, db_bch11.period.len);
+   memcpy(bch11_ptr->interest_rate, db_bch11.interest_rate.arr, db_bch11.interest_rate.len);
+   memcpy(bch11_ptr->total_interest, db_bch11.total_interest.arr, db_bch11.total_interest.len);
+   memcpy(bch11_ptr->redemption_amount, db_bch11.redemption_amount.arr, db_bch11.redemption_amount.len);
+   memcpy(bch11_ptr->vehicle_number, db_bch11.vehicle_number.arr, db_bch11.vehicle_number.len);
+   memcpy(bch11_ptr->pos_entry_mode, db_bch11.pos_entry_mode.arr, db_bch11.pos_entry_mode.len);
+   memcpy(bch11_ptr->profile, db_bch11.profile.arr, db_bch11.profile.len);
+   memcpy(bch11_ptr->nbr_of_prod_codes, db_bch11.nbr_of_prod_codes.arr, db_bch11.nbr_of_prod_codes.len);  
+   memcpy(bch11_ptr->product_codes[0].code, db_bch11.product1_code.arr, db_bch11.product1_code.len);
+   memcpy(bch11_ptr->product_codes[0].quantity, db_bch11.product1_quantity.arr, db_bch11.product1_quantity.len);
+   memcpy(bch11_ptr->product_codes[0].amount, db_bch11.product1_amount.arr, db_bch11.product1_amount.len);   
+   memcpy(bch11_ptr->product_codes[1].code, db_bch11.product2_code.arr, db_bch11.product2_code.len);
+   memcpy(bch11_ptr->product_codes[1].quantity, db_bch11.product2_quantity.arr, db_bch11.product2_quantity.len);
+   memcpy(bch11_ptr->product_codes[1].amount, db_bch11.product2_amount.arr, db_bch11.product2_amount.len);
+   memcpy(bch11_ptr->product_codes[2].code, db_bch11.product3_code.arr, db_bch11.product3_code.len);
+   memcpy(bch11_ptr->product_codes[2].quantity, db_bch11.product3_quantity.arr, db_bch11.product3_quantity.len);
+   memcpy(bch11_ptr->product_codes[2].amount, db_bch11.product3_amount.arr, db_bch11.product3_amount.len);
+   memcpy(bch11_ptr->product_codes[3].code, db_bch11.product4_code.arr, db_bch11.product4_code.len);
+   memcpy(bch11_ptr->product_codes[3].quantity, db_bch11.product4_quantity.arr, db_bch11.product4_quantity.len);
+   memcpy(bch11_ptr->product_codes[3].amount, db_bch11.product4_amount.arr, db_bch11.product4_amount.len);
+   memcpy(bch11_ptr->product_codes[4].code, db_bch11.product5_code.arr, db_bch11.product5_code.len);
+   memcpy(bch11_ptr->product_codes[4].quantity, db_bch11.product5_quantity.arr, db_bch11.product5_quantity.len);
+   memcpy(bch11_ptr->product_codes[4].amount, db_bch11.product5_amount.arr, db_bch11.product5_amount.len);
+   memcpy(bch11_ptr->product_codes[5].code, db_bch11.product6_code.arr, db_bch11.product6_code.len);
+   memcpy(bch11_ptr->product_codes[5].quantity, db_bch11.product6_quantity.arr, db_bch11.product6_quantity.len);
+   memcpy(bch11_ptr->product_codes[5].amount, db_bch11.product6_amount.arr, db_bch11.product6_amount.len);
+   memcpy(bch11_ptr->product_codes[6].code, db_bch11.product7_code.arr, db_bch11.product7_code.len);
+   memcpy(bch11_ptr->product_codes[6].quantity, db_bch11.product7_quantity.arr, db_bch11.product7_quantity.len);
+   memcpy(bch11_ptr->product_codes[6].amount, db_bch11.product7_amount.arr, db_bch11.product7_amount.len);
+   memcpy(bch11_ptr->product_codes[7].code, db_bch11.product8_code.arr, db_bch11.product8_code.len);
+   memcpy(bch11_ptr->product_codes[7].quantity, db_bch11.product8_quantity.arr, db_bch11.product8_quantity.len);
+   memcpy(bch11_ptr->product_codes[7].amount, db_bch11.product8_amount.arr, db_bch11.product8_amount.len);
+   memcpy(bch11_ptr->product_codes[8].code, db_bch11.product9_code.arr, db_bch11.product9_code.len);
+   memcpy(bch11_ptr->product_codes[8].quantity, db_bch11.product9_quantity.arr, db_bch11.product9_quantity.len);
+   memcpy(bch11_ptr->product_codes[8].amount, db_bch11.product9_amount.arr, db_bch11.product9_amount.len);
+   memcpy(bch11_ptr->product_codes[9].code, db_bch11.product10_code.arr, db_bch11.product10_code.len);
+   memcpy(bch11_ptr->product_codes[9].quantity, db_bch11.product10_quantity.arr, db_bch11.product10_quantity.len);
+   memcpy(bch11_ptr->product_codes[9].amount, db_bch11.product10_amount.arr, db_bch11.product10_amount.len);
+   memcpy(bch11_ptr->product_codes[10].code, db_bch11.product11_code.arr, db_bch11.product11_code.len);
+   memcpy(bch11_ptr->product_codes[10].quantity, db_bch11.product11_quantity.arr, db_bch11.product11_quantity.len);
+   memcpy(bch11_ptr->product_codes[10].amount, db_bch11.product11_amount.arr, db_bch11.product11_amount.len);
+   memcpy(bch11_ptr->product_codes[11].code, db_bch11.product12_code.arr, db_bch11.product12_code.len);
+   memcpy(bch11_ptr->product_codes[11].quantity, db_bch11.product12_quantity.arr, db_bch11.product12_quantity.len);
+   memcpy(bch11_ptr->product_codes[11].amount, db_bch11.product12_amount.arr, db_bch11.product12_amount.len);
+   memcpy(bch11_ptr->product_codes[12].code, db_bch11.product13_code.arr, db_bch11.product13_code.len);
+   memcpy(bch11_ptr->product_codes[12].quantity, db_bch11.product13_quantity.arr, db_bch11.product13_quantity.len);
+   memcpy(bch11_ptr->product_codes[12].amount, db_bch11.product13_amount.arr, db_bch11.product13_amount.len);
+   memcpy(bch11_ptr->product_codes[13].code, db_bch11.product14_code.arr, db_bch11.product14_code.len);
+   memcpy(bch11_ptr->product_codes[13].quantity, db_bch11.product14_quantity.arr, db_bch11.product14_quantity.len);
+   memcpy(bch11_ptr->product_codes[13].amount, db_bch11.product14_amount.arr, db_bch11.product14_amount.len);
+   memcpy(bch11_ptr->product_codes[14].code, db_bch11.product15_code.arr, db_bch11.product15_code.len);
+   memcpy(bch11_ptr->product_codes[14].quantity, db_bch11.product15_quantity.arr, db_bch11.product15_quantity.len);
+   memcpy(bch11_ptr->product_codes[14].amount, db_bch11.product15_amount.arr, db_bch11.product15_amount.len);
+   memcpy(bch11_ptr->product_codes[15].code, db_bch11.product16_code.arr, db_bch11.product16_code.len);
+   memcpy(bch11_ptr->product_codes[15].quantity, db_bch11.product16_quantity.arr, db_bch11.product16_quantity.len);
+   memcpy(bch11_ptr->product_codes[15].amount, db_bch11.product16_amount.arr, db_bch11.product16_amount.len);
+   memcpy(bch11_ptr->product_codes[16].code, db_bch11.product17_code.arr, db_bch11.product17_code.len);
+   memcpy(bch11_ptr->product_codes[16].quantity, db_bch11.product17_quantity.arr, db_bch11.product17_quantity.len);
+   memcpy(bch11_ptr->product_codes[16].amount, db_bch11.product17_amount.arr, db_bch11.product17_amount.len);
+   memcpy(bch11_ptr->product_codes[17].code, db_bch11.product18_code.arr, db_bch11.product18_code.len);
+   memcpy(bch11_ptr->product_codes[17].quantity, db_bch11.product18_quantity.arr, db_bch11.product18_quantity.len);
+   memcpy(bch11_ptr->product_codes[17].amount, db_bch11.product18_amount.arr, db_bch11.product18_amount.len);
+   memcpy(bch11_ptr->product_codes[18].code, db_bch11.product19_code.arr, db_bch11.product19_code.len);
+   memcpy(bch11_ptr->product_codes[18].quantity, db_bch11.product19_quantity.arr, db_bch11.product19_quantity.len);
+   memcpy(bch11_ptr->product_codes[18].amount, db_bch11.product19_amount.arr, db_bch11.product19_amount.len);
+   memcpy(bch11_ptr->product_codes[19].code, db_bch11.product20_code.arr, db_bch11.product20_code.len);
+   memcpy(bch11_ptr->product_codes[19].quantity, db_bch11.product20_quantity.arr, db_bch11.product20_quantity.len);
+   memcpy(bch11_ptr->product_codes[19].amount, db_bch11.product20_amount.arr, db_bch11.product20_amount.len);
+   memcpy(bch11_ptr->aportionment_flag, db_bch11.aportionment_flag.arr, db_bch11.aportionment_flag.len);
+   memcpy(bch11_ptr->exp_date, db_bch11.exp_date.arr, db_bch11.exp_date.len);
+   memcpy(bch11_ptr->open_date, db_bch11.open_date.arr, db_bch11.open_date.len);
+   memcpy(bch11_ptr->open_time, db_bch11.open_time.arr, db_bch11.open_time.len);
+   memcpy(bch11_ptr->cash_bonus, db_bch11.cash_bonus.arr, db_bch11.cash_bonus.len);
+   memcpy(bch11_ptr->transmission_timestamp,  db_bch11.transmission_timestamp.arr, db_bch11.transmission_timestamp.len);
+   memcpy(bch11_ptr->mcard_banknet, db_bch11.mcard_banknet.arr, db_bch11.mcard_banknet.len);
+   memcpy(bch11_ptr->ticket_nbr, db_bch11.ticket_nbr.arr, db_bch11.ticket_nbr.len);
+   memcpy(bch11_ptr->def_gross_amt, db_bch11.def_gross_amt.arr, db_bch11.def_gross_amt.len);
+   memcpy(bch11_ptr->term, db_bch11.term.arr, db_bch11.term.len);
+}
+
+
+void db_to_emv (pEMV_RAW emv_raw_ptr)
+{
+	memset(emv_raw_ptr, 0, sizeof(EMV_RAW));
+	memcpy(emv_raw_ptr->transaction_id, db_emv_raw.transaction_id.arr, db_emv_raw.transaction_id.len);	
+	memcpy(emv_raw_ptr->DATA_LENGTH, db_emv_raw.DATA_LENGTH.arr, db_emv_raw.DATA_LENGTH.len);
+	memcpy(emv_raw_ptr->RAW_DATA, db_emv_raw.RAW_DATA.arr, db_emv_raw.RAW_DATA.len); 
+	memcpy(emv_raw_ptr->system_date, db_emv_raw.system_date.arr, db_emv_raw.system_date.len);	
+}
+
+/* ThoughtFocus - Chandra */
+
+/*************************************************************************************/
+/***************************** ********************************************************/
+BYTE db_get_bch01_service_list( pBCH01 bch01_ptr,
+                                pBCH01_LIST Bch01_List,
+                                pCHAR ErrorMsg )
+{
+   double            start_time;
+   double            end_time;
+   double            duration;
+
+   EXEC SQL BEGIN DECLARE SECTION;
+
+   char batch_nbr[7];
+   char device_id[9]; 
+   char open_date[9];
+   char open_time[7];
+   char release_date[9];
+   char release_time[7];
+ 
+   EXEC SQL END DECLARE SECTION;       
+
+   strcpy( batch_nbr, bch01_ptr->primary_key.batch_nbr);
+   strcpy( device_id, bch01_ptr->primary_key.device_id);
+   strcpy( open_date, bch01_ptr->open_date);
+   strcpy( open_time, bch01_ptr->open_time);
+   strcpy( release_date, bch01_ptr->release_date);
+   strcpy( release_time, bch01_ptr->release_time);  
+
+   EXEC SQL DECLARE bch01_cursor2 CURSOR FOR
+   SELECT *
+   FROM bch01
+   WHERE (( batch_status <> 'A') AND 
+   		(( release_date  = :open_date AND release_time >= :open_time ) AND 
+		( release_date  = :release_date AND release_time < :release_time ))
+		AND merhant_id in ('000000000278994','000000000371773','000000000372417','000000000395517','000000000397844','000000000464032','000000000464057','000000000598938','000000000683672','000000000885137','000000000887695','000000000917799','000000000952291','000000000989988','000000010044162','000000010048684','000000010053775','000000900023938','000009180047698','000009180133670','000009180133696','000009180133704','000009180472367','000009180553703','000009180697120','000009180758658','000009180760126','000009181082280','000009186702692','000009186705026','000009186705554','000009186706537','000009186914602','000009186914727','000009186939765','000009189904949','000009189919061','000009189946288','000009189970338','000009183622216',
+'000009183627975','000009184464766','000009186914677','000000000062042','000000000158063','000000000371773','000000000372417','000000000397844','000000000461814','000000000464032','000000000464057','000000000466417','000000000466433','000000000466458','000000000466466','000000000598938','000000000680066','000000000683672','000000000843334','000000000887695','000000000952291','000000000989988','000000010043362','000000010044162','000000010047488','000000010053775','000000180000044','000000900023938','000009180024358','000009180047698','000009180071607','000009180133670','000009180133696','000009180133704','000009180139602','000009180697096','000009180697120','000009180760126','000009180931958','000009181067620',
+'000009181114398','000009186700175','000009186702692','000009186702734','000009186702742','000009186705372','000009186914602','000009186914727','000009186939765','000009189904949','000009189919061','000009189943004','000009189946288','000009189947146','000009189993090','000009183622216','000009183627975','000009184464766','000009186914677','000000000372417','000000000683672','000000000952291','000000010044162','000000900023938','000009183622216','000009183627975','000009184464766','000009186914677','000000000372417','000000000683672','000000000952291','000000010044162','000000900023938','000009183622216','000009183627975','000009184464766','000009186914677','000000000196634','000000000294132','000000000336107',
+'000000000371773','000000000372417','000000000395517','000000000397844','000000000461814','000000000464032','000000000464057','000000000469718','000000000598938','000000000683672','000000000862185','000000000917799','000000000919779','000000000931659','000000000952291','000000000954834','000000000989988','000000010005221','000000010033314','000000010044162','000000010048684','000000010053775','000000010053981','000000221253859','000000900023938','000009180047698','000009180133670','000009180133696','000009180133704','000009180174649','000009180468571','000009180553703','000009180574584','000009180734782','000009180760126','000009180931958','000009186700605','000009186701363','000009186702692','000009186706248', 
+'000009186914602','000009186914719','000009186914727','000009186961587','000009187044839','000009189904949','000009189919061','000009189922222','000009189945942','000009189946288','000009189951338','000009189969520','000009189970338','000009183622216','000009183627975','000009184464766','000009186914677','000000000196634','000000000244459','000000000372417','000000000395517','000000000397844','000000000461814','000000000464032','000000000464057','000000000469643','000000000598938','000000000683672','000000000870899','000000000885137','000000000917799','000000000919779','000000000952291','000000000966424','000000000973834','000000010044162','000000010053775','000000010062479','000000900023938','000009180047698',
+'000009180133670','000009180133696','000009180133704','000009180324683','000009180386781','000009180697120','000009180758658','000009180760126','000009186702692','000009186705117','000009186706537','000009186914461','000009186914602','000009186954319','000009189904949','000009189919061','000009189946288','000009189951338','000009189970338','000009183622216','000009183627975','000009184464766','000009186914677')
+			)
+		 ORDER BY  device_id, batch_nbr;
+
+
+   EXEC SQL WHENEVER SQLERROR goto sql_error;
+
+   EXEC SQL OPEN  bch01_cursor2;
+
+
+   EXEC SQL WHENEVER SQLERROR goto sql_error2;
+   EXEC SQL WHENEVER NOTFOUND DO break;
+
+
+   while(1)
+   {
+      memset(&db_bch01, 0x00, sizeof(db_bch01));
+
+      if ( DB_Timing_Flag == true )
+         start_time = ptetime_get_time();
+
+      EXEC SQL FETCH bch01_cursor2
+      INTO :db_bch01;
+
+      sql_error2:
+      if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+      {
+         SQL_CODE = SQLCODE;
+         EXEC SQL CLOSE bch01_cursor2;
+
+         if ( DB_Timing_Flag == true )
+         {
+            end_time = ptetime_get_time();
+            duration = end_time - start_time;
+            update_timing_stats( ST1_DB_SELECT, ST2_NONE, BCH01_DATA,
+                                 (float)duration, &TimingStats );
+         }
+
+         return( dbcommon_oracle_to_pte_rcode( SQL_CODE, ErrorMsg ) );
+      }
+
+      if ( DB_Timing_Flag == true )
+      {
+         end_time = ptetime_get_time();
+         duration = end_time - start_time;
+         update_timing_stats( ST1_DB_SELECT, ST2_NONE, BCH01_DATA,
+                              (float)duration, &TimingStats );
+      }
+
+      db_to_bch01(&auth_tx_total);
+      if (!bch01_handler())
+		return PTEMSG_DATABASE_ERROR;
+   }
+  
+   EXEC SQL CLOSE bch01_cursor2;     
+   
+
+   sql_error:
+   if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+   {
+      if ( DB_Timing_Flag == true )
+      {
+         end_time = ptetime_get_time();
+         duration = end_time - start_time;
+         update_timing_stats( ST1_DB_SELECT, ST2_NONE, BCH01_DATA,
+                              (float)duration, &TimingStats );
+      }
+      return( dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) );
+   }
+   return PTEMSG_OK;
+   
+}
+
+/*************************************************************************************/
+/**************************************************************************************/
+
+
+
+BYTE db_get_bch01_service_list1( pBCH01 bch01_ptr,
+                                pBCH01_LIST Bch01_List,
+                                pCHAR ErrorMsg )
+{
+   double            start_time;
+   double            end_time;
+   double            duration;
+
+   EXEC SQL BEGIN DECLARE SECTION;
+
+   char batch_nbr[7];
+   char device_id[9];
+   char open_date[9];
+   char open_time[7];
+   char release_date[9];
+   char release_time[7];
+ 
+   EXEC SQL END DECLARE SECTION;       
+
+   strcpy( batch_nbr, bch01_ptr->primary_key.batch_nbr);
+   strcpy( device_id, bch01_ptr->primary_key.device_id);
+   strcpy( open_date, bch01_ptr->open_date);
+   strcpy( open_time, bch01_ptr->open_time);
+   strcpy( release_date, bch01_ptr->release_date);
+   strcpy( release_time, bch01_ptr->release_time); 
+   
+   EXEC SQL DECLARE bch01_cursor3 CURSOR FOR
+   SELECT *
+   FROM bch01
+   WHERE (( batch_status <> 'A') AND 
+    		(( release_date  = :open_date AND release_time >= :open_time ) OR 
+			( release_date  = :release_date AND release_time < :release_time ))
+		AND merhant_id in ('000000000278994','000000000371773','000000000372417','000000000395517','000000000397844','000000000464032','000000000464057','000000000598938','000000000683672','000000000885137','000000000887695','000000000917799','000000000952291','000000000989988','000000010044162','000000010048684','000000010053775','000000900023938','000009180047698','000009180133670','000009180133696','000009180133704','000009180472367','000009180553703','000009180697120','000009180758658','000009180760126','000009181082280','000009186702692','000009186705026','000009186705554','000009186706537','000009186914602','000009186914727','000009186939765','000009189904949','000009189919061','000009189946288','000009189970338','000009183622216',
+'000009183627975','000009184464766','000009186914677','000000000062042','000000000158063','000000000371773','000000000372417','000000000397844','000000000461814','000000000464032','000000000464057','000000000466417','000000000466433','000000000466458','000000000466466','000000000598938','000000000680066','000000000683672','000000000843334','000000000887695','000000000952291','000000000989988','000000010043362','000000010044162','000000010047488','000000010053775','000000180000044','000000900023938','000009180024358','000009180047698','000009180071607','000009180133670','000009180133696','000009180133704','000009180139602','000009180697096','000009180697120','000009180760126','000009180931958','000009181067620',
+'000009181114398','000009186700175','000009186702692','000009186702734','000009186702742','000009186705372','000009186914602','000009186914727','000009186939765','000009189904949','000009189919061','000009189943004','000009189946288','000009189947146','000009189993090','000009183622216','000009183627975','000009184464766','000009186914677','000000000372417','000000000683672','000000000952291','000000010044162','000000900023938','000009183622216','000009183627975','000009184464766','000009186914677','000000000372417','000000000683672','000000000952291','000000010044162','000000900023938','000009183622216','000009183627975','000009184464766','000009186914677','000000000196634','000000000294132','000000000336107',
+'000000000371773','000000000372417','000000000395517','000000000397844','000000000461814','000000000464032','000000000464057','000000000469718','000000000598938','000000000683672','000000000862185','000000000917799','000000000919779','000000000931659','000000000952291','000000000954834','000000000989988','000000010005221','000000010033314','000000010044162','000000010048684','000000010053775','000000010053981','000000221253859','000000900023938','000009180047698','000009180133670','000009180133696','000009180133704','000009180174649','000009180468571','000009180553703','000009180574584','000009180734782','000009180760126','000009180931958','000009186700605','000009186701363','000009186702692','000009186706248', 
+'000009186914602','000009186914719','000009186914727','000009186961587','000009187044839','000009189904949','000009189919061','000009189922222','000009189945942','000009189946288','000009189951338','000009189969520','000009189970338','000009183622216','000009183627975','000009184464766','000009186914677','000000000196634','000000000244459','000000000372417','000000000395517','000000000397844','000000000461814','000000000464032','000000000464057','000000000469643','000000000598938','000000000683672','000000000870899','000000000885137','000000000917799','000000000919779','000000000952291','000000000966424','000000000973834','000000010044162','000000010053775','000000010062479','000000900023938','000009180047698',
+'000009180133670','000009180133696','000009180133704','000009180324683','000009180386781','000009180697120','000009180758658','000009180760126','000009186702692','000009186705117','000009186706537','000009186914461','000009186914602','000009186954319','000009189904949','000009189919061','000009189946288','000009189951338','000009189970338','000009183622216','000009183627975','000009184464766','000009186914677')
+			)
+	    	  ORDER BY  device_id, batch_nbr; 
+     
+
+   EXEC SQL WHENEVER SQLERROR goto sql_error;
+
+   EXEC SQL OPEN  bch01_cursor3;
+
+
+   EXEC SQL WHENEVER SQLERROR goto sql_error2;
+   EXEC SQL WHENEVER NOTFOUND DO break;
+
+
+   while(1)
+   {
+      memset(&db_bch01, 0x00, sizeof(db_bch01));
+
+      if ( DB_Timing_Flag == true )
+         start_time = ptetime_get_time();
+
+      EXEC SQL FETCH bch01_cursor3
+      INTO :db_bch01;
+
+      sql_error2:
+      if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+      {
+         SQL_CODE = SQLCODE;
+         EXEC SQL CLOSE bch01_cursor3;
+
+         if ( DB_Timing_Flag == true )
+         {
+            end_time = ptetime_get_time();
+            duration = end_time - start_time;
+            update_timing_stats( ST1_DB_SELECT, ST2_NONE, BCH01_DATA,
+                                 (float)duration, &TimingStats );
+         }
+
+         return( dbcommon_oracle_to_pte_rcode( SQL_CODE, ErrorMsg ) );
+      }
+
+      if ( DB_Timing_Flag == true )
+      {
+         end_time = ptetime_get_time();
+         duration = end_time - start_time;
+         update_timing_stats( ST1_DB_SELECT, ST2_NONE, BCH01_DATA,
+                              (float)duration, &TimingStats );
+      }
+
+      db_to_bch01(&auth_tx_total);
+      if (!bch01_handler())
+		return PTEMSG_DATABASE_ERROR;
+   }
+  
+   EXEC SQL CLOSE bch01_cursor3;     
+   
+
+   sql_error:
+   if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+   {
+      if ( DB_Timing_Flag == true )
+      {
+         end_time = ptetime_get_time();
+         duration = end_time - start_time;
+         update_timing_stats( ST1_DB_SELECT, ST2_NONE, BCH01_DATA,
+                              (float)duration, &TimingStats );
+      }
+      return( dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) );
+   }
+   return PTEMSG_OK;
+}
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_select_curr_code( pCHAR   curr_code, pCHAR  device_type, 
+                          pDCF01  dcf01_ptr, pCHAR  ErrorMsg )
+{
+   EXEC SQL BEGIN DECLARE SECTION;
+      char currency_code[4];
+      char terminal_type[3];
+	  char industry_code[4];
+	  char category_code[5];
+   EXEC SQL END DECLARE SECTION;
+
+   EXEC SQL WHENEVER SQLERROR CONTINUE;
+   EXEC SQL WHENEVER NOTFOUND CONTINUE;
+
+   memset( currency_code, 0x00, sizeof(currency_code) );
+   memset( terminal_type, 0x00, sizeof(terminal_type) );
+   memset( industry_code, 0x00, sizeof(industry_code) );
+
+   memset( &pte_dcf01, 0x00, sizeof(pte_dcf01) );
+   memcpy( pte_dcf01.device_id,
+           dcf01_ptr->primary_key.device_id,
+           sizeof(pte_dcf01.device_id) );
+
+   /* Get Merchant ID, Org ID and Device Type from device record.
+    * Use the Merchant ID and Org ID to get currency code from
+    * merchant record.
+    */
+
+   EXEC SQL SELECT mcf01.currency_code, dcf01.device_type ,dcf01.industry_code,dcf01.category_code
+   INTO :currency_code, :terminal_type ,:industry_code,:category_code
+   FROM dcf01, mcf01
+   WHERE dcf01.device_id       = :pte_dcf01.device_id
+     AND dcf01.merchant_id     = mcf01.merchant_id
+     AND dcf01.organization_id = mcf01.organization_id;
+
+   if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+      return( dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) );
+
+   memcpy( curr_code,   currency_code, 4 );
+   memcpy( device_type, terminal_type, 2 );
+   memcpy( terminal.industry_code, industry_code, 4 );
+   memcpy( terminal.category_code, category_code, 5 );
+
+   return PTEMSG_OK;
+}
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_get_bch10_service_list( pBCH10 bch10_ptr,
+                                pBCH10_LIST Bch10_List,
+                                pCHAR ErrorMsg )
+{
+   double            start_time;
+   double            end_time;
+   double            duration;
+
+   EXEC SQL BEGIN DECLARE SECTION;
+   char device_id[9];
+   char batch_nbr[7];
+   char retrieval_ref_num[13];
+   char open_date[9];
+   char open_time[7];
+   int temp;
+   int number1;
+   int number2;
+   int number3;
+   int number4;
+   int number5;
+   int number6;
+   int number7;
+   int number8;
+   int number9;
+   int number10;
+   int number11;
+   int number12;
+   long tran_amount = 0; 
+   EXEC SQL END DECLARE SECTION;
+
+   number1  = AUTH_VOID_SALE_RESPONSE;
+   number2  = AUTH_VOID_CASH_ADVANCE_RESPONSE;
+   number3  = AUTH_OFFLINE_VOID_SALE_RESPONSE;
+   number4  = AUTH_VOID_SALE;
+   number5  = AUTH_VOID_CASH_ADVANCE;
+   number6  = AUTH_OFFLINE_VOID_SALE;
+   number7  = AUTH_VOID_REFUND;
+   number8  = AUTH_OFFLINE_VOID_REFUND;
+   number9  = AUTH_VOID_REFUND_RESPONSE;
+   number10 = AUTH_OFFLINE_VOID_REFUND_RESPONSE;
+   number11 = AUTH_VOID_RELOAD;
+   number12 = AUTH_VOID_RELOAD_RESPONSE;
+
+
+   memset( Bch10_List, 0, sizeof(BCH10_LIST) );
+   strcpy(Bch10_List->num_returned,"0");
+   strncpy( device_id, bch10_ptr->primary_key.device_id, sizeof(device_id) );
+   strncpy( batch_nbr, bch10_ptr->primary_key.batch_nbr, sizeof(batch_nbr) );
+   strncpy( retrieval_ref_num, bch10_ptr->primary_key.retrieval_ref_num, sizeof(retrieval_ref_num) );
+   strncpy( open_date, bch10_ptr->open_date, sizeof(open_date) );
+   strncpy( open_time, bch10_ptr->open_time, sizeof(open_time) );
+   tran_amount = atol(bch10_ptr->tran_amount);
+
+   if ( DB_Timing_Flag == true )
+      start_time = ptetime_get_time();
+
+   EXEC SQL DECLARE bch10_cursor2 CURSOR FOR
+      SELECT * from bch10
+      WHERE retrieval_ref_num > :retrieval_ref_num AND batch_nbr = :batch_nbr AND device_id = :device_id 
+         AND open_date = :open_date AND open_time = :open_time
+		 AND tx_key <> chr(:number1) AND tx_key <> chr(:number2) AND tx_key <> chr(:number3)
+         AND tx_key <> chr(:number4) AND tx_key <> chr(:number5) AND tx_key <> chr(:number6)
+         AND tx_key <> chr(:number7) AND tx_key <> chr(:number8) AND tx_key <> chr(:number9)
+		 AND tx_key <> chr(:number10) AND tx_key <> chr(:number11) AND tx_key <> chr(:number12)
+		 AND tran_amount <> 0
+      ORDER BY retrieval_ref_num;
+
+   EXEC SQL WHENEVER SQLERROR goto sql_error;
+   EXEC SQL OPEN bch10_cursor2;
+
+   EXEC SQL WHENEVER SQLERROR goto sql_error2;
+   EXEC SQL WHENEVER NOTFOUND DO break;
+
+   for ( temp = 0; temp < BATCH_SERVICE_LIST_SIZE; temp++ )
+   {
+      memset(&db_bch10, 0x00, sizeof(db_bch10));
+
+      if ( DB_Timing_Flag == true )
+         start_time = ptetime_get_time();
+
+      EXEC SQL FETCH bch10_cursor2
+      INTO :db_bch10;
+
+      sql_error2:
+      if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+      {
+         SQL_CODE = SQLCODE;
+         EXEC SQL CLOSE bch10_cursor2;
+
+         if ( DB_Timing_Flag == true )
+         {
+            end_time = ptetime_get_time();
+            duration = end_time - start_time;
+            update_timing_stats( ST1_DB_SELECT, ST2_NONE, BCH10_DATA,
+                                 (float)duration, &TimingStats );
+         }
+         return( dbcommon_oracle_to_pte_rcode( SQL_CODE, ErrorMsg ) );
+      }
+
+      if ( DB_Timing_Flag == true )
+      {
+         end_time = ptetime_get_time();
+         duration = end_time - start_time;
+         update_timing_stats( ST1_DB_SELECT, ST2_NONE, BCH10_DATA,
+                              (float)duration, &TimingStats );
+      }
+	  
+	  db_to_bch10(&Bch10_List->batch_list[temp]);
+      itoa(temp + 1, Bch10_List->num_returned, 10);
+   }
+
+   EXEC SQL CLOSE bch10_cursor2;
+
+   return PTEMSG_OK;
+
+   sql_error:
+   EXEC SQL WHENEVER SQLERROR CONTINUE;
+   EXEC SQL WHENEVER NOTFOUND CONTINUE;
+
+   if ( DB_Timing_Flag == true )
+   {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      update_timing_stats( ST1_DB_SELECT, ST2_NONE, BCH10_DATA,
+                           (float)duration, &TimingStats );
+   }
+
+   return( dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) );
+}
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_get_bch11_service_list( pBCH11 bch11_ptr,
+                                pBCH11_LIST Bch11_List,
+                                pCHAR ErrorMsg )
+{
+   double            start_time;
+   double            end_time;
+   double            duration;
+
+   EXEC SQL BEGIN DECLARE SECTION;
+   char device_id[9];
+   char batch_nbr[7];
+   char retrieval_ref_num[13];
+   char open_date[9];
+   char open_time[7];
+   int temp;
+   int number1;
+   int number2;   
+   int number3;
+   int number4;
+   int number5;   
+   int number6;
+   int number7;
+   int number8;
+   int number9;
+   int number10;
+   int number11;
+   int number12;
+   long tran_amount = 0;
+   EXEC SQL END DECLARE SECTION;
+
+   number1 = AUTH_VOID_SALE_RESPONSE;
+   number2 = AUTH_VOID_CASH_ADVANCE_RESPONSE;   
+   number3 = AUTH_OFFLINE_VOID_SALE_RESPONSE;
+   number4 = AUTH_VOID_SALE;
+   number5 = AUTH_VOID_CASH_ADVANCE;   
+   number6 = AUTH_OFFLINE_VOID_SALE;
+   number7  = AUTH_VOID_REFUND;
+   number8  = AUTH_OFFLINE_VOID_REFUND;
+   number9  = AUTH_VOID_REFUND_RESPONSE;
+   number10 = AUTH_OFFLINE_VOID_REFUND_RESPONSE;
+   number11 = AUTH_VOID_RELOAD;
+   number12 = AUTH_VOID_RELOAD_RESPONSE;
+
+
+   memset( Bch11_List, 0, sizeof(BCH11_LIST) );
+   strcpy(Bch11_List->num_returned,"0");
+   strncpy( device_id, bch11_ptr->primary_key.device_id, sizeof(device_id) );
+   strncpy( batch_nbr, bch11_ptr->primary_key.batch_nbr, sizeof(batch_nbr) );
+   strncpy( retrieval_ref_num, bch11_ptr->primary_key.retrieval_ref_num, sizeof(retrieval_ref_num) );
+   strncpy( open_date, bch11_ptr->open_date, sizeof(open_date) );
+   strncpy( open_time, bch11_ptr->open_time, sizeof(open_time) );
+   tran_amount = atol(bch11_ptr->tran_amount);
+   
+   if ( DB_Timing_Flag == true )
+      start_time = ptetime_get_time();
+
+   EXEC SQL DECLARE bch11_cursor2 CURSOR FOR
+      SELECT * from bch11
+      WHERE retrieval_ref_num > :retrieval_ref_num AND batch_nbr = :batch_nbr AND device_id = :device_id 
+         AND open_date = :open_date AND open_time = :open_time 
+		 AND tx_key <> chr(:number1) AND tx_key <> chr(:number2) AND tx_key <> chr(:number3)
+         AND tx_key <> chr(:number4) AND tx_key <> chr(:number5) AND tx_key <> chr(:number6)
+         AND tx_key <> chr(:number7) AND tx_key <> chr(:number8) AND tx_key <> chr(:number9)
+		 AND tx_key <> chr(:number10) AND tx_key <> chr(:number11) AND tx_key <> chr(:number12) 
+		 AND tran_amount <> 0
+      ORDER BY retrieval_ref_num;
+
+   EXEC SQL WHENEVER SQLERROR goto sql_error;
+   EXEC SQL OPEN bch11_cursor2;
+
+   EXEC SQL WHENEVER SQLERROR goto sql_error2;
+   EXEC SQL WHENEVER NOTFOUND DO break;
+
+   for ( temp = 0; temp < BATCH_SERVICE_LIST_SIZE; temp++ )
+   {
+      memset(&db_bch11, 0x00, sizeof(db_bch11));
+
+      if ( DB_Timing_Flag == true )
+         start_time = ptetime_get_time();
+
+      EXEC SQL FETCH bch11_cursor2
+      INTO :db_bch11;
+
+      sql_error2:
+      if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+      {
+         SQL_CODE = SQLCODE;
+         EXEC SQL CLOSE bch11_cursor2;
+
+         if ( DB_Timing_Flag == true )
+         {
+            end_time = ptetime_get_time();
+            duration = end_time - start_time;
+            update_timing_stats( ST1_DB_SELECT, ST2_NONE, BCH11_DATA,
+                                 (float)duration, &TimingStats );
+         }
+         return( dbcommon_oracle_to_pte_rcode( SQL_CODE, ErrorMsg ) );
+      }
+
+      if ( DB_Timing_Flag == true )
+      {
+         end_time = ptetime_get_time();
+         duration = end_time - start_time;
+         update_timing_stats( ST1_DB_SELECT, ST2_NONE, BCH11_DATA,
+                              (float)duration, &TimingStats );
+      }
+
+      db_to_bch11(&Bch11_List->batch_list[temp]);
+      itoa(temp + 1, Bch11_List->num_returned, 10);
+   }
+
+   EXEC SQL CLOSE bch11_cursor2;
+
+   return PTEMSG_OK;
+
+   sql_error:
+   EXEC SQL WHENEVER SQLERROR CONTINUE;
+   EXEC SQL WHENEVER NOTFOUND CONTINUE;
+
+   if ( DB_Timing_Flag == true )
+   {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      update_timing_stats( ST1_DB_SELECT, ST2_NONE, BCH11_DATA,
+                           (float)duration, &TimingStats );
+   }
+   return( dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) );
+}
+
+/*************************************************************************************/
+/*************************************************************************************/
+
+/*db_set_import_rollback_segment_online - SCR1212  LM 10/03/03*/
+BYTE db_set_rollback_segment_online(pCHAR ErrorMsg)
+{
+	EXEC SQL	COMMIT WORK;
+	EXEC SQL	ALTER ROLLBACK SEGMENT "RBS37" ONLINE;
+	if (SQLCODE < 0)
+		return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+	EXEC SQL	SET TRANSACTION USE ROLLBACK SEGMENT RBS37;
+	if (SQLCODE < 0)
+		return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+	return PTEMSG_OK;
+}
+
+/*************************************************************************************/
+
+/*db_set_import_rollback_segment_offline - SCR1212  LM 10/03/03*/
+BYTE db_set_rollback_segment_offline( pCHAR ErrorMsg)
+{
+	EXEC SQL	ALTER ROLLBACK SEGMENT "RBS37" OFFLINE;
+
+	if (SQLCODE < 0)
+		return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+	return PTEMSG_OK;
+}
+
+/*************************************************************************************/
+
+/*************************************************************************************/
+/*************************************************************************************/
+void get_reload_confirm( pBCH10 bch10_ptr )
+{
+   double            start_time;
+   double            end_time;
+   double            duration;
+
+   EXEC SQL BEGIN DECLARE SECTION;
+      char tran_id[21];
+      char amount[13];
+      char auth_number[7];
+      char rrn[13];
+      char ticket[16];
+   EXEC SQL END DECLARE SECTION;
+
+   memcpy( tran_id, bch10_ptr->mcard_banknet, sizeof(tran_id) );
+
+   if ( DB_Timing_Flag == true )
+      start_time = ptetime_get_time();
+   
+   EXEC SQL SELECT  total_amount, auth_number, retrieval_ref_num, ticket_nbr
+            INTO   :amount,      :auth_number, :rrn,             :ticket
+            FROM    TLF01
+            WHERE   transaction_id = :tran_id;
+
+   if ( DB_Timing_Flag == true )
+   {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      update_timing_stats( ST1_DB_SELECT, ST2_NONE, TLF01_DATA,
+                           (float)duration, &TimingStats );
+   }
+
+   if ( (SQLCODE == 0) || (SQLCODE == NULL_COLUMN_DATA) )
+   {
+      /* Copy data from TLF01 Reload Confirm into BCH10 Reload txn. */
+      memcpy( bch10_ptr->tran_amount, amount,      sizeof(amount)      );
+      memcpy( bch10_ptr->auth_number, auth_number, sizeof(auth_number) );
+      memcpy( bch10_ptr->ticket_nbr,  ticket,      sizeof(ticket)      );
+
+      memcpy( bch10_ptr->primary_key.retrieval_ref_num, rrn, sizeof(rrn) );
+   }
+
+   /* Ignore errors. */
+   return;
+}
+
+/******************************************************************************/
+/******************************************************************************/
+INT db_process_bch10_records( pCHAR ErrorMsg )
+{
+   INT     retval             = false;
+   INT     more_bch10_records = true;
+   double  start_time;
+   double  end_time;
+   double  duration;
+
+   EXEC SQL BEGIN DECLARE SECTION;
+      char eDate[9];
+   EXEC SQL END DECLARE SECTION;
+   
+
+   if ( DB_Timing_Flag == true )
+      start_time = ptetime_get_time();
+
+   EXEC SQL DECLARE bch10_ecursor1 CURSOR FOR
+      SELECT    *
+      FROM      bch10
+      WHERE     tran_date <= :eDate
+        AND     ascii(tx_key) != '13'  /* VOID SALE            */
+        AND     ascii(tx_key) != '113' /* VOID SALE RESPONSE   */
+        AND     ascii(tx_key) != '14'  /* VOID REFUND          */
+        AND     ascii(tx_key) != '114' /* VOID REFUND RESPONSE */
+      ORDER BY  device_id, batch_nbr, tran_date, tran_time;
+
+   EXEC SQL OPEN  bch10_ecursor1;
+
+   if ( DB_Timing_Flag == true )
+   {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      update_timing_stats( ST1_DB_SELECT, 1, BCH10_DATA,
+                           (float)duration, &TimingStats );
+   }
+
+   if ( SQLCODE != 0 )
+   {
+      (void)dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+      retval = true;
+   }
+   else
+   {
+      while( more_bch10_records )
+      {
+         memset( &db_bch10,  0x00, sizeof(db_bch10)   );
+
+         if ( DB_Timing_Flag == true )
+            start_time = ptetime_get_time();
+
+         EXEC SQL FETCH bch10_ecursor1
+         INTO :db_bch10;
+
+         if ( DB_Timing_Flag == true )
+         {
+            end_time = ptetime_get_time();
+            duration = end_time - start_time;
+            update_timing_stats( ST1_DB_SELECT, 1, BCH10_DATA,
+                                (float)duration, &TimingStats );
+         }
+
+         if ( SQLCODE == NO_DATA_FOUND )
+         {
+            more_bch10_records = false;
+         }
+         else if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+         {
+            (void)dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+            more_bch10_records = false;
+            write_to_dump_file( ErrorMsg );
+            LogEvent( ErrorMsg, WARN_MSG );
+         }
+         else
+         {
+            db_to_bch10( &auth_tx_detail );
+
+            if ( retval == true )
+            {
+               more_bch10_records = false;
+            }
+            else
+            {
+               /* We have a Detail Record from the batch. Get it into the file. */
+			                  
+               if ( retval == true )
+               {
+                  more_bch10_records = false;                  
+               }
+               else
+               {
+                  retval = db_insert_bch11_delete_bch10(&auth_tx_detail,ErrorMsg);                  
+                     write_to_dump_file( ErrorMsg );
+                     LogEvent( ErrorMsg, WARN_MSG );
+
+                     sprintf( ErrorMsg,
+                             "Exception processing - Cannot copy BCH10 to BCH11. TID: %s, Batch: %s",
+                              auth_tx_detail.primary_key.device_id,
+                              auth_tx_detail.primary_key.batch_nbr );
+                     write_to_dump_file( ErrorMsg );
+                     LogEvent( ErrorMsg, WARN_MSG );
+                  
+               }
+            }
+         }
+      }
+      EXEC SQL CLOSE bch10_ecursor1;
+   }
+   return( retval );
+}
+/* TF Phani*/
+/******************************************************************************/
+/* TF PHani - Added function to update BCH01- status */
+
+/*****************************************************************************/
+BYTE db_update_bch01_batch_Status_After_Writing_File(pBCH01 bch01_ptr, pCHAR ErrorMsg)
+{
+   double            start_time;
+   double            end_time;
+   double            duration;
+   
+   bch01_to_db( bch01_ptr );
+
+   if ( DB_Timing_Flag == true )
+      start_time = ptetime_get_time();
+
+   EXEC SQL UPDATE bch01 
+   SET  batch_status              = :pte_bch01.batch_status          
+   WHERE device_id = :pte_bch01.device_id AND batch_nbr = :pte_bch01.batch_nbr
+         AND open_date = :pte_bch01.open_date AND open_time = :pte_bch01.open_time;  
+
+   if ( DB_Timing_Flag == true )
+   {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      update_timing_stats( ST1_DB_UPDATE, ST2_NONE, BCH01_DATA,
+                           (float)duration, &TimingStats );
+   }
+
+   if ( SQLCODE != 0 )
+      return( dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) );
+
+ 
+   return PTEMSG_OK;
+}
+
+/**************************************************************************************/
+
+/******************************************************************************/
+/******************************************************************************/
+INT db_insert_bch11_delete_bch10( pBCH10 bch10_ptr, pCHAR ErrorMsg )
+{
+   INT     retval        = true;
+   CHAR    sql_type[100] = "";
+   CHAR    tempbuf [100] = "";
+   double  start_time;
+   double  end_time;
+   double  duration;
+
+   EXEC SQL BEGIN DECLARE SECTION;
+      char tid  [9];
+      char batch[7];
+      char rrn [13];
+   EXEC SQL END DECLARE SECTION;
+
+   memset( tid,   0x00, sizeof(tid)   );
+   memset( batch, 0x00, sizeof(batch) );
+   memset( rrn,   0x00, sizeof(rrn)   );
+
+   memcpy( tid,   bch10_ptr->primary_key.device_id,          8 );
+   memcpy( batch, bch10_ptr->primary_key.batch_nbr,          6 );
+   memcpy( rrn,   bch10_ptr->primary_key.retrieval_ref_num, 12 );
+
+   strcpy( sql_type, "Move BCH10 to BCH11" );
+
+   if ( DB_Timing_Flag == true )
+      start_time = ptetime_get_time();
+
+   EXEC SQL INSERT INTO BCH11
+            SELECT * 
+            FROM   BCH10
+            WHERE  device_id         = :tid
+              AND  batch_nbr         = :batch
+              AND  retrieval_ref_num = :rrn;
+
+   if ( DB_Timing_Flag == true )
+   {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      update_timing_stats( ST1_DB_INSERT, 1, BCH11_DATA,
+                           (float)duration, &TimingStats );
+   }
+
+   if ( SQLCODE == 0 )
+   {
+      strcpy( sql_type, "Delete BCH10" );
+
+      if ( DB_Timing_Flag == true )
+         start_time = ptetime_get_time();
+
+      EXEC SQL DELETE
+               FROM   BCH10
+               WHERE  device_id         = :tid
+                 AND  batch_nbr         = :batch
+                 AND  retrieval_ref_num = :rrn;
+
+      if ( DB_Timing_Flag == true )
+      {
+         end_time = ptetime_get_time();
+         duration = end_time - start_time;
+         update_timing_stats( ST1_DB_DELETE, 1, BCH10_DATA,
+                              (float)duration, &TimingStats );
+      }
+
+      if ( (SQLCODE == 0) || (SQLCODE == NO_DATA_FOUND) )
+         retval = false;
+   }
+
+   if ( retval == true )
+   {
+      (void)dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+      sprintf( tempbuf, "Unable to %s", sql_type );
+      LogEvent( tempbuf, WARN_MSG );
+      write_to_dump_file( tempbuf );
+   }
+   return( retval );
+}
+
+
+/*************************************************************************************/
+/*****************************************************************************************/
+
+BYTE db_get_emv_service_list( pBCH10 bch10_ptr, pEMV_LIST Emv_List,pCHAR ErrorMsg )
+
+{
+   INT    update_flag = false,emv_rec_count;      
+   BYTE   retval = PTEMSG_OK;
+   CHAR   temp_len[5] = "";
+   CHAR   temp_tag[5] = "";
+   EMV_RAW emv_raw;
+
+   EXEC SQL BEGIN DECLARE SECTION;
+
+      char tran_id [21];
+      char tid     [21];  
+	  char rrn     [13];             
+      
+
+   EXEC SQL END DECLARE SECTION;
+
+   memset( tran_id, 0x00, sizeof(tran_id) );
+   memset( tid,     0x00, sizeof(tid)     );
+   memset( rrn,     0x00, sizeof(rrn)     );
+   memset( &emv_raw,  0x00, sizeof(EMV_RAW)   );   
+
+   memcpy( tid, bch10_ptr->transaction_id, 21 );
+   strcpy(Emv_List->num_returned,"0");
+   
+  
+
+   EXEC SQL DECLARE emv_cursor2 CURSOR FOR
+        SELECT  *        
+        FROM    EMV_RAW
+        WHERE   transaction_id = :tid;
+        
+   EXEC SQL WHENEVER SQLERROR goto sql_error;
+
+   EXEC SQL OPEN  emv_cursor2;
+
+
+   EXEC SQL WHENEVER SQLERROR goto sql_error2;
+   EXEC SQL WHENEVER NOTFOUND DO break;
+
+
+   for ( emv_rec_count = 0; emv_rec_count < BATCH_SERVICE_LIST_SIZE; emv_rec_count++ )
+   {
+      memset(&db_emv_raw, 0x00, sizeof(db_emv_raw));     
+
+      EXEC SQL FETCH emv_cursor2
+      INTO :db_emv_raw;
+
+      sql_error2:
+      if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+      {
+         SQL_CODE = SQLCODE;
+         EXEC SQL CLOSE emv_cursor2;         
+
+         return( dbcommon_oracle_to_pte_rcode( SQL_CODE, ErrorMsg ) );
+      }
+            
+
+	  db_to_emv(&Emv_List->batch_list[emv_rec_count]); 
+      itoa(emv_rec_count + 1, Emv_List->num_returned, 10);
+	   
+    }      
+      
+  
+   EXEC SQL CLOSE emv_cursor2;
+
+
+   sql_error:
+   if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+   {
+      return( dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) );
+   }
+   return PTEMSG_OK;
+} 
+
+/* ThoughtFocus - Chandra */
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_get_emv_arc_service_list( pBCH11 bch11_ptr, pEMV_LIST Emv_List,pCHAR ErrorMsg )
+
+{
+   INT    update_flag = false,emv_rec_count;      
+   BYTE   retval = PTEMSG_OK;
+   CHAR   temp_len[5] = "";
+   CHAR   temp_tag[5] = "";
+   EMV_RAW emv_raw;
+
+   EXEC SQL BEGIN DECLARE SECTION;
+
+      char tran_id [21];
+      char tid     [21];  
+	  char rrn     [13];             
+      
+
+   EXEC SQL END DECLARE SECTION;
+
+   memset( tran_id, 0x00, sizeof(tran_id) );
+   memset( tid,     0x00, sizeof(tid)     );
+   memset( rrn,     0x00, sizeof(rrn)     );
+   memset( &emv_raw,  0x00, sizeof(EMV_RAW)   );   
+
+   memcpy( tid, bch11_ptr->transaction_id, 21 );
+   strcpy(Emv_List->num_returned,"0");
+   
+  
+
+   EXEC SQL DECLARE emv_cursor3 CURSOR FOR
+        SELECT  *        
+        FROM    EMV_RAW
+        WHERE   transaction_id = :tid;
+        
+   EXEC SQL WHENEVER SQLERROR goto sql_error;
+
+   EXEC SQL OPEN  emv_cursor3;
+
+
+   EXEC SQL WHENEVER SQLERROR goto sql_error2;
+   EXEC SQL WHENEVER NOTFOUND DO break;
+
+
+   for ( emv_rec_count = 0; emv_rec_count < BATCH_SERVICE_LIST_SIZE; emv_rec_count++ )
+   {
+      memset(&db_emv_raw, 0x00, sizeof(db_emv_raw));     
+
+      EXEC SQL FETCH emv_cursor3
+      INTO :db_emv_raw;
+
+      sql_error2:
+      if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+      {
+         SQL_CODE = SQLCODE;
+         EXEC SQL CLOSE emv_cursor3;         
+
+         return( dbcommon_oracle_to_pte_rcode( SQL_CODE, ErrorMsg ) );
+      }
+      
+      db_to_emv(&Emv_List->batch_list[emv_rec_count]); 
+      itoa(emv_rec_count + 1, Emv_List->num_returned, 10);
+	   
+    }      
+      
+  
+   EXEC SQL CLOSE emv_cursor3;
+
+
+   sql_error:
+   if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+   {
+      return( dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) );
+   }
+   return PTEMSG_OK;
+} 
+
+/* ThoughtFocus - Chandra */
+

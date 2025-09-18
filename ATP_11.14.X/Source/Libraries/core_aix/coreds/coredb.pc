@@ -1,0 +1,972 @@
+/******************************************************************************
+  
+        Module: coredb.pc
+  
+         Title: Core Dataserver DB Routines
+  
+   Description: 
+
+   $Log:   N:\PVCS\PTE\CORE\COREDS\COREDB.PC  $
+   
+      Rev 1.9   Oct 14 1999 10:50:32   MSALEH
+   integrate SSL modifications
+   
+      Rev 1.8   Sep 30 1999 10:17:00   MSALEH
+   AIX Modifications
+   
+      Rev 1.7   Aug 25 1999 10:32:40   MSALEH
+   Removed extended comms mods
+   
+      Rev 1.6   Jul 01 1999 13:53:08   MSALEH
+   added support for extend comms in router
+   table
+   
+      Rev 1.5   Apr 27 1999 15:07:46   MSALEH
+   added support to have the dm_config table
+   either from database or from ini file.
+   
+      Rev 1.4   Nov 03 1998 15:34:10   MSALEH
+   Implement reconnect to database
+   mechanism
+   
+      Rev 1.3   Oct 14 1998 10:26:42   MSALEH
+   increase size of db_host_name to 41 bytes
+   to accomodate a secondary IP address
+   
+      Rev 1.2   Oct 08 1998 16:35:38   MSALEH
+   1) Change "PINNACLE" to "ASCENDENT"
+   2) Add new fields to dm_config
+       db_tcp_socket_type
+       db_tcp_headet_length
+       db_tpdu_processing
+   3) delete the field db_host_tcp_port from dm_config
+   4) Restructure ptecom.lib/coreds/pindlg/dialog
+   to be more configurable
+   5) Update GUI to reflect new fields
+   6) Rework the functionality of the connection
+   spy to by included within the main loop
+   7) Client connect tries only once then return
+   and tries again after a timeout value, this will
+   prevent the Client Connection from hanging during connect
+   8) Streamline functions/variables
+   9) All character comparisons are case insensitive 
+   
+   
+      Rev 1.1   Jul 20 1998 09:40:48   drodden
+   Changed the precompiler options for semantics checking.
+   
+   
+      Rev 1.0   Apr 23 1998 13:57:02   drodden
+   Initial code for the Core Dataserver.
+   
+
+******************************************************************************/
+
+/*Do not remove the following lines. These are the Custom build settings for the ProC pre-compiler */
+/*proc $(ProjDir)\$(InputName).pc dbms=native sqlcheck=semantics userid=core/pinnacle@pinnacle*/
+/*$(ProjDir)\$(InputName).c*/
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#ifdef WIN32
+#include <sqlproto.h>
+#endif
+
+#include "basictyp.h"
+#include "pte.h"
+#include "ptemsg.h"
+#include "ptetimer.h"
+/*#include "common.h"*/
+#include "coreinfo.h"
+#include "coredb.h"
+#include "dbcommon.h"
+#include "dm_config.h"
+
+/* Oracle error codes */
+#define NULL_COLUMN_DATA -1405
+#define NO_DATA_FOUND    1403
+
+
+EXEC SQL BEGIN DECLARE SECTION;
+
+   /* error code variable */
+   long    SQLCODE;
+
+
+   /* dialog config variables */
+   struct
+   {
+      varchar  db_subsystem_name    [21];
+      varchar  db_connection_type   [11];
+      varchar  db_com_port          [11];
+      varchar  db_baud_rate         [11];
+      varchar  db_byte_size         [11];
+      varchar  db_parity            [11];
+      varchar  db_stop_bits         [11];
+      varchar  db_tcp_port          [11];
+      varchar  db_host_name         [41];
+      varchar  db_tcp_header_length [11];
+      varchar  db_tcp_socket_type   [11];
+      varchar  db_tpdu_processing   [11];
+   } db_dm_config;
+
+   /* commgr for SSL config variables - 06/23/99 jjj */
+   struct
+   {
+      varchar db_subsystem_name     [21];
+      varchar db_connection_type    [11];
+      varchar db_com_port           [11];
+      varchar db_baud_rate          [11];
+      varchar db_byte_size          [11];
+      varchar db_parity             [11];
+      varchar db_stop_bits          [11];
+      varchar db_tcp_port           [11];
+      varchar db_host_name          [41];
+      varchar db_tcp_header_length  [11];
+      varchar db_tcp_socket_type    [11];
+      varchar db_tpdu_processing    [11];
+      varchar db_ssl_processing     [11];
+      varchar db_client_certificate [11];
+      varchar db_server_method      [11];
+      varchar db_cipher_suite       [11];
+   } db_cm_config;
+
+   /* router table variables */
+   struct
+   {
+      varchar  router_identifier    [17];
+      varchar  router_queue         [11];
+      varchar  router_app_desc      [21];
+      varchar  router_offset        [11];
+      varchar  router_length        [11];
+      varchar  router_datatype      [5];
+      varchar  router_lo_end        [11];
+      varchar  router_hi_end        [11];
+   } db_router;
+
+
+   /* tpdu table variables */
+   struct
+   {
+      varchar  tpdu_id              [16];
+      varchar  tran_len             [11];
+      varchar  dst_len              [11];
+      varchar  src_len              [11];
+      varchar  tpdu_string          [51];
+   } db_tpdu;
+
+EXEC SQL END DECLARE SECTION;
+
+EXEC SQL INCLUDE sqlca;
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+void dmconfig_to_db ( pDM_CONFIG dm_config_ptr )
+{
+   memset (&db_dm_config, 0, sizeof(db_dm_config));
+   C_TO_VARCHAR (db_dm_config.db_subsystem_name , dm_config_ptr->db_subsystem_name );
+   C_TO_VARCHAR (db_dm_config.db_connection_type, dm_config_ptr->db_connection_type);
+   C_TO_VARCHAR (db_dm_config.db_com_port       , dm_config_ptr->db_com_port       );
+   C_TO_VARCHAR (db_dm_config.db_baud_rate      , dm_config_ptr->db_baud_rate      );
+   C_TO_VARCHAR (db_dm_config.db_byte_size      , dm_config_ptr->db_byte_size      );
+   C_TO_VARCHAR (db_dm_config.db_parity         , dm_config_ptr->db_parity         );
+   C_TO_VARCHAR (db_dm_config.db_stop_bits      , dm_config_ptr->db_stop_bits      );
+   C_TO_VARCHAR (db_dm_config.db_tcp_port       , dm_config_ptr->db_tcp_port       );
+   C_TO_VARCHAR (db_dm_config.db_host_name      , dm_config_ptr->db_host_name      );
+   C_TO_VARCHAR (db_dm_config.db_tcp_header_length, dm_config_ptr->db_tcp_header_length);
+   C_TO_VARCHAR (db_dm_config.db_tcp_socket_type  , dm_config_ptr->db_tcp_socket_type  );
+   C_TO_VARCHAR (db_dm_config.db_tpdu_processing  , dm_config_ptr->db_tpdu_processing  );
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+void router_to_db ( pROUTER_TABLE router_ptr )
+{
+   memset (&db_router, 0, sizeof(db_router));
+   C_TO_VARCHAR (db_router.router_identifier, router_ptr->router_identifier);
+   C_TO_VARCHAR (db_router.router_queue     , router_ptr->router_queue     );
+   C_TO_VARCHAR (db_router.router_app_desc  , router_ptr->router_app_desc  );
+   C_TO_VARCHAR (db_router.router_offset    , router_ptr->router_offset    );
+   C_TO_VARCHAR (db_router.router_length    , router_ptr->router_length    );
+   C_TO_VARCHAR (db_router.router_datatype  , router_ptr->router_datatype  );
+   C_TO_VARCHAR (db_router.router_lo_end    , router_ptr->router_lo_end    );
+   C_TO_VARCHAR (db_router.router_hi_end    , router_ptr->router_hi_end    );
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+void tpdu_to_db ( pTPDU tpdu_ptr )
+{
+   memset (&db_tpdu, 0, sizeof(db_tpdu));
+   C_TO_VARCHAR (db_tpdu.tpdu_id    , tpdu_ptr->tpdu_id    );
+   C_TO_VARCHAR (db_tpdu.tran_len   , tpdu_ptr->tran_len   );
+   C_TO_VARCHAR (db_tpdu.dst_len    , tpdu_ptr->dst_len    );
+   C_TO_VARCHAR (db_tpdu.src_len    , tpdu_ptr->src_len    );
+   C_TO_VARCHAR (db_tpdu.tpdu_string, tpdu_ptr->tpdu_string);
+}
+
+#ifdef SSL_SUPPORT
+/*************************************************************************************/
+/*************************************************************************************/
+/* added for SSL 06/23/99 - jjj */
+void cmconfig_to_db ( pCM_CONFIG cm_config_ptr )
+{
+   memset (&db_cm_config, 0, sizeof(db_cm_config));
+   C_TO_VARCHAR (db_cm_config.db_subsystem_name     , cm_config_ptr->db_subsystem_name );
+   C_TO_VARCHAR (db_cm_config.db_connection_type    , cm_config_ptr->db_connection_type);
+   C_TO_VARCHAR (db_cm_config.db_com_port           , cm_config_ptr->db_com_port       );
+   C_TO_VARCHAR (db_cm_config.db_baud_rate          , cm_config_ptr->db_baud_rate      );
+   C_TO_VARCHAR (db_cm_config.db_byte_size          , cm_config_ptr->db_byte_size      );
+   C_TO_VARCHAR (db_cm_config.db_parity             , cm_config_ptr->db_parity         );
+   C_TO_VARCHAR (db_cm_config.db_stop_bits          , cm_config_ptr->db_stop_bits      );
+   C_TO_VARCHAR (db_cm_config.db_tcp_port           , cm_config_ptr->db_tcp_port       );
+   C_TO_VARCHAR (db_cm_config.db_host_name          , cm_config_ptr->db_host_name      );
+   C_TO_VARCHAR (db_cm_config.db_tcp_header_length  , cm_config_ptr->db_tcp_header_length);
+   C_TO_VARCHAR (db_cm_config.db_tcp_socket_type    , cm_config_ptr->db_tcp_socket_type  );
+   C_TO_VARCHAR (db_cm_config.db_tpdu_processing    , cm_config_ptr->db_tpdu_processing  );
+   C_TO_VARCHAR (db_cm_config.db_ssl_processing     , cm_config_ptr->db_ssl_processing  );
+   C_TO_VARCHAR (db_cm_config.db_client_certificate , cm_config_ptr->db_client_certificate  );
+   C_TO_VARCHAR (db_cm_config.db_server_method      , cm_config_ptr->db_server_method  );
+   C_TO_VARCHAR (db_cm_config.db_cipher_suite       , cm_config_ptr->db_cipher_suite  );
+   
+}
+
+/* added for SSL 06/25/99 jjj */
+/*************************************************************************************/
+/*************************************************************************************/
+void db_to_cmconfig ( pCM_CONFIG cm_config_ptr )
+{
+   memset (cm_config_ptr, 0, sizeof(CM_CONFIG));
+   VARCHAR_TO_C (cm_config_ptr->db_subsystem_name , db_cm_config.db_subsystem_name );
+   VARCHAR_TO_C (cm_config_ptr->db_connection_type, db_cm_config.db_connection_type);
+   VARCHAR_TO_C (cm_config_ptr->db_com_port       , db_cm_config.db_com_port       );
+   VARCHAR_TO_C (cm_config_ptr->db_baud_rate      , db_cm_config.db_baud_rate      );
+   VARCHAR_TO_C (cm_config_ptr->db_byte_size      , db_cm_config.db_byte_size      );
+   VARCHAR_TO_C (cm_config_ptr->db_parity         , db_cm_config.db_parity         );
+   VARCHAR_TO_C (cm_config_ptr->db_stop_bits      , db_cm_config.db_stop_bits      );
+   VARCHAR_TO_C (cm_config_ptr->db_tcp_port       , db_cm_config.db_tcp_port       );
+   VARCHAR_TO_C (cm_config_ptr->db_host_name      , db_cm_config.db_host_name      );
+   VARCHAR_TO_C (cm_config_ptr->db_tcp_header_length , db_cm_config.db_tcp_header_length);
+   VARCHAR_TO_C (cm_config_ptr->db_tcp_socket_type   , db_cm_config.db_tcp_socket_type  );
+   VARCHAR_TO_C (cm_config_ptr->db_tpdu_processing   , db_cm_config.db_tpdu_processing  );
+   VARCHAR_TO_C (cm_config_ptr->db_ssl_processing, db_cm_config.db_ssl_processing );
+   VARCHAR_TO_C (cm_config_ptr->db_client_certificate, db_cm_config.db_client_certificate );
+   VARCHAR_TO_C (cm_config_ptr->db_server_method, db_cm_config.db_server_method );
+   VARCHAR_TO_C (cm_config_ptr->db_cipher_suite, db_cm_config.db_cipher_suite );
+
+}
+
+#endif
+
+/*************************************************************************************/
+/*************************************************************************************/
+void db_to_dmconfig ( pDM_CONFIG dm_config_ptr )
+{
+   memset (dm_config_ptr, 0, sizeof(DM_CONFIG));
+   VARCHAR_TO_C (dm_config_ptr->db_subsystem_name , db_dm_config.db_subsystem_name );
+   VARCHAR_TO_C (dm_config_ptr->db_connection_type, db_dm_config.db_connection_type);
+   VARCHAR_TO_C (dm_config_ptr->db_com_port       , db_dm_config.db_com_port       );
+   VARCHAR_TO_C (dm_config_ptr->db_baud_rate      , db_dm_config.db_baud_rate      );
+   VARCHAR_TO_C (dm_config_ptr->db_byte_size      , db_dm_config.db_byte_size      );
+   VARCHAR_TO_C (dm_config_ptr->db_parity         , db_dm_config.db_parity         );
+   VARCHAR_TO_C (dm_config_ptr->db_stop_bits      , db_dm_config.db_stop_bits      );
+   VARCHAR_TO_C (dm_config_ptr->db_tcp_port       , db_dm_config.db_tcp_port       );
+   VARCHAR_TO_C (dm_config_ptr->db_host_name      , db_dm_config.db_host_name      );
+   VARCHAR_TO_C (dm_config_ptr->db_tcp_header_length , db_dm_config.db_tcp_header_length);
+   VARCHAR_TO_C (dm_config_ptr->db_tcp_socket_type   , db_dm_config.db_tcp_socket_type  );
+   VARCHAR_TO_C (dm_config_ptr->db_tpdu_processing   , db_dm_config.db_tpdu_processing  );
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+void db_to_router ( pROUTER_TABLE router_ptr )
+{
+   memset (router_ptr, 0, sizeof(ROUTER_TABLE));
+   VARCHAR_TO_C (router_ptr->router_identifier, db_router.router_identifier);
+   VARCHAR_TO_C (router_ptr->router_queue     , db_router.router_queue     );
+   VARCHAR_TO_C (router_ptr->router_app_desc  , db_router.router_app_desc  );
+   VARCHAR_TO_C (router_ptr->router_offset    , db_router.router_offset    );
+   VARCHAR_TO_C (router_ptr->router_length    , db_router.router_length    );
+   VARCHAR_TO_C (router_ptr->router_datatype  , db_router.router_datatype  );
+   VARCHAR_TO_C (router_ptr->router_lo_end    , db_router.router_lo_end    );
+   VARCHAR_TO_C (router_ptr->router_hi_end    , db_router.router_hi_end    );
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+void db_to_tpdu ( pTPDU tpdu_ptr )
+{
+   memset (tpdu_ptr, 0, sizeof(TPDU));
+   VARCHAR_TO_C (tpdu_ptr->tpdu_id    , db_tpdu.tpdu_id    );
+   VARCHAR_TO_C (tpdu_ptr->tran_len   , db_tpdu.tran_len   );
+   VARCHAR_TO_C (tpdu_ptr->dst_len    , db_tpdu.dst_len    );
+   VARCHAR_TO_C (tpdu_ptr->src_len    , db_tpdu.src_len    );
+   VARCHAR_TO_C (tpdu_ptr->tpdu_string, db_tpdu.tpdu_string);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_select_dmconfig_record( pCHAR Subsystem, pDM_CONFIG DmConfig, pCHAR ErrorMsg )
+{
+   if (get_data_source() == DATA_SOURCE_IS_INI)
+   {
+      return(ini_select_dmconfig_record(Subsystem, DmConfig, ErrorMsg));
+   }
+
+   memset (&db_dm_config, 0, sizeof(db_dm_config));
+   C_TO_VARCHAR (db_dm_config.db_subsystem_name, Subsystem);
+
+   EXEC SQL SELECT
+      db_connection_type,
+      db_com_port,
+      db_baud_rate,
+      db_byte_size,
+      db_parity,
+      db_stop_bits,
+      db_tcp_port,
+      db_host_name,
+      db_tcp_header_length,
+      db_tcp_socket_type,
+      db_tpdu_processing
+   INTO 
+      :db_dm_config.db_connection_type,
+      :db_dm_config.db_com_port,
+      :db_dm_config.db_baud_rate,
+      :db_dm_config.db_byte_size,
+      :db_dm_config.db_parity,
+      :db_dm_config.db_stop_bits,
+      :db_dm_config.db_tcp_port,
+      :db_dm_config.db_host_name,
+      :db_dm_config.db_tcp_header_length,
+      :db_dm_config.db_tcp_socket_type,
+      :db_dm_config.db_tpdu_processing
+
+   FROM dm_config
+   WHERE db_subsystem_name = :db_dm_config.db_subsystem_name;
+
+
+   if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+      return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+   db_to_dmconfig (DmConfig);
+
+   return (PTEMSG_OK);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_update_dmconfig_record( pDM_CONFIG DmConfig, pCHAR ErrorMsg )
+{
+   if (get_data_source() == DATA_SOURCE_IS_INI)
+   {
+      return(ini_update_dmconfig_record(DmConfig, ErrorMsg));
+   }
+
+   dmconfig_to_db (DmConfig);
+
+   EXEC SQL UPDATE dm_config
+   SET
+      db_connection_type = :db_dm_config.db_connection_type,
+      db_com_port        = :db_dm_config.db_com_port,
+      db_baud_rate       = :db_dm_config.db_baud_rate,
+      db_byte_size       = :db_dm_config.db_byte_size,
+      db_parity          = :db_dm_config.db_parity,
+      db_stop_bits       = :db_dm_config.db_stop_bits,
+      db_tcp_port        = :db_dm_config.db_tcp_port,
+      db_host_name       = :db_dm_config.db_host_name,
+      db_tcp_header_length = :db_dm_config.db_tcp_header_length,
+      db_tcp_socket_type   = :db_dm_config.db_tcp_socket_type,
+      db_tpdu_processing   = :db_dm_config.db_tpdu_processing
+   WHERE db_subsystem_name = :db_dm_config.db_subsystem_name;
+
+
+   /* if no dm_config record exists, try to insert one */
+   if ( SQLCODE == NO_DATA_FOUND )
+   {
+      EXEC SQL INSERT INTO dm_config
+        (db_subsystem_name,
+         db_connection_type, 
+         db_com_port,
+         db_baud_rate,
+         db_byte_size,
+         db_parity,
+         db_stop_bits,
+         db_tcp_port,
+         db_host_name,
+         db_tcp_header_length,
+         db_tcp_socket_type,
+         db_tpdu_processing ) 
+      VALUES
+        (:db_dm_config);
+   }
+
+   if (SQLCODE != 0)
+      return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+   return (PTEMSG_OK);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_get_dm_config_table( pDM_CONFIG_LIST DMConfigList, pCHAR ErrorMsg )
+{
+   int temp;
+
+   memset (DMConfigList, 0, sizeof(DM_CONFIG_LIST));
+
+   if (get_data_source() == DATA_SOURCE_IS_INI)
+   {
+      return(ini_get_dmconfig_table(DMConfigList, ErrorMsg));
+   }
+
+   EXEC SQL DECLARE dmconfig_table_cursor CURSOR FOR
+      SELECT  
+         db_subsystem_name,
+         db_connection_type,
+         db_com_port,
+         db_baud_rate,
+         db_byte_size,
+         db_parity,
+         db_stop_bits,
+         db_tcp_port,
+         db_host_name,
+         db_tcp_header_length,
+         db_tcp_socket_type,
+         db_tpdu_processing
+      FROM dm_config;
+    
+   EXEC SQL WHENEVER SQLERROR goto sql_error;
+   EXEC SQL OPEN dmconfig_table_cursor;
+
+   /* Fetch each row from the dm_config table into the data struct. */
+   EXEC SQL WHENEVER SQLERROR goto sql_error2;
+   EXEC SQL WHENEVER NOTFOUND DO break;
+
+   for ( temp = 0; temp < DIALOG_LIST_SIZE; temp++ )
+   {
+      EXEC SQL FETCH dmconfig_table_cursor
+      INTO :db_dm_config;
+
+      sql_error2:
+         if ( (SQLCODE != 0) && (SQLCODE != NULL_COLUMN_DATA) )
+            goto sql_error;
+
+      db_to_dmconfig (&DMConfigList->dm_config_record[temp]);
+
+      DMConfigList->num_returned++;
+   }
+
+   /* Close the cursor. */
+   EXEC SQL CLOSE dmconfig_table_cursor;
+
+   return (PTEMSG_OK);
+
+sql_error:
+   EXEC SQL WHENEVER SQLERROR CONTINUE;
+   EXEC SQL WHENEVER NOTFOUND CONTINUE;
+   return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_select_router_record ( pCHAR RouterId, 
+                               pROUTER_TABLE Router, 
+                               pCHAR ErrorMsg )
+{
+   memset (&db_router, 0, sizeof(db_router));
+   C_TO_VARCHAR (db_router.router_identifier, RouterId);
+
+   EXEC SQL SELECT
+      router_queue,
+      router_app_desc,
+      router_offset,
+      router_length,
+      router_datatype,
+      router_lo_end,
+      router_hi_end
+   INTO 
+      :db_router.router_queue,
+      :db_router.router_app_desc,
+      :db_router.router_offset,
+      :db_router.router_length,
+      :db_router.router_datatype,
+      :db_router.router_lo_end,
+      :db_router.router_hi_end
+   FROM router_table
+   WHERE router_identifier = :db_router.router_identifier;
+       
+
+   if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+      return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+   db_to_router (Router);
+
+   return (PTEMSG_OK);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_insert_router_record( pROUTER_TABLE Router, pCHAR ErrorMsg )
+{
+   router_to_db (Router);
+
+   EXEC SQL INSERT INTO router_table
+     (router_identifier, 
+      router_queue, 
+      router_app_desc,
+      router_offset, 
+      router_length,
+      router_datatype, 
+      router_lo_end, 
+      router_hi_end)
+   VALUES
+     (:db_router);
+
+   if (SQLCODE != 0)
+      return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+   return (PTEMSG_OK);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_update_router_record( pROUTER_TABLE Router, pCHAR ErrorMsg )
+{
+   router_to_db (Router);
+
+   EXEC SQL UPDATE router_table
+   SET 
+      router_queue    = :db_router.router_queue,
+      router_app_desc = :db_router.router_app_desc, 
+      router_offset   = :db_router.router_offset,
+      router_length   = :db_router.router_length, 
+      router_datatype = :db_router.router_datatype,
+      router_lo_end   = :db_router.router_lo_end, 
+      router_hi_end   = :db_router.router_hi_end
+   WHERE router_identifier = :db_router.router_identifier;
+
+   if (SQLCODE != 0)
+      return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+   return (PTEMSG_OK);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_delete_router_record( pCHAR RouterId, pCHAR ErrorMsg )
+{
+   C_TO_VARCHAR (db_router.router_identifier, RouterId);
+
+   EXEC SQL DELETE FROM router_table
+   WHERE router_identifier = :db_router.router_identifier;
+
+   if (SQLCODE != 0)
+      return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+   return (PTEMSG_OK);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_get_router_table(  pROUTER_TABLE_LIST RouterTableList, pCHAR ErrorMsg )
+{
+   int temp ;
+
+
+   memset (RouterTableList, 0, sizeof(ROUTER_TABLE_LIST));
+
+   EXEC SQL DECLARE routertable_cursor CURSOR FOR
+      SELECT
+         router_identifier,
+         router_queue,
+         router_app_desc,
+         router_offset,
+         router_length,
+         router_datatype,
+         router_lo_end,
+         router_hi_end
+      FROM router_table;
+    
+   EXEC SQL WHENEVER SQLERROR goto sql_error;
+   EXEC SQL OPEN routertable_cursor;
+
+   /* Fetch each row from the router table into the data struct. */
+   EXEC SQL WHENEVER SQLERROR goto sql_error2;
+   EXEC SQL WHENEVER NOTFOUND DO break;
+
+   for ( temp = 0; temp < DIALOG_LIST_SIZE; temp++ )
+   {
+      EXEC SQL FETCH routertable_cursor
+      INTO :db_router;
+
+      sql_error2:
+         if ( (SQLCODE != 0) && (SQLCODE != NULL_COLUMN_DATA) )
+            goto sql_error;
+
+      db_to_router (&RouterTableList->router_record[temp]);
+
+      RouterTableList->num_returned++;
+   }
+
+   /* Close the cursor. */
+   EXEC SQL CLOSE routertable_cursor;
+
+   return (PTEMSG_OK);
+
+sql_error:
+   EXEC SQL WHENEVER SQLERROR CONTINUE;
+   EXEC SQL WHENEVER NOTFOUND CONTINUE;
+   return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_select_tpdu_record ( pCHAR TpduId, 
+                             pTPDU Tpdu, 
+                             pCHAR ErrorMsg )
+{
+   memset (&db_tpdu, 0, sizeof(db_tpdu));
+   C_TO_VARCHAR (db_tpdu.tpdu_id, TpduId);
+
+   EXEC SQL SELECT
+      tran_len,
+      dst_len,
+      src_len,
+      tpdu_string
+   INTO
+      :db_tpdu.tran_len,
+      :db_tpdu.dst_len,
+      :db_tpdu.src_len,
+      :db_tpdu.tpdu_string
+   FROM tpdu
+   WHERE tpdu_id = :db_tpdu.tpdu_id;
+       
+   if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+      return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+   db_to_tpdu (Tpdu);
+
+   return (PTEMSG_OK);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_insert_tpdu_record( pTPDU Tpdu, pCHAR ErrorMsg )
+{
+   tpdu_to_db (Tpdu);
+
+   EXEC SQL INSERT INTO tpdu
+     (tpdu_id,
+      tran_len,
+      dst_len,
+      src_len,
+      tpdu_string )
+   VALUES
+     (:db_tpdu);
+       
+   if (SQLCODE != 0)
+      return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+   return (PTEMSG_OK);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_update_tpdu_record( pTPDU Tpdu, pCHAR ErrorMsg )
+{
+   tpdu_to_db (Tpdu);
+
+   EXEC SQL UPDATE tpdu
+   SET 
+      tran_len    = :db_tpdu.tran_len, 
+      dst_len     = :db_tpdu.dst_len, 
+      src_len     = :db_tpdu.src_len, 
+      tpdu_string = :db_tpdu.tpdu_string
+   WHERE tpdu_id = :db_tpdu.tpdu_id;
+       
+   if (SQLCODE != 0)
+      return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+   return (PTEMSG_OK);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_delete_tpdu_record( pCHAR TpduId, pCHAR ErrorMsg )
+{
+   C_TO_VARCHAR (db_tpdu.tpdu_id, TpduId);
+
+   EXEC SQL DELETE FROM tpdu
+   WHERE tpdu_id = :db_tpdu.tpdu_id;
+
+   if (SQLCODE != 0)
+      return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+   return (PTEMSG_OK);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_get_tpdu_table( pTPDU_TABLE_LIST TpduTableList, pCHAR ErrorMsg )
+{
+   int temp ;
+
+
+   memset (TpduTableList, 0, sizeof(TPDU_TABLE_LIST));
+
+   EXEC SQL DECLARE tpdutable_cursor CURSOR FOR
+      SELECT
+         tpdu_id,
+         tran_len,
+         dst_len,
+         src_len,
+         tpdu_string
+      FROM tpdu;
+    
+   EXEC SQL WHENEVER SQLERROR goto sql_error;
+   EXEC SQL OPEN tpdutable_cursor;
+
+   /* Fetch each row from the tpdu table into the data struct. */
+   EXEC SQL WHENEVER SQLERROR goto sql_error2;
+   EXEC SQL WHENEVER NOTFOUND DO break;
+
+   for ( temp = 0; temp < DIALOG_LIST_SIZE; temp++ )
+   {
+      EXEC SQL FETCH tpdutable_cursor
+      INTO :db_tpdu;
+
+      sql_error2:
+      if ( (SQLCODE != 0) && (SQLCODE != NULL_COLUMN_DATA) )
+         goto sql_error;
+
+      db_to_tpdu (&TpduTableList->tpdu_record[temp]);
+
+      TpduTableList->num_returned++;
+   }
+
+   /* Close the cursor. */
+   EXEC SQL CLOSE tpdutable_cursor;
+
+   return (PTEMSG_OK);
+
+sql_error:
+   EXEC SQL WHENEVER SQLERROR CONTINUE;
+   EXEC SQL WHENEVER NOTFOUND CONTINUE;
+   return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+}
+
+#ifdef SSL_SUPPORT
+/* added cm_config routines for SSL 06/23/99 - jjj */
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_select_cmconfig_record( pCHAR Subsystem, pCM_CONFIG CmConfig, pCHAR ErrorMsg )
+{
+
+   memset (&db_cm_config, 0, sizeof(db_cm_config));
+   C_TO_VARCHAR (db_cm_config.db_subsystem_name, Subsystem);
+
+   EXEC SQL SELECT
+      db_connection_type,
+      db_com_port,
+      db_baud_rate,
+      db_byte_size,
+      db_parity,
+      db_stop_bits,
+      db_tcp_port,
+      db_host_name,
+      db_tcp_header_length,
+      db_tcp_socket_type,
+      db_tpdu_processing,
+      db_ssl_processing,
+      db_client_certificate,
+      db_server_method,
+      db_cipher_suite
+   INTO 
+      :db_cm_config.db_connection_type,
+      :db_cm_config.db_com_port,
+      :db_cm_config.db_baud_rate,
+      :db_cm_config.db_byte_size,
+      :db_cm_config.db_parity,
+      :db_cm_config.db_stop_bits,
+      :db_cm_config.db_tcp_port,
+      :db_cm_config.db_host_name,
+      :db_cm_config.db_tcp_header_length,
+      :db_cm_config.db_tcp_socket_type,
+      :db_cm_config.db_tpdu_processing,
+      :db_cm_config.db_ssl_processing,
+      :db_cm_config.db_client_certificate,
+      :db_cm_config.db_server_method,
+      :db_cm_config.db_cipher_suite
+
+   FROM cm_config
+   WHERE db_subsystem_name = :db_cm_config.db_subsystem_name;
+
+
+   if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+      return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+   db_to_cmconfig (CmConfig);
+
+   return (PTEMSG_OK);
+}
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_update_cmconfig_record( pCM_CONFIG CmConfig, pCHAR ErrorMsg )
+{
+  
+   cmconfig_to_db (CmConfig);
+
+   EXEC SQL UPDATE cm_config
+   SET
+      db_connection_type    = :db_cm_config.db_connection_type,
+      db_com_port           = :db_cm_config.db_com_port,
+      db_baud_rate          = :db_cm_config.db_baud_rate,
+      db_byte_size          = :db_cm_config.db_byte_size,
+      db_parity             = :db_cm_config.db_parity,
+      db_stop_bits          = :db_cm_config.db_stop_bits,
+      db_tcp_port           = :db_cm_config.db_tcp_port,
+      db_host_name          = :db_cm_config.db_host_name,
+      db_tcp_header_length  = :db_cm_config.db_tcp_header_length,
+      db_tcp_socket_type    = :db_cm_config.db_tcp_socket_type,
+      db_tpdu_processing    = :db_cm_config.db_tpdu_processing,
+      db_ssl_processing     = :db_cm_config.db_ssl_processing,
+      db_client_certificate = :db_cm_config.db_client_certificate,
+      db_server_method      = :db_cm_config.db_server_method,
+      db_cipher_suite       = :db_cm_config.db_cipher_suite
+   WHERE db_subsystem_name = :db_cm_config.db_subsystem_name;
+
+
+   /* if no cm_config record exists, try to insert one */
+   if ( SQLCODE == NO_DATA_FOUND )
+   {
+      EXEC SQL INSERT INTO cm_config
+        (db_subsystem_name,
+         db_connection_type, 
+         db_com_port,
+         db_baud_rate,
+         db_byte_size,
+         db_parity,
+         db_stop_bits,
+         db_tcp_port,
+         db_host_name,
+         db_tcp_header_length,
+         db_tcp_socket_type,
+         db_tpdu_processing,
+         db_ssl_processing,
+         db_client_certificate,
+         db_server_method,
+         db_cipher_suite ) 
+      VALUES
+        (:db_cm_config);
+   }
+
+   if (SQLCODE != 0)
+      return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+   return (PTEMSG_OK);
+}
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_get_cm_config_table( pCM_CONFIG_LIST CMConfigList, pCHAR ErrorMsg )
+{
+   int temp;
+
+   memset (CMConfigList, 0, sizeof(CM_CONFIG_LIST));
+
+   EXEC SQL DECLARE cmconfig_table_cursor CURSOR FOR
+      SELECT  
+         db_subsystem_name,
+         db_connection_type,
+         db_com_port,
+         db_baud_rate,
+         db_byte_size,
+         db_parity,
+         db_stop_bits,
+         db_tcp_port,
+         db_host_name,
+         db_tcp_header_length,
+         db_tcp_socket_type,
+         db_tpdu_processing,
+         db_ssl_processing,
+         db_client_certificate,
+         db_server_method,
+         db_cipher_suite 
+      FROM cm_config;
+    
+
+
+   EXEC SQL WHENEVER SQLERROR goto sql_error;
+   EXEC SQL OPEN cmconfig_table_cursor;
+
+   /* Fetch each row from the cm_config table into the data struct. */
+   EXEC SQL WHENEVER SQLERROR goto sql_error2;
+   EXEC SQL WHENEVER NOTFOUND DO break;
+
+   for ( temp = 0; temp < COMMGR_LIST_SIZE; temp++ )
+   {
+      EXEC SQL FETCH cmconfig_table_cursor
+      INTO :db_cm_config;
+
+      sql_error2:
+         if ( (SQLCODE != 0) && (SQLCODE != NULL_COLUMN_DATA) )
+            goto sql_error;
+
+      db_to_cmconfig (&CMConfigList->cm_config_record[temp]);
+
+      CMConfigList->num_returned++;
+   }
+
+   /* Close the cursor. */
+   EXEC SQL CLOSE cmconfig_table_cursor;
+
+   return (PTEMSG_OK);
+
+sql_error:
+   EXEC SQL WHENEVER SQLERROR CONTINUE;
+   EXEC SQL WHENEVER NOTFOUND CONTINUE;
+   return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+}
+
+#endif
+
+

@@ -1,0 +1,646 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Template|Win32">
+      <Configuration>Template</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <SccProjectName />
+    <SccLocalPath />
+    <Keyword>MFCProj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Template|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseOfMfc>Dynamic</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseOfMfc>Dynamic</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Template|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.Cpp.UpgradeFromVC60.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.Cpp.UpgradeFromVC60.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>.\Release\</OutDir>
+    <IntDir>.\Release\</IntDir>
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>.\Debug\</OutDir>
+    <IntDir>.\Debug\</IntDir>
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <InlineFunctionExpansion>Default</InlineFunctionExpansion>
+      <FunctionLevelLinking>false</FunctionLevelLinking>
+      <Optimization>Disabled</Optimization>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <WarningLevel>Level3</WarningLevel>
+      <AdditionalIncludeDirectories>..\include;..\..\..\Source\Libraries\include;..\..\Libraries\Application_Win95\include;..\..\Third_Party_Libraries\Win95\xipc;..\..\..\Source\Server_AIX\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AssemblerListingLocation>.\Release\</AssemblerListingLocation>
+      <BrowseInformation>true</BrowseInformation>
+      <PrecompiledHeaderOutputFile>.\Release\Atp.pch</PrecompiledHeaderOutputFile>
+      <ObjectFileName>.\Release\</ObjectFileName>
+      <ProgramDataBaseFileName>.\Release\</ProgramDataBaseFileName>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <PostBuildEvent>
+      <Command>copy Release\Atp.exe ..\..\build_gui\bin\Release</Command>
+    </PostBuildEvent>
+    <Midl>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <TypeLibraryName>.\Release\Atp.tlb</TypeLibraryName>
+      <MkTypLibCompatible>true</MkTypLibCompatible>
+      <TargetEnvironment>Win32</TargetEnvironment>
+    </Midl>
+    <ResourceCompile>
+      <Culture>0x0409</Culture>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <Bscmake>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <OutputFile>.\Release\Atp.bsc</OutputFile>
+    </Bscmake>
+    <Link>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <SubSystem>Windows</SubSystem>
+      <IgnoreSpecificDefaultLibraries>libcmtd.lib;nafxcwd;nafxcw;libcmt;libcmtd;libcd;libc;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <OutputFile>.\Release\Atp.exe</OutputFile>
+      <AdditionalLibraryDirectories>..\lib;..\..\Build_GUI\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>version.lib;ptetcp.lib;Atptcp.lib;pte.lib;mutex.lib;shrmem.lib;ptepci.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <InlineFunctionExpansion>Default</InlineFunctionExpansion>
+      <FunctionLevelLinking>false</FunctionLevelLinking>
+      <Optimization>Disabled</Optimization>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <AdditionalIncludeDirectories>..\include;..\..\Libraries\include;..\..\..\Source\Libraries\Application_Win95\include;..\..\Third_Party_Libraries\Win95\xipc;..\..\..\Source\Server_AIX\include;..\..\Libraries\Application_Win95\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AssemblerListingLocation>.\Debug\</AssemblerListingLocation>
+      <BrowseInformation>true</BrowseInformation>
+      <PrecompiledHeaderOutputFile>.\Debug\Atp.pch</PrecompiledHeaderOutputFile>
+      <ObjectFileName>.\Debug\</ObjectFileName>
+      <ProgramDataBaseFileName>.\Debug\</ProgramDataBaseFileName>
+    </ClCompile>
+    <PostBuildEvent>
+      <Command>copy Debug\Atp.exe ..\..\build_gui\bin\Debug</Command>
+    </PostBuildEvent>
+    <Midl>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <TypeLibraryName>.\Debug\Atp.tlb</TypeLibraryName>
+      <MkTypLibCompatible>true</MkTypLibCompatible>
+      <TargetEnvironment>Win32</TargetEnvironment>
+    </Midl>
+    <ResourceCompile>
+      <Culture>0x0409</Culture>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <Bscmake>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <OutputFile>.\Debug\Atp.bsc</OutputFile>
+    </Bscmake>
+    <Link>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <IgnoreSpecificDefaultLibraries>nafxcw;libcmt;libcmtd;libcd;libc;nafxcwd;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <OutputFile>.\Debug\Atp.exe</OutputFile>
+      <AdditionalLibraryDirectories>..\lib;..\..\Build_GUI\lib\debug;..\Server_aix\libequit\debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Version.lib;ptetcp.lib;Atptcp.lib;pte.lib;mutex.lib;shrmem.lib;ptepci.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\Libraries\Application_Win95\mutexlib\Lock.cpp" />
+    <ClCompile Include="AlphaLookup.cpp" />
+    <ClCompile Include="Amex3DS2ParameterDefinition.cpp" />
+    <ClCompile Include="Amex3DS2PropertySheet.cpp" />
+    <ClCompile Include="AMEXUPDATES1.cpp" />
+    <ClCompile Include="AppDlg.cpp" />
+    <ClCompile Include="ArchiveDBPasswords.cpp" />
+    <ClCompile Include="Atp.cpp" />
+    <ClCompile Include="AtpDoc.cpp" />
+    <ClCompile Include="ATPTimedDialog.cpp" />
+    <ClCompile Include="AtpView.cpp" />
+    <ClCompile Include="BatchDetails.cpp" />
+    <ClCompile Include="BinBlocking.cpp" />
+    <ClCompile Include="BinDefinition.cpp" />
+    <ClCompile Include="BinGeneral.cpp" />
+    <ClCompile Include="BinList.cpp" />
+    <ClCompile Include="BinMccBlocking.cpp" />
+    <ClCompile Include="BinMidBlocking.cpp" />
+    <ClCompile Include="BinPropertySheet.cpp" />
+    <ClCompile Include="BlockingPosEntryModesGeneralPage.cpp" />
+    <ClCompile Include="BlockingPosEntryModesMainPage.cpp" />
+    <ClCompile Include="BlockingPosEntryModesSheet.cpp" />
+    <ClCompile Include="CalendarButton.cpp" />
+    <ClCompile Include="CalendarPage.cpp" />
+    <ClCompile Include="CalendarSheet.cpp" />
+    <ClCompile Include="CardDefinition.cpp" />
+    <ClCompile Include="CardPlusData.cpp" />
+    <ClCompile Include="CardPlusMain.cpp" />
+    <ClCompile Include="CardPlusPropSheet.cpp" />
+    <ClCompile Include="CardsFleetDefinition.cpp" />
+    <ClCompile Include="CardsKeyblockDefinition.cpp" />
+    <ClCompile Include="CardsKeyblockprocessing.cpp" />
+    <ClCompile Include="CardsKeyblockPropertySheet.cpp" />
+    <ClCompile Include="CardsMerchantLimit.cpp" />
+    <ClCompile Include="CardsPinVerification.cpp" />
+    <ClCompile Include="CardsPinVerifVisa.cpp" />
+    <ClCompile Include="CardsProcessing.cpp" />
+    <ClCompile Include="CardsProfile.cpp" />
+    <ClCompile Include="CardStatRec.cpp" />
+    <ClCompile Include="CardStatus.cpp" />
+    <ClCompile Include="CardsTime1.cpp" />
+    <ClCompile Include="CardsTime2.cpp" />
+    <ClCompile Include="CardsTime3a.cpp" />
+    <ClCompile Include="CardsVelocity.cpp" />
+    <ClCompile Include="CardTypeDescription.cpp" />
+    <ClCompile Include="CardTypePropertySheet.cpp" />
+    <ClCompile Include="CashBonus.cpp" />
+    <ClCompile Include="CB_Amounts.cpp" />
+    <ClCompile Include="CB_Definition.cpp" />
+    <ClCompile Include="CB_General.cpp" />
+    <ClCompile Include="CB_PropertySheet.cpp" />
+    <ClCompile Include="CFActivity.cpp" />
+    <ClCompile Include="CFCapability.cpp" />
+    <ClCompile Include="CFCardBalAcc.cpp" />
+    <ClCompile Include="CFDemogr.cpp" />
+    <ClCompile Include="CFGeneral.cpp" />
+    <ClCompile Include="CFMain.cpp" />
+    <ClCompile Include="CFMerchUsage.cpp" />
+    <ClCompile Include="CFSheet.cpp" />
+    <ClCompile Include="CFTxHistory.cpp" />
+    <ClCompile Include="ChangeHistory.cpp" />
+    <ClCompile Include="ChangePassword.cpp" />
+    <ClCompile Include="CntryAmtLimits.cpp" />
+    <ClCompile Include="Conversion.cpp" />
+    <ClCompile Include="ConversionPropertySheet.cpp" />
+    <ClCompile Include="CreditPropertySheet.cpp" />
+    <ClCompile Include="Cup3DS2ParameterDefinition.cpp" />
+    <ClCompile Include="Cup3DS2PropertySheet.cpp" />
+    <ClCompile Include="CurrencyCode.cpp" />
+    <ClCompile Include="CurrencyCodeDefinition.cpp" />
+    <ClCompile Include="CurrencyCodePropertySheet.cpp" />
+    <ClCompile Include="DAY.CPP" />
+    <ClCompile Include="DBPasswords.cpp" />
+    <ClCompile Include="DBPasswordsPropertySheet.cpp" />
+    <ClCompile Include="DebitPropertySheet.cpp" />
+    <ClCompile Include="DeferredDefinition.cpp" />
+    <ClCompile Include="DeferredGeneral.cpp" />
+    <ClCompile Include="DeferredPropertySheet.cpp" />
+    <ClCompile Include="DialogCommSetup.cpp" />
+    <ClCompile Include="DialogConfig.cpp" />
+    <ClCompile Include="DialogMain.cpp" />
+    <ClCompile Include="DialogPropertySheet.cpp" />
+    <ClCompile Include="DialogRouter.cpp" />
+    <ClCompile Include="DialogTpdu.cpp" />
+    <ClCompile Include="Diners3DS2ParameterDefinition.cpp" />
+    <ClCompile Include="Diners3DS2PropertySheet.cpp" />
+    <ClCompile Include="DualEncrKeyControl.cpp" />
+    <ClCompile Include="DualEnKeyCtrlPropertySheet.cpp" />
+    <ClCompile Include="FleetPropertySheet.cpp" />
+    <ClCompile Include="FraudControlConfigureFraudRule.cpp" />
+    <ClCompile Include="FraudControlConfigureFraudRuleGeneral.cpp" />
+    <ClCompile Include="FraudControlConfigureLinkGeneralPage.cpp" />
+    <ClCompile Include="FraudControlConfigureLinkMainPage.cpp" />
+    <ClCompile Include="FraudControlConfigureLinkSheet.cpp" />
+    <ClCompile Include="FraudControlFraudRuleSheet.cpp" />
+    <ClCompile Include="FraudGuardDefinition.cpp" />
+    <ClCompile Include="FraudGuardGeneral.cpp" />
+    <ClCompile Include="FraudGuardPropertySheet.cpp" />
+    <ClCompile Include="GroupAccess.cpp" />
+    <ClCompile Include="GroupDefinition.cpp" />
+    <ClCompile Include="GroupPropertySheet.cpp" />
+    <ClCompile Include="GroupWorkstation.cpp" />
+    <ClCompile Include="IdleLoginfrm.cpp" />
+    <ClCompile Include="Jcb3DS2ParameterDefinition.cpp" />
+    <ClCompile Include="Jcb3DS2PropertySheet.cpp" />
+    <ClCompile Include="JCBUPDATES.cpp" />
+    <ClCompile Include="JobDefDlg.cpp" />
+    <ClCompile Include="JobDlg.cpp" />
+    <ClCompile Include="ListCtrlEx.cpp" />
+    <ClCompile Include="ListExCtrl.cpp" />
+    <ClCompile Include="Login.cpp" />
+    <ClCompile Include="MainFrm.cpp" />
+    <ClCompile Include="MC3DSecureOBSAuthenticationMain.cpp" />
+    <ClCompile Include="MC3DSecureOBSauthenticationSheet.cpp" />
+    <ClCompile Include="MCC102.cpp" />
+    <ClCompile Include="MCC103.cpp" />
+    <ClCompile Include="MCCRangeDefinition.cpp" />
+    <ClCompile Include="MerchantBlocking.cpp" />
+    <ClCompile Include="MerchantCapabilities.cpp" />
+    <ClCompile Include="MerchantContact.cpp" />
+    <ClCompile Include="MerchantDefinition.cpp" />
+    <ClCompile Include="MerchantGeneral.cpp" />
+    <ClCompile Include="MerchantGroupDefinition.cpp" />
+    <ClCompile Include="MerchantGroupDefinitionSheet.cpp" />
+    <ClCompile Include="MerchantGroupGeneral.cpp" />
+    <ClCompile Include="MerchantLocation.cpp" />
+    <ClCompile Include="MerchantPayParam.cpp" />
+    <ClCompile Include="MerchantPayParamDefinition.cpp" />
+    <ClCompile Include="MerchantPayParamSheet.cpp" />
+    <ClCompile Include="MerchantPropertySheet.cpp" />
+    <ClCompile Include="MerchantSettlement.cpp" />
+    <ClCompile Include="MerchantTerminalBatchHistory.cpp" />
+    <ClCompile Include="MerchantTerminalConfig.cpp" />
+    <ClCompile Include="MerchantTerminalCUPCurrentBatch.cpp" />
+    <ClCompile Include="MerchantTerminalCurrentBatch.cpp" />
+    <ClCompile Include="MerchantTerminalGeneral.cpp" />
+    <ClCompile Include="MerchantTerminalKeys.cpp" />
+    <ClCompile Include="MerchantTerminalPoints.cpp" />
+    <ClCompile Include="MerchantTerminalPropertySheet.cpp" />
+    <ClCompile Include="MerchantVelocity.cpp" />
+    <ClCompile Include="..\Monitor\monitorDoc.cpp" />
+    <ClCompile Include="MraDBPasswords.cpp" />
+    <ClCompile Include="MyUtils.cpp" />
+    <ClCompile Include="NameList.cpp" />
+    <ClCompile Include="NegativeBinRange.cpp" />
+    <ClCompile Include="NegativeCardFileControl.cpp" />
+    <ClCompile Include="NegativeCardFileControlPropertySheet.cpp" />
+    <ClCompile Include="NegativeFileDefinition.cpp" />
+    <ClCompile Include="NegativeGroupInfo.cpp" />
+    <ClCompile Include="NegativeGroupPropertySheet.cpp" />
+    <ClCompile Include="NetworkAcquirerPropertySheet.cpp" />
+    <ClCompile Include="NetworkDefinition.cpp" />
+    <ClCompile Include="NetworkGeneral.cpp" />
+    <ClCompile Include="NetworkGeneral1.cpp" />
+    <ClCompile Include="NetworkIssuerPropertySheet.cpp" />
+    <ClCompile Include="networkkeyblockdefinition.cpp" />
+    <ClCompile Include="networkkeyblockgeneral.cpp" />
+    <ClCompile Include="NetworkKeyblockPropertySheet.cpp" />
+    <ClCompile Include="NetworkLogon.cpp" />
+    <ClCompile Include="NetworkProcessing.cpp" />
+    <ClCompile Include="NetworkTotals.cpp" />
+    <ClCompile Include="OnlinePINConfigureBDKKey.cpp" />
+    <ClCompile Include="OnlinePINConfigureBDKKeyGeneral.cpp" />
+    <ClCompile Include="OnlinePINControlBDKKeySheet.cpp" />
+    <ClCompile Include="OverrideMerchantDenial.cpp" />
+    <ClCompile Include="OverrideMerchantDenialPropertySheet.cpp" />
+    <ClCompile Include="PanDemogrPage.cpp" />
+    <ClCompile Include="PanMainPage.cpp" />
+    <ClCompile Include="PanProcesPage.cpp" />
+    <ClCompile Include="PanPropertySheet.cpp" />
+    <ClCompile Include="PanTxPage.cpp" />
+    <ClCompile Include="PosEntryModesListDlg.cpp" />
+    <ClCompile Include="ProfileDlg.cpp" />
+    <ClCompile Include="PurchaseCardDefinition.cpp" />
+    <ClCompile Include="PurchaseCardGeneral.cpp" />
+    <ClCompile Include="PurchaseCardPropertySheet.cpp" />
+    <ClCompile Include="RelatedDefinition.cpp" />
+    <ClCompile Include="RelatedGeneral.cpp" />
+    <ClCompile Include="RelatedPropertySheet.cpp" />
+    <ClCompile Include="ResetDcoMonitor.cpp" />
+    <ClCompile Include="RulesDefinitionMain.cpp" />
+    <ClCompile Include="RulesDefinitionProcessing.cpp" />
+    <ClCompile Include="RulesDefinitionPropertySheet.cpp" />
+    <ClCompile Include="RulesExceptionList.cpp" />
+    <ClCompile Include="SchedulerConfig.cpp" />
+    <ClCompile Include="SchedulerPropertySheet.cpp" />
+    <ClCompile Include="SchSearch.cpp" />
+    <ClCompile Include="SettleFileDefinition.cpp" />
+    <ClCompile Include="SettleFilePropertySheet.cpp" />
+    <ClCompile Include="SettlePrefixTime.cpp" />
+    <ClCompile Include="ShedulerControl.cpp" />
+    <ClCompile Include="SrvcMgr.cpp" />
+    <ClCompile Include="srvcom_t.c" />
+    <ClCompile Include="StdAfx.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">stdafx.h</PrecompiledHeaderFile>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">stdafx.h</PrecompiledHeaderFile>
+    </ClCompile>
+    <ClCompile Include="SystemGlobalParameterDefinition.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">SystemGlobalParameterDefinition.h</PrecompiledHeaderFile>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">SystemGlobalParameterDefinition.h</PrecompiledHeaderFile>
+    </ClCompile>
+    <ClCompile Include="SystemGlobalParameterSheet.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">SystemGlobalParameterSheet.h</PrecompiledHeaderFile>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">SystemGlobalParameterSheet.h</PrecompiledHeaderFile>
+    </ClCompile>
+    <ClCompile Include="TerminalAutoInit.cpp" />
+    <ClCompile Include="TerminalCapabilities.cpp" />
+    <ClCompile Include="TerminalValidTransactions.cpp" />
+    <ClCompile Include="TransactionDetails.cpp" />
+    <ClCompile Include="UserAccess.cpp" />
+    <ClCompile Include="UserAccountStatus.cpp" />
+    <ClCompile Include="UserAuditLog1.cpp" />
+    <ClCompile Include="UserDefinition.cpp" />
+    <ClCompile Include="UserPropertySheet.cpp" />
+    <ClCompile Include="UsersList.cpp" />
+    <ClCompile Include="UserWorkstation.cpp" />
+    <ClCompile Include="Visa3DS2ConfigMain.cpp" />
+    <ClCompile Include="Visa3DS2PropertySheet.cpp" />
+    <ClCompile Include="VoiceAuthInput.cpp" />
+    <ClCompile Include="VoiceAuthResponse.cpp" />
+    <ClCompile Include="WorkstationDefinition.cpp" />
+    <ClCompile Include="WorkstationDescription.cpp" />
+    <ClCompile Include="WorkstationPropertySheet.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="hlp\Atp.hpj">
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </CustomBuild>
+    <CustomBuild Include="ReadMe.txt" />
+    <CustomBuild Include="resource.hm">
+      <FileType>Document</FileType>
+    </CustomBuild>
+    <CustomBuild Include="res\Atp.rc2">
+      <FileType>RC</FileType>
+    </CustomBuild>
+    <CustomBuild Include="res\AtpDoc.ico" />
+    <CustomBuild Include="res\bdo.ico" />
+    <CustomBuild Include="res\bdo2 - Copy.ico" />
+    <CustomBuild Include="res\cursor1.cur" />
+    <CustomBuild Include="res\ico00001.ico" />
+    <CustomBuild Include="res\icon1.ico" />
+    <CustomBuild Include="res\logo2.bmp" />
+    <CustomBuild Include="res\Toolbar.bmp" />
+    <CustomBuild Include="a.txt" />
+    <CustomBuild Include="res\manifest.xml" />
+    <CustomBuild Include="SharedMem.asp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Atp.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="AlphaLookup.h" />
+    <ClInclude Include="Amex3DS2ParameterDefinition.h" />
+    <ClInclude Include="Amex3DS2PropertySheet.h" />
+    <ClInclude Include="AMEXUPDATES1.h" />
+    <ClInclude Include="APPDLG.H" />
+    <ClInclude Include="ArchiveDBPasswords.h" />
+    <ClInclude Include="Atp.H" />
+    <ClInclude Include="AtpDOC.H" />
+    <ClInclude Include="ATPTimedDialog.h" />
+    <ClInclude Include="AtpVIEW.H" />
+    <ClInclude Include="BatchDetails.h" />
+    <ClInclude Include="BinBlocking.h" />
+    <ClInclude Include="BinDefinition.h" />
+    <ClInclude Include="BinGeneral.h" />
+    <ClInclude Include="BinList.h" />
+    <ClInclude Include="BinMccBlocking.h" />
+    <ClInclude Include="BinMidBlocking.h" />
+    <ClInclude Include="BinPropertySheet.h" />
+    <ClInclude Include="BlockingPosEntryModesGeneralPage.h" />
+    <ClInclude Include="BlockingPosEntryModesMainPage.h" />
+    <ClInclude Include="BlockingPosEntryModesSheet.h" />
+    <ClInclude Include="CalendarButton.h" />
+    <ClInclude Include="CalendarPage.h" />
+    <ClInclude Include="CalendarSheet.h" />
+    <ClInclude Include="CardDefinition.h" />
+    <ClInclude Include="cardplusdata.h" />
+    <ClInclude Include="CardPlusMain.h" />
+    <ClInclude Include="CardPlusPropSheet.h" />
+    <ClInclude Include="CardsFleetDefinition.h" />
+    <ClInclude Include="CardsKeyblockDefinition.h" />
+    <ClInclude Include="CardsKeyblockprocessing.h" />
+    <ClInclude Include="CardsKeyblockPropertySheet.h" />
+    <ClInclude Include="CardsMerchantLimit.h" />
+    <ClInclude Include="cardspinverification.h" />
+    <ClInclude Include="CardsPinVerifVisa.h" />
+    <ClInclude Include="cardsprocessing.h" />
+    <ClInclude Include="CardsProfile.h" />
+    <ClInclude Include="CardStatRec.h" />
+    <ClInclude Include="CardStatus.h" />
+    <ClInclude Include="CardsTime1.h" />
+    <ClInclude Include="CardsTime2.h" />
+    <ClInclude Include="CardsTime3a.h" />
+    <ClInclude Include="CardsVelocity.h" />
+    <ClInclude Include="CardTypeDescription.h" />
+    <ClInclude Include="CardTypePropertySheet.h" />
+    <ClInclude Include="CashBonus.h" />
+    <ClInclude Include="CB_Amounts.h" />
+    <ClInclude Include="CB_Definition.h" />
+    <ClInclude Include="CB_General.h" />
+    <ClInclude Include="CB_PropertySheet.h" />
+    <ClInclude Include="CFActivity.h" />
+    <ClInclude Include="CFCapability.h" />
+    <ClInclude Include="CFCardBalAcc.h" />
+    <ClInclude Include="cfdemogr.h" />
+    <ClInclude Include="cfgeneral.h" />
+    <ClInclude Include="CFMAIN.H" />
+    <ClInclude Include="CFMerchUsage.h" />
+    <ClInclude Include="CFSHEET.H" />
+    <ClInclude Include="CFTxHistory.h" />
+    <ClInclude Include="ChangeHistory.h" />
+    <ClInclude Include="ChangePassword.h" />
+    <ClInclude Include="CntryAmtLimits.h" />
+    <ClInclude Include="Conversion.h" />
+    <ClInclude Include="ConversionPropertySheet.h" />
+    <ClInclude Include="CreditPropertySheet.h" />
+    <ClInclude Include="Cup3DS2ParameterDefinition.h" />
+    <ClInclude Include="Cup3DS2PropertySheet.h" />
+    <ClInclude Include="CurrencyCode.h" />
+    <ClInclude Include="CurrencyCodeDefinition.h" />
+    <ClInclude Include="CurrencyCodePropertySheet.h" />
+    <ClInclude Include="DAY.H" />
+    <ClInclude Include="DBPasswords.h" />
+    <ClInclude Include="DBPasswordsPropertySheet.h" />
+    <ClInclude Include="DebitPropertySheet.h" />
+    <ClInclude Include="DeferredDefinition.h" />
+    <ClInclude Include="DeferredGeneral.h" />
+    <ClInclude Include="DeferredPropertySheet.h" />
+    <ClInclude Include="DialogCommSetup.h" />
+    <ClInclude Include="DialogConfig.h" />
+    <ClInclude Include="DialogMain.h" />
+    <ClInclude Include="DialogPropertySheet.h" />
+    <ClInclude Include="DialogRouter.h" />
+    <ClInclude Include="DialogTpdu.h" />
+    <ClInclude Include="Diners3DS2ParameterDefinition.h" />
+    <ClInclude Include="Diners3DS2PropertySheet.h" />
+    <ClInclude Include="DualEncrKeyControl.h" />
+    <ClInclude Include="DualEnKeyCtrlPropertySheet.h" />
+    <ClInclude Include="FleetPropertySheet.h" />
+    <ClInclude Include="font.h" />
+    <ClInclude Include="FraudControlConfigureFraudRule.h" />
+    <ClInclude Include="FraudControlConfigureFraudRuleGeneral.h" />
+    <ClInclude Include="FraudControlConfigureLinkGeneralPage.h" />
+    <ClInclude Include="FraudControlConfigureLinkMainPage.h" />
+    <ClInclude Include="FraudControlConfigureLinkSheet.h" />
+    <ClInclude Include="FraudControlFraudRuleSheet.h" />
+    <ClInclude Include="FraudGuardDefinition.h" />
+    <ClInclude Include="FraudGuardGeneral.h" />
+    <ClInclude Include="FraudGuardPropertySheet.h" />
+    <ClInclude Include="groupaccess.h" />
+    <ClInclude Include="groupdefinition.h" />
+    <ClInclude Include="grouppropertysheet.h" />
+    <ClInclude Include="groupworkstation.h" />
+    <ClInclude Include="IdleLoginfrm.h" />
+    <ClInclude Include="Jcb3DS2ParameterDefinition.h" />
+    <ClInclude Include="Jcb3DS2PropertySheet.h" />
+    <ClInclude Include="JCBUPDATES.h" />
+    <ClInclude Include="JobDefDlg.h" />
+    <ClInclude Include="JOBDLG.H" />
+    <ClInclude Include="ListExCtrl.h" />
+    <ClInclude Include="Lock.h" />
+    <ClInclude Include="LOGIN.H" />
+    <ClInclude Include="MainFrm.h" />
+    <ClInclude Include="MC3DSecureOBSAuthenticationMain.h" />
+    <ClInclude Include="MC3DSecureOBSAuthenticationSheet.h" />
+    <ClInclude Include="MCC102.h" />
+    <ClInclude Include="MCC103.h" />
+    <ClInclude Include="MCCRangeDefinition.h" />
+    <ClInclude Include="MENUTAB.H" />
+    <ClInclude Include="MerchantBlocking.h" />
+    <ClInclude Include="MerchantCapabilities.h" />
+    <ClInclude Include="MerchantContact.h" />
+    <ClInclude Include="MerchantDefinition.h" />
+    <ClInclude Include="MerchantGeneral.h" />
+    <ClInclude Include="MerchantGroupDefinition.h" />
+    <ClInclude Include="MerchantGroupDefinitionSheet.h" />
+    <ClInclude Include="MerchantGroupGeneral.h" />
+    <ClInclude Include="MerchantLocation.h" />
+    <ClInclude Include="MerchantPayParam.h" />
+    <ClInclude Include="MerchantPayParamDefinition.h" />
+    <ClInclude Include="MerchantPayParamSheet.h" />
+    <ClInclude Include="MerchantPropertySheet.h" />
+    <ClInclude Include="MerchantSettlement.h" />
+    <ClInclude Include="MerchantTerminalBatchHistory.h" />
+    <ClInclude Include="MerchantTerminalConfig.h" />
+    <ClInclude Include="MerchantTerminalCUPCurrentBatch.h" />
+    <ClInclude Include="MerchantTerminalCurrentBatch.h" />
+    <ClInclude Include="MerchantTerminalGeneral.h" />
+    <ClInclude Include="MerchantTerminalKeys.h" />
+    <ClInclude Include="MerchantTerminalPoints.h" />
+    <ClInclude Include="MerchantTerminalPropertySheet.h" />
+    <ClInclude Include="MerchantVelocity.h" />
+    <ClInclude Include="MraDBPasswords.h" />
+    <ClInclude Include="msmask.h" />
+    <ClInclude Include="MYUTILS.H" />
+    <ClInclude Include="NAMELIST.H" />
+    <ClInclude Include="NegativeBinRange.h" />
+    <ClInclude Include="NegativeCardFileControl.h" />
+    <ClInclude Include="NegativeCardFileControlPropertySheet.h" />
+    <ClInclude Include="NegativeFileDefinition.h" />
+    <ClInclude Include="NegativeGroupInfo.h" />
+    <ClInclude Include="NegativeGroupPropertySheet.h" />
+    <ClInclude Include="NetworkAcquirerPropertySheet.h" />
+    <ClInclude Include="networkdefinition.h" />
+    <ClInclude Include="networkgeneral.h" />
+    <ClInclude Include="networkgeneral1.h" />
+    <ClInclude Include="NetworkIssuerPropertySheet.h" />
+    <ClInclude Include="networkkeyblockdefinition.h" />
+    <ClInclude Include="networkkeyblockgeneral.h" />
+    <ClInclude Include="NetworkKeyblockPropertySheet.h" />
+    <ClInclude Include="NetworkLogon.h" />
+    <ClInclude Include="NetworkProcessing.h" />
+    <ClInclude Include="NetworkTotals.h" />
+    <ClInclude Include="OnlinePINConfigureBDKKey.h" />
+    <ClInclude Include="OnlinePINConfigureBDKKeyGeneral.h" />
+    <ClInclude Include="OnlinePINControlBDKKeySheet.h" />
+    <ClInclude Include="OverrideMerchantDenial.h" />
+    <ClInclude Include="OverrideMerchantDenialPropertySheet.h" />
+    <ClInclude Include="PanDemogrPage.h" />
+    <ClInclude Include="PanMainPage.h" />
+    <ClInclude Include="PanProcesPage.h" />
+    <ClInclude Include="PanPropertySheet.h" />
+    <ClInclude Include="PanTxPage.h" />
+    <ClInclude Include="picture.h" />
+    <ClInclude Include="PosEntryModesListDlg.h" />
+    <ClInclude Include="ProfileDlg.h" />
+    <ClInclude Include="PurchaseCardDefinition.h" />
+    <ClInclude Include="PurchaseCardGeneral.h" />
+    <ClInclude Include="PurchaseCardPropertySheet.h" />
+    <ClInclude Include="RelatedDefinition.h" />
+    <ClInclude Include="relatedgeneral.h" />
+    <ClInclude Include="RelatedPropertySheet.h" />
+    <ClInclude Include="ResetDcoMonitor.h" />
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="RulesDefinitionMain.h" />
+    <ClInclude Include="RulesDefinitionProcessing.h" />
+    <ClInclude Include="RulesDefinitionpropertySheet.h" />
+    <ClInclude Include="RulesExceptionList.h" />
+    <ClInclude Include="SchedulerConfig.h" />
+    <ClInclude Include="SchedulerPropertySheet.h" />
+    <ClInclude Include="SchSearch.h" />
+    <ClInclude Include="SCHTYPES.H" />
+    <ClInclude Include="SettleFileDefinition.h" />
+    <ClInclude Include="SettleFilePropertySheet.h" />
+    <ClInclude Include="SettlePrefixTime.h" />
+    <ClInclude Include="SharedMem.h" />
+    <ClInclude Include="ShedulerControl.h" />
+    <ClInclude Include="SRVCCOMM.H" />
+    <ClInclude Include="SRVCINFO.H" />
+    <ClInclude Include="SRVCMGR.H" />
+    <ClInclude Include="StdAfx.h" />
+    <ClInclude Include="SystemGlobalParameterDefinition.h" />
+    <ClInclude Include="SystemGlobalParameterSheet.h" />
+    <ClInclude Include="TerminalAutoInit.h" />
+    <ClInclude Include="TerminalCapabilities.h" />
+    <ClInclude Include="TerminalValidTransactions.h" />
+    <ClInclude Include="TransactionDetails.h" />
+    <ClInclude Include="TXUTILS.H" />
+    <ClInclude Include="UserAccess.h" />
+    <ClInclude Include="UserAccountStatus.h" />
+    <ClInclude Include="UserAuditLog1.h" />
+    <ClInclude Include="UserDefinition.h" />
+    <ClInclude Include="UserPropertySheet.h" />
+    <ClInclude Include="UsersList.h" />
+    <ClInclude Include="UserWorkstation.h" />
+    <ClInclude Include="Visa3DS2ConfigMain.h" />
+    <ClInclude Include="Visa3DS2ConfigPropertySheet.h" />
+    <ClInclude Include="VoiceAuthInput.h" />
+    <ClInclude Include="VoiceAuthResponse.h" />
+    <ClInclude Include="WorkstationDefinition.h" />
+    <ClInclude Include="WorkstationDescription.h" />
+    <ClInclude Include="WorkstationPropertySheet.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ClassDiagram1.cd" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+  <ProjectExtensions>
+    <VisualStudio>
+      <UserProperties RESOURCE_FILE="Atp.rc" />
+    </VisualStudio>
+  </ProjectExtensions>
+</Project>

@@ -1,0 +1,548 @@
+//Microsoft Developer Studio generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+#endif //_WIN32
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
+    "#define _AFX_NO_OLE_RESOURCES\r\n"
+    "#define _AFX_NO_TRACKER_RESOURCES\r\n"
+    "#define _AFX_NO_PROPERTY_RESOURCES\r\n"
+    "\r\n"
+    "#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)\r\n"
+    "#ifdef _WIN32\r\n"
+    "LANGUAGE 9, 1\r\n"
+    "#pragma code_page(1252)\r\n"
+    "#endif //_WIN32\r\n"
+    "#include ""res\\VoiceAuthorization.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
+    "#include ""afxres.rc""         // Standard components\r\n"
+    "#endif\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDR_MAINFRAME           ICON    DISCARDABLE     "res\\VoiceAuthorization.ico"
+IDR_VOICEATYPE          ICON    DISCARDABLE     "res\\VoiceAuthorizationDoc.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDR_MAINFRAME           BITMAP  MOVEABLE PURE   "res\\Toolbar.bmp"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Toolbar
+//
+
+IDR_MAINFRAME TOOLBAR DISCARDABLE  16, 15
+BEGIN
+    BUTTON      ID_FILE_NEW
+    BUTTON      ID_FILE_OPEN
+    BUTTON      ID_FILE_SAVE
+    SEPARATOR
+    BUTTON      ID_EDIT_CUT
+    BUTTON      ID_EDIT_COPY
+    BUTTON      ID_EDIT_PASTE
+    SEPARATOR
+    BUTTON      ID_FILE_PRINT
+    SEPARATOR
+    BUTTON      ID_APP_ABOUT
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDR_MAINFRAME MENU PRELOAD DISCARDABLE 
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&New\tCtrl+N",                ID_FILE_NEW
+        MENUITEM "&Open...\tCtrl+O",            ID_FILE_OPEN
+        MENUITEM "&Save\tCtrl+S",               ID_FILE_SAVE
+        MENUITEM "Save &As...",                 ID_FILE_SAVE_AS
+        MENUITEM SEPARATOR
+        MENUITEM "Recent File",                 ID_FILE_MRU_FILE1, GRAYED
+        MENUITEM SEPARATOR
+        MENUITEM "E&xit",                       ID_APP_EXIT
+    END
+    POPUP "&Edit"
+    BEGIN
+        MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
+        MENUITEM SEPARATOR
+        MENUITEM "Cu&t\tCtrl+X",                ID_EDIT_CUT
+        MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY
+        MENUITEM "&Paste\tCtrl+V",              ID_EDIT_PASTE
+    END
+    POPUP "&View"
+    BEGIN
+        MENUITEM "&Toolbar",                    ID_VIEW_TOOLBAR
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&About VoiceAuthorization...", ID_APP_ABOUT
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Accelerator
+//
+
+IDR_MAINFRAME ACCELERATORS PRELOAD MOVEABLE PURE 
+BEGIN
+    "N",            ID_FILE_NEW,            VIRTKEY, CONTROL
+    "O",            ID_FILE_OPEN,           VIRTKEY, CONTROL
+    "S",            ID_FILE_SAVE,           VIRTKEY, CONTROL
+    "Z",            ID_EDIT_UNDO,           VIRTKEY, CONTROL
+    "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL
+    "C",            ID_EDIT_COPY,           VIRTKEY, CONTROL
+    "V",            ID_EDIT_PASTE,          VIRTKEY, CONTROL
+    VK_BACK,        ID_EDIT_UNDO,           VIRTKEY, ALT
+    VK_DELETE,      ID_EDIT_CUT,            VIRTKEY, SHIFT
+    VK_INSERT,      ID_EDIT_COPY,           VIRTKEY, CONTROL
+    VK_INSERT,      ID_EDIT_PASTE,          VIRTKEY, SHIFT
+    VK_F6,          ID_NEXT_PANE,           VIRTKEY 
+    VK_F6,          ID_PREV_PANE,           VIRTKEY, SHIFT
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_ABOUTBOX DIALOG DISCARDABLE  0, 0, 235, 55
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About VoiceAuthorization"
+FONT 8, "MS Sans Serif"
+BEGIN
+    ICON            IDR_MAINFRAME,IDC_STATIC,11,17,20,20
+    LTEXT           "VoiceAuthorization Version 4.4.1.11",
+                    IDC_STATIC_APPVERION,40,10,119,8,SS_NOPREFIX
+    LTEXT           "Copyright (C) 2007, Hypercom Inc.",IDC_STATIC,40,25,119,
+                    8
+    DEFPUSHBUTTON   "OK",IDOK,178,7,50,14,WS_GROUP
+END
+
+IDD_VOICE_AUTH DIALOGEX 0, 0, 446, 367
+STYLE WS_MINIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Voice Authorization"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    EDITTEXT        IDC_MERCHANT_ID_FLD,125,20,70,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL
+    EDITTEXT        IDC_ORG_ID_FLD,125,38,70,14,ES_UPPERCASE | 
+                    ES_AUTOHSCROLL
+    EDITTEXT        IDC_ACCOUNT_NUMBER_FLD,125,57,89,14,ES_AUTOHSCROLL | 
+                    ES_NUMBER
+    EDITTEXT        IDC_EXPIRY_DATE_FLD,125,76,29,14,ES_AUTOHSCROLL | 
+                    ES_NUMBER
+    CONTROL         "Mod10",IDC_MOD10_CHECK_BUTTON,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,171,78,38,10
+    EDITTEXT        IDC_AMOUNT,125,95,70,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_CVV2_FLD,125,114,69,14,ES_AUTOHSCROLL | ES_NUMBER
+    COMBOBOX        IDC_TRANSACTION_TYPE,125,133,89,72,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    EDITTEXT        IDC_TEXT_FLD,265,82,155,27,ES_MULTILINE | ES_AUTOVSCROLL | 
+                    WS_VSCROLL
+    EDITTEXT        IDC_AUTH_NUMBER_FLD,316,117,70,14,ES_AUTOHSCROLL | 
+                    WS_DISABLED
+    EDITTEXT        IDC_DEFERRED_PURCHASE_TERM_FLD,316,134,70,14,
+                    ES_AUTOHSCROLL | ES_NUMBER | WS_DISABLED
+    PUSHBUTTON      "&Verify",IDC_VERIFY_BUTTON,16,308,73,14
+    PUSHBUTTON      "Commit &Authorization",IDC_PROCESS_AUTH_BUTTON,100,308,
+                    73,14
+    PUSHBUTTON      "&Override  Denial",IDC_OVERRIDE_DENIAL_BUTTON,184,308,
+                    73,14
+    PUSHBUTTON      "&Clear",IDC_CLEAR_BUTTON,268,308,73,14
+    PUSHBUTTON      "&Exit",IDC_OK1,352,308,73,14
+    EDITTEXT        IDC_MCC_FLD,316,20,70,14,ES_AUTOHSCROLL | ES_READONLY | 
+                    NOT WS_TABSTOP
+    EDITTEXT        IDC_INDUSTRY_CODE,316,38,70,14,ES_AUTOHSCROLL | 
+                    ES_READONLY | NOT WS_TABSTOP
+    EDITTEXT        IDC_CURRENCY_CODE,316,56,70,14,ES_READONLY | NOT 
+                    WS_TABSTOP
+    LTEXT           "Merchant ID:",IDC_STATIC,22,26,42,8
+    LTEXT           "Organization ID:",IDC_STATIC,22,44,52,8
+    LTEXT           "Cardholder Account Number:",IDC_STATIC,22,63,92,8
+    LTEXT           "Expiry Date:(YYMM)",IDC_STATIC,22,82,70,8
+    LTEXT           "Amount:",IDC_STATIC,22,101,27,8
+    LTEXT           "CVV2    (Amex = 4DBC/4CSC):",IDC_STATIC,22,120,102,8
+    LTEXT           "Merchant Category Code:",IDC_STATIC,225,24,82,8
+    LTEXT           "Transaction Type:",IDC_STATIC,22,137,58,8
+    LTEXT           "Industry Code:",IDC_STATIC,226,44,46,8
+    LTEXT           "Currency Code:",IDC_STATIC,226,63,50,8
+    LTEXT           "Text:",IDC_STATIC,226,88,17,8
+    LTEXT           "Authorization Number:",IDC_STATIC,227,119,70,8
+    LTEXT           "Deferred Purchase Term:",IDC_STATIC,226,139,80,8
+    LTEXT           "Cardholder Name:",IDC_STATIC,21,188,58,8
+    LTEXT           "Bank Name:",IDC_STATIC,21,204,40,8
+    LTEXT           "Merchant Chain:",IDC_STATIC,21,220,53,8
+    EDITTEXT        IDC_CARDHOLDER_NAME_FLD,85,185,157,14,ES_AUTOHSCROLL | 
+                    ES_READONLY | NOT WS_TABSTOP
+    EDITTEXT        IDC_BANK_NAME_FLD,85,201,157,14,ES_AUTOHSCROLL | 
+                    ES_READONLY | NOT WS_TABSTOP
+    EDITTEXT        IDC_MERCHANT_NAME_FLD,85,217,157,14,ES_AUTOHSCROLL | 
+                    ES_READONLY | NOT WS_TABSTOP
+    GROUPBOX        "Transaction Info",IDC_STATIC,8,169,244,79
+    LTEXT           "Authorization Response Code:",IDC_STATIC,268,185,96,8
+    LTEXT           "Authorization Number:",IDC_STATIC,268,200,70,8
+    GROUPBOX        "Authorization Response",IDC_STATIC,260,169,179,79
+    EDITTEXT        IDC_RESPONSE_CODE_FLD,380,180,40,14,ES_AUTOHSCROLL | 
+                    ES_READONLY | NOT WS_TABSTOP
+    EDITTEXT        IDC_AUTH_NUM_FLD,380,196,40,12,ES_AUTOHSCROLL | 
+                    ES_READONLY | NOT WS_TABSTOP
+    LTEXT           "Gross Amount:",IDC_STATIC,268,214,47,8
+    LTEXT           "Monthly Amortization Amount:",IDC_STATIC,268,229,94,8
+    EDITTEXT        IDC_MONTHLY_AMORTIZATION_AMOUNT_FLD,380,224,40,14,
+                    ES_AUTOHSCROLL | ES_READONLY | NOT WS_TABSTOP,
+                    WS_EX_RIGHT
+    GROUPBOX        "Response Text:",IDC_STATIC,8,253,431,42
+    EDITTEXT        IDC_RESPONSE_TEXT_FLD,23,265,403,22,ES_MULTILINE | 
+                    ES_AUTOVSCROLL | ES_READONLY | NOT WS_TABSTOP
+    EDITTEXT        IDC_GROSS_AMOUNT_FLD,380,210,40,12,ES_AUTOHSCROLL | 
+                    ES_READONLY | NOT WS_TABSTOP,WS_EX_RIGHT
+    GROUPBOX        "Input",IDC_STATIC_INPUT,8,7,431,156
+    GROUPBOX        "",IDC_STATIC,8,328,431,29
+    LTEXT           "",IDC_MESSAGE_LBL,21,338,411,13,SS_SUNKEN
+    LTEXT           "Card Status:",IDC_STATIC,21,235,55,10
+    EDITTEXT        IDC_CARD_STATUS_FLD,85,233,158,12,ES_AUTOHSCROLL | 
+                    ES_READONLY | NOT WS_TABSTOP
+END
+
+IDD_OVERRIDE_PASSWORD DIALOG DISCARDABLE  0, 0, 149, 89
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Override Password"
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_OVERRIDE_PASSWORD,19,28,109,17,ES_UPPERCASE | 
+                    ES_PASSWORD | ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,19,54,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,78,54,50,14
+    CONTROL         "Enter Password:",IDC_STATIC,"Static",SS_LEFTNOWORDWRAP | 
+                    SS_CENTERIMAGE | WS_GROUP,19,7,94,17
+    GROUPBOX        "",IDC_STATIC,7,1,135,75
+END
+
+IDD_IDLE_LOGIN DIALOG DISCARDABLE  0, 0, 217, 115
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Voice Authorization Idle Login"
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_EDIT_UID,96,19,84,17,ES_UPPERCASE | ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_PWD,95,45,85,17,ES_PASSWORD | ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,52,82,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,119,82,50,14
+    LTEXT           "USERID",IDC_STATIC_UID,33,22,56,14
+    LTEXT           "PASSWORD",IDC_STATIC_PWD,33,49,57,18
+END
+
+
+#ifndef _MAC
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 4,4,1,13
+ PRODUCTVERSION 4,4,1,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "Comments", "VoiceAuth version ATP_5.18.0: MC CVV2 validation removal\0"
+            VALUE "CompanyName", "Hypercom Corp\0"
+            VALUE "FileDescription", "VoiceAuthorization MFC Application\0"
+            VALUE "FileVersion", "5, 0, 10, 0\0"
+            VALUE "InternalName", "VoiceAuthorization\0"
+            VALUE "LegalCopyright", "ThoughtFocus Copyright © 2012\0"
+            VALUE "LegalTrademarks", "\0"
+            VALUE "OriginalFilename", "VoiceAuthorization.EXE\0"
+            VALUE "PrivateBuild", "\0"
+            VALUE "ProductName", "Ascendent\0"
+            VALUE "ProductVersion", "5, 0, 10, 0\0"
+            VALUE "SpecialBuild", "\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+#endif    // !_MAC
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO DISCARDABLE 
+BEGIN
+    IDD_ABOUTBOX, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 228
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 48
+    END
+
+    IDD_VOICE_AUTH, DIALOG
+    BEGIN
+        LEFTMARGIN, 8
+        RIGHTMARGIN, 439
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 357
+    END
+
+    IDD_OVERRIDE_PASSWORD, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 142
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 82
+    END
+
+    IDD_IDLE_LOGIN, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 210
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 108
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog Info
+//
+
+IDD_VOICE_AUTH DLGINIT
+BEGIN
+    IDC_TRANSACTION_TYPE, 0x403, 5, 0
+0x6153, 0x656c, "\000" 
+    IDC_TRANSACTION_TYPE, 0x403, 13, 0
+0x6143, 0x6873, 0x4120, 0x7664, 0x6e61, 0x6563, "\000" 
+    IDC_TRANSACTION_TYPE, 0x403, 11, 0
+0x7551, 0x7361, 0x2069, 0x6143, 0x6873, "\000" 
+    IDC_TRANSACTION_TYPE, 0x403, 18, 0
+0x6544, 0x6566, 0x7272, 0x6465, 0x5020, 0x7275, 0x6863, 0x7361, 0x0065, 
+
+    IDC_TRANSACTION_TYPE, 0x403, 12, 0
+0x6143, 0x636e, 0x6c65, 0x5320, 0x6c61, 0x0065, 
+    IDC_TRANSACTION_TYPE, 0x403, 20, 0
+0x6143, 0x636e, 0x6c65, 0x4320, 0x7361, 0x2068, 0x6441, 0x6176, 0x636e, 
+0x0065, 
+    IDC_TRANSACTION_TYPE, 0x403, 18, 0
+0x6143, 0x636e, 0x6c65, 0x5120, 0x6175, 0x6973, 0x4320, 0x7361, 0x0068, 
+
+    IDC_TRANSACTION_TYPE, 0x403, 25, 0
+0x6143, 0x636e, 0x6c65, 0x4420, 0x6665, 0x7265, 0x6572, 0x2064, 0x7550, 
+0x6372, 0x6168, 0x6573, "\000" 
+    0
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE PRELOAD DISCARDABLE 
+BEGIN
+    IDR_MAINFRAME           "VoiceAuthorization\n\nVoiceA\n\n\nVoiceAuthorization.Document\nVoiceA Document"
+END
+
+STRINGTABLE PRELOAD DISCARDABLE 
+BEGIN
+    AFX_IDS_APP_TITLE       "VoiceAuthorization"
+    AFX_IDS_IDLEMESSAGE     "Ready"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    ID_INDICATOR_EXT        "EXT"
+    ID_INDICATOR_CAPS       "CAP"
+    ID_INDICATOR_NUM        "NUM"
+    ID_INDICATOR_SCRL       "SCRL"
+    ID_INDICATOR_OVR        "OVR"
+    ID_INDICATOR_REC        "REC"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    ID_FILE_NEW             "Create a new document\nNew"
+    ID_FILE_OPEN            "Open an existing document\nOpen"
+    ID_FILE_CLOSE           "Close the active document\nClose"
+    ID_FILE_SAVE            "Save the active document\nSave"
+    ID_FILE_SAVE_AS         "Save the active document with a new name\nSave As"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    ID_APP_ABOUT            "Display program information, version number and copyright\nAbout"
+    ID_APP_EXIT             "Quit the application; prompts to save documents\nExit"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    ID_FILE_MRU_FILE1       "Open this document"
+    ID_FILE_MRU_FILE2       "Open this document"
+    ID_FILE_MRU_FILE3       "Open this document"
+    ID_FILE_MRU_FILE4       "Open this document"
+    ID_FILE_MRU_FILE5       "Open this document"
+    ID_FILE_MRU_FILE6       "Open this document"
+    ID_FILE_MRU_FILE7       "Open this document"
+    ID_FILE_MRU_FILE8       "Open this document"
+    ID_FILE_MRU_FILE9       "Open this document"
+    ID_FILE_MRU_FILE10      "Open this document"
+    ID_FILE_MRU_FILE11      "Open this document"
+    ID_FILE_MRU_FILE12      "Open this document"
+    ID_FILE_MRU_FILE13      "Open this document"
+    ID_FILE_MRU_FILE14      "Open this document"
+    ID_FILE_MRU_FILE15      "Open this document"
+    ID_FILE_MRU_FILE16      "Open this document"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    ID_NEXT_PANE            "Switch to the next window pane\nNext Pane"
+    ID_PREV_PANE            "Switch back to the previous window pane\nPrevious Pane"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    ID_WINDOW_SPLIT         "Split the active window into panes\nSplit"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    ID_EDIT_CLEAR           "Erase the selection\nErase"
+    ID_EDIT_CLEAR_ALL       "Erase everything\nErase All"
+    ID_EDIT_COPY            "Copy the selection and put it on the Clipboard\nCopy"
+    ID_EDIT_CUT             "Cut the selection and put it on the Clipboard\nCut"
+    ID_EDIT_FIND            "Find the specified text\nFind"
+    ID_EDIT_PASTE           "Insert Clipboard contents\nPaste"
+    ID_EDIT_REPEAT          "Repeat the last action\nRepeat"
+    ID_EDIT_REPLACE         "Replace specific text with different text\nReplace"
+    ID_EDIT_SELECT_ALL      "Select the entire document\nSelect All"
+    ID_EDIT_UNDO            "Undo the last action\nUndo"
+    ID_EDIT_REDO            "Redo the previously undone action\nRedo"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    ID_VIEW_TOOLBAR         "Show or hide the toolbar\nToggle ToolBar"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    AFX_IDS_SCSIZE          "Change the window size"
+    AFX_IDS_SCMOVE          "Change the window position"
+    AFX_IDS_SCMINIMIZE      "Reduce the window to an icon"
+    AFX_IDS_SCMAXIMIZE      "Enlarge the window to full size"
+    AFX_IDS_SCNEXTWINDOW    "Switch to the next document window"
+    AFX_IDS_SCPREVWINDOW    "Switch to the previous document window"
+    AFX_IDS_SCCLOSE         "Close the active window and prompts to save the documents"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    AFX_IDS_SCRESTORE       "Restore the window to normal size"
+    AFX_IDS_SCTASKLIST      "Activate Task List"
+    IDS_PRODUCT_VERSION     "ATP_5.18.0"
+END
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+#define _AFX_NO_SPLITTER_RESOURCES
+#define _AFX_NO_OLE_RESOURCES
+#define _AFX_NO_TRACKER_RESOURCES
+#define _AFX_NO_PROPERTY_RESOURCES
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE 9, 1
+#pragma code_page(1252)
+#endif //_WIN32
+#include "res\VoiceAuthorization.rc2"  // non-Microsoft Visual C++ edited resources
+#include "afxres.rc"         // Standard components
+#endif
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

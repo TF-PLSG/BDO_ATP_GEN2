@@ -1,0 +1,641 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United States) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
+    "#define _AFX_NO_OLE_RESOURCES\r\n"
+    "#define _AFX_NO_TRACKER_RESOURCES\r\n"
+    "#define _AFX_NO_PROPERTY_RESOURCES\r\n"
+    "\r\n"
+    "#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)\r\n"
+    "#ifdef _WIN32\r\n"
+    "LANGUAGE 9, 1\r\n"
+    "#pragma code_page(1252)\r\n"
+    "#endif\r\n"
+    "#include ""res\\monitordco.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
+    "#include ""afxres.rc""         // Standard components\r\n"
+    "#endif\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDR_MAINFRAME           ICON                    "res\\MonitorDco.ico"
+IDR_MONITOTYPE          ICON                    "res\\monitordcoDoc.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDR_MAINFRAME           BITMAP                  "res\\Toolbar.bmp"
+IDB_TESTOFF             BITMAP                  "res\\TestOff.bmp"
+IDB_TESTING             BITMAP                  "res\\Testing.bmp"
+IDB_NC_RED              BITMAP                  "res\\red_light.bmp"
+IDB_NC_GREEN            BITMAP                  "res\\green_light.bmp"
+IDB_NC_YELLOW           BITMAP                  "res\\yellow_light.bmp"
+IDB_MONITOR1            BITMAP                  "res\\monitor1.bmp"
+IDB_MONITOR2            BITMAP                  "res\\monitor2.bmp"
+IDB_MONITOR3            BITMAP                  "res\\monitor3.bmp"
+IDB_MONITOR4            BITMAP                  "res\\monitor4.bmp"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Toolbar
+//
+
+IDR_MAINFRAME TOOLBAR 16, 15
+BEGIN
+    BUTTON      ID_FILE_NEW
+    BUTTON      ID_FILE_OPEN
+    BUTTON      ID_FILE_SAVE
+    SEPARATOR
+    BUTTON      ID_EDIT_CUT
+    BUTTON      ID_EDIT_COPY
+    BUTTON      ID_EDIT_PASTE
+    SEPARATOR
+    BUTTON      ID_FILE_PRINT
+    BUTTON      ID_APP_ABOUT
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDR_MAINFRAME MENU
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&New\tCtrl+N",                ID_FILE_NEW
+        MENUITEM "&Open...\tCtrl+O",            ID_FILE_OPEN
+        MENUITEM "&Save\tCtrl+S",               ID_FILE_SAVE
+        MENUITEM "Save &As...",                 ID_FILE_SAVE_AS
+        MENUITEM SEPARATOR
+        MENUITEM "Recent File",                 ID_FILE_MRU_FILE1, GRAYED
+        MENUITEM SEPARATOR
+        MENUITEM "E&xit",                       ID_APP_EXIT
+    END
+    POPUP "&Edit"
+    BEGIN
+        MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
+        MENUITEM SEPARATOR
+        MENUITEM "Cu&t\tCtrl+X",                ID_EDIT_CUT
+        MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY
+        MENUITEM "&Paste\tCtrl+V",              ID_EDIT_PASTE
+    END
+    POPUP "&View"
+    BEGIN
+        MENUITEM "&Toolbar",                    ID_VIEW_TOOLBAR
+        MENUITEM "&Status Bar",                 ID_VIEW_STATUS_BAR
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&About monitordco...",        ID_APP_ABOUT
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Accelerator
+//
+
+IDR_MAINFRAME ACCELERATORS
+BEGIN
+    "N",            ID_FILE_NEW,            VIRTKEY, CONTROL
+    "O",            ID_FILE_OPEN,           VIRTKEY, CONTROL
+    "S",            ID_FILE_SAVE,           VIRTKEY, CONTROL
+    "Z",            ID_EDIT_UNDO,           VIRTKEY, CONTROL
+    "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL
+    "C",            ID_EDIT_COPY,           VIRTKEY, CONTROL
+    "V",            ID_EDIT_PASTE,          VIRTKEY, CONTROL
+    VK_BACK,        ID_EDIT_UNDO,           VIRTKEY, ALT
+    VK_DELETE,      ID_EDIT_CUT,            VIRTKEY, SHIFT
+    VK_INSERT,      ID_EDIT_COPY,           VIRTKEY, CONTROL
+    VK_INSERT,      ID_EDIT_PASTE,          VIRTKEY, SHIFT
+    VK_F6,          ID_NEXT_PANE,           VIRTKEY 
+    VK_F6,          ID_PREV_PANE,           VIRTKEY, SHIFT
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_ABOUTBOX DIALOG 0, 0, 217, 55
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About monitordco"
+FONT 8, "MS Sans Serif"
+BEGIN
+    ICON            IDR_MAINFRAME,IDC_STATIC,11,17,20,20
+    LTEXT           "MonitorDco Version ",IDC_STATIC_APPVERSION,40,10,119,8,SS_NOPREFIX
+    LTEXT           "Copyright © 2006, Hypercom Inc.",IDC_STATIC,40,25,119,8
+    DEFPUSHBUTTON   "OK",IDOK,178,7,32,14,WS_GROUP
+END
+
+IDD_MONITORDCO_FORM_Orignial DIALOGEX 0, 0, 810, 349
+STYLE DS_SETFONT | WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    LISTBOX         IDC_DIALOG_CONNECT_STATUS,512,27,205,75,NOT LBS_NOTIFY | LBS_SORT | LBS_MULTIPLESEL | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_USETABSTOPS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Log On",IDC_LOGON,721,232,45,12
+    PUSHBUTTON      "Log &Off",IDC_LOGOFF,721,246,45,12
+    PUSHBUTTON      "&Echo Test",IDC_ECHOTEST,721,260,45,12
+    PUSHBUTTON      "SA&F",IDC_SAF,721,273,45,12
+    PUSHBUTTON      "&Refresh",IDC_REFRESH,721,287,45,12
+    PUSHBUTTON      "P&ing Dialog",IDC_PING_DIALOG_BUTTON1,721,304,50,14
+    LISTBOX         IDC_TRAN_ACTIVITY_LIST,17,31,418,134,NOT LBS_NOTIFY | LBS_SORT | LBS_MULTIPLESEL | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_USETABSTOPS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | WS_VSCROLL | WS_TABSTOP,WS_EX_RIGHT
+    PUSHBUTTON      "&Ping Service",IDC_PING_BUTTON,439,44,50,14
+    PUSHBUTTON      "R&eset Counts",IDC_RESET_COUNTS_BUTTON,439,89,50,14
+    CONTROL         "List1",IDC_LOG_MESSAGES,"SysListView32",LVS_REPORT | LVS_SINGLESEL | WS_BORDER | WS_TABSTOP,16,185,417,140
+    PUSHBUTTON      "&Save Log...",IDC_SAVELOG,441,275,45,12
+    PUSHBUTTON      "Cle&ar Log",IDC_CLEARLOG,441,293,45,12
+    PUSHBUTTON      "&Close",IDC_CLOSE,439,330,45,12
+    GROUPBOX        " Network Status ",IDC_STATIC,504,7,285,322
+    LTEXT           "Dialog ID",IDC_STATIC,521,16,38,8
+    LTEXT           "Log Status",IDC_STATIC,615,16,89,8
+    LTEXT           "Network ID",IDC_STATIC,523,111,38,8
+    LTEXT           "Connection Status",IDC_STATIC,610,111,95,8
+    GROUPBOX        "Transaction Activity",IDC_STATIC,9,7,484,164
+    LTEXT           "Service Name",IDC_SERVICE_NAME_LABEL,16,17,48,9
+    LTEXT           "Received",IDC_RECEIVED_LABEL,76,17,32,8
+    LTEXT           "Sent",IDC_SENT_LABEL,135,17,23,9
+    LTEXT           "Rate",IDC_RATE_LABEL,181,17,23,9
+    GROUPBOX        "Log Messages",IDC_STATIC,9,172,484,157
+    LTEXT           "Approved",IDC_STATIC,234,17,39,9
+    LTEXT           "Declined",IDC_STATIC,290,17,36,9
+    LTEXT           "Timed Out",IDC_STATIC,341,17,41,9
+    LTEXT           "Reversed",IDC_STATIC,393,17,44,9
+END
+
+IDD_PRIMARYACCOUNT_SELECTION DIALOG 0, 0, 154, 159
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Select Primary Account Number"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,21,132,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,79,132,50,14
+    LISTBOX         IDC_PRIMARYACCOUNT_LIST,21,27,108,94,LBS_SORT | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Select a Primary Account Number",IDC_STATIC,21,15,109,8
+END
+
+IDD_MONITORDCO_FORM DIALOGEX 0, 0, 963, 484
+STYLE DS_SETFONT | DS_NOIDLEMSG | DS_SETFOREGROUND | WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    LISTBOX         IDC_DIALOG_CONNECT_STATUS,224,40,189,188,NOT LBS_NOTIFY | LBS_SORT | LBS_MULTIPLESEL | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_USETABSTOPS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | WS_VSCROLL | WS_HSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Log On",IDC_LOGON,423,46,50,14
+    PUSHBUTTON      "Log &Off",IDC_LOGOFF,423,62,50,14
+    PUSHBUTTON      "&Echo Test",IDC_ECHOTEST,423,78,50,14
+    PUSHBUTTON      "Get Ad&vices",IDC_SAF,423,94,50,14
+    PUSHBUTTON      "&Refresh",IDC_REFRESH,423,110,50,14
+    PUSHBUTTON      "P&ing Dialog",IDC_PING_DIALOG_BUTTON1,369,7,44,12,0,WS_EX_TRANSPARENT
+    LISTBOX         IDC_TRAN_ACTIVITY_LIST,15,115,187,48,NOT LBS_NOTIFY | LBS_SORT | LBS_MULTIPLESEL | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_USETABSTOPS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | NOT WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | WS_TABSTOP,WS_EX_RIGHT
+    PUSHBUTTON      "need to be removed",IDC_PING_BUTTON,136,172,57,17,BS_MULTILINE | NOT WS_VISIBLE
+    PUSHBUTTON      "R&eset Counts",IDC_RESET_COUNTS_BUTTON,423,157,50,14,BS_MULTILINE
+    LISTBOX         IDC_LOG_MESSAGES,224,40,189,167,NOT LBS_NOTIFY | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_USETABSTOPS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | WS_VSCROLL | WS_HSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Save Log...",IDC_SAVELOG,231,212,39,14
+    PUSHBUTTON      "Cle&ar Log",IDC_CLEARLOG,275,212,39,13
+    PUSHBUTTON      "&TEST",IDC_TEST_BUTTON,320,212,39,13
+    CONTROL         "",IDC_TEST_RESULT,"Static",SS_BITMAP | SS_REALSIZEIMAGE | WS_BORDER,367,212,12,12
+    PUSHBUTTON      "&Close All",IDC_CLOSE,454,468,60,14,BS_BITMAP | BS_NOTIFY,WS_EX_DLGMODALFRAME
+    LTEXT           "Dialog ID",IDC_DIALOG_ID_LABEL,231,27,38,8
+    LTEXT           "Log Status",IDC_LOG_STATUS_LABEL,283,27,43,8
+    GROUPBOX        "Transaction Activity",IDC_STATIC,7,18,209,213
+    LTEXT           "Date",IDC_LOG_DATE_LABEL,231,26,23,9
+    LTEXT           "Type",IDC_LOG_TYPE_LABEL,296,26,23,9
+    LTEXT           "Service",IDC_LOG_SERVICE_LABEL,340,26,29,9
+    LTEXT           "Message",IDC_LOG_MSG_LABEL,391,26,20,9
+    LTEXT           "Time",IDC_LOG_TIME_LABEL,269,26,23,9
+    CONTROL         138,IDC_NC_STATUS,"Static",SS_BITMAP | SS_CENTERIMAGE | SS_REALSIZEIMAGE | SS_SUNKEN,432,18,28,25
+    CONTROL         "Mute",IDC_CHECK1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,424,217,42,13
+    LTEXT           "Name",IDC_NAME_LABEL,346,27,24,8
+    PUSHBUTTON      "AC&Q Off",IDC_ACQUIRER_OFF,422,125,50,14,WS_DISABLED
+    CONTROL         "List1",IDC_NET_TRAN_LIST,"SysListView32",LVS_REPORT | WS_BORDER | WS_TABSTOP,14,30,198,199
+    PUSHBUTTON      "&Ping Service",IDC_PING,423,141,50,14
+    LISTBOX         IDC_NETWORK_STATUS,224,188,48,40,LBS_SORT | LBS_NOINTEGRALHEIGHT | NOT WS_VISIBLE | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Key Request",IDC_CUP_KEY_REQ_BUTTON,423,173,50,14,BS_MULTILINE | WS_DISABLED
+    PUSHBUTTON      "Key &Send",IDC_CUP_KEY_UPDATE_BUTTON,423,187,50,14,BS_MULTILINE | WS_DISABLED
+    PUSHBUTTON      "Key &Reload",IDC_CUP_KEY_RELOAD,423,202,50,14,BS_MULTILINE | WS_DISABLED
+    LISTBOX         IDC_DIALOG_CONNECT_STATUS2,699,38,188,189,NOT LBS_NOTIFY | LBS_SORT | LBS_MULTIPLESEL | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_USETABSTOPS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | WS_VSCROLL | WS_HSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Log On",IDC_LOGON2,897,46,50,14
+    PUSHBUTTON      "Log &Off",IDC_LOGOFF2,897,62,50,14
+    PUSHBUTTON      "&Echo Test",IDC_ECHOTEST2,897,78,50,14
+    PUSHBUTTON      "Get Ad&vices",IDC_SAF2,897,94,50,14
+    PUSHBUTTON      "&Refresh",IDC_REFRESH2,897,110,50,14
+    PUSHBUTTON      "P&ing Dialog",IDC_PING_DIALOG_BUTTON2,844,7,44,12,0,WS_EX_TRANSPARENT
+    LISTBOX         IDC_TRAN_ACTIVITY_LIST2,489,115,187,48,NOT LBS_NOTIFY | LBS_SORT | LBS_MULTIPLESEL | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_USETABSTOPS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | NOT WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | WS_TABSTOP,WS_EX_RIGHT
+    PUSHBUTTON      "need to be removed",IDC_PING_BUTTON2,610,172,57,17,BS_MULTILINE | NOT WS_VISIBLE
+    PUSHBUTTON      "R&eset Counts",IDC_RESET_COUNTS_BUTTON2,897,157,50,14,BS_MULTILINE
+    LISTBOX         IDC_LOG_MESSAGES2,699,38,188,166,NOT LBS_NOTIFY | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_USETABSTOPS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | WS_VSCROLL | WS_HSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Save Log...",IDC_SAVELOG2,707,206,43,14
+    PUSHBUTTON      "Cle&ar Log",IDC_CLEARLOG2,755,206,45,14
+    PUSHBUTTON      "&TEST",IDC_TEST_BUTTON2,804,206,33,14
+    CONTROL         "",IDC_TEST_RESULT2,"Static",SS_BITMAP | SS_REALSIZEIMAGE | WS_BORDER,843,206,12,12
+    LTEXT           "Dialog ID",IDC_DIALOG_ID_LABEL2,708,26,38,8
+    LTEXT           "Log Status",IDC_LOG_STATUS_LABEL2,761,26,43,8
+    GROUPBOX        "Transaction Activity",IDC_STATIC,481,18,210,213
+    LTEXT           "Date",IDC_LOG_DATE_LABEL2,707,26,23,9
+    LTEXT           "Time",IDC_LOG_TIME_LABEL2,740,26,23,9
+    LTEXT           "Type",IDC_LOG_TYPE_LABEL2,769,26,24,9
+    LTEXT           "Service",IDC_LOG_SERVICE_LABEL2,822,26,29,9
+    LTEXT           "Message",IDC_LOG_MSG_LABEL2,860,26,28,9
+    CONTROL         138,IDC_NC_STATUS2,"Static",SS_BITMAP | SS_CENTERIMAGE | SS_REALSIZEIMAGE | SS_SUNKEN,906,18,28,25
+    CONTROL         "Mute",IDC_CHECK2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,898,217,50,14
+    LTEXT           "Name",IDC_NAME_LABEL2,820,26,24,8
+    PUSHBUTTON      "AC&Q Off",IDC_ACQUIRER_OFF2,897,125,50,14,WS_DISABLED
+    CONTROL         "",IDC_NET_TRAN_LIST2,"SysListView32",LVS_REPORT | WS_BORDER | WS_TABSTOP,488,30,199,199
+    PUSHBUTTON      "&Ping Service",IDC_PING2,897,141,50,14
+    LISTBOX         IDC_NETWORK_STATUS2,699,187,48,40,LBS_SORT | LBS_NOINTEGRALHEIGHT | NOT WS_VISIBLE | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Key Request",IDC_CUP_KEY_REQ_BUTTON2,897,173,50,14,BS_MULTILINE | WS_DISABLED
+    PUSHBUTTON      "Key &Send",IDC_CUP_KEY_UPDATE_BUTTON3,897,187,50,14,BS_MULTILINE | WS_DISABLED
+    PUSHBUTTON      "Key &Reload",IDC_CUP_KEY_RELOAD2,897,202,50,14,BS_MULTILINE | WS_DISABLED
+    LISTBOX         IDC_DIALOG_CONNECT_STATUS3,224,271,189,191,NOT LBS_NOTIFY | LBS_SORT | LBS_MULTIPLESEL | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_USETABSTOPS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | WS_VSCROLL | WS_HSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Log On",IDC_LOGON3,423,280,50,14
+    PUSHBUTTON      "Log &Off",IDC_LOGOFF3,423,295,50,14
+    PUSHBUTTON      "&Echo Test",IDC_ECHOTEST3,423,311,50,14
+    PUSHBUTTON      "Get Ad&vices",IDC_SAF3,423,326,50,14
+    PUSHBUTTON      "&Refresh",IDC_REFRESH3,423,341,50,14
+    PUSHBUTTON      "P&ing Dialog",IDC_PING_DIALOG_BUTTON3,368,246,44,12,0,WS_EX_TRANSPARENT
+    LISTBOX         IDC_TRAN_ACTIVITY_LIST3,15,350,187,48,NOT LBS_NOTIFY | LBS_SORT | LBS_MULTIPLESEL | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_USETABSTOPS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | NOT WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | WS_TABSTOP,WS_EX_RIGHT
+    PUSHBUTTON      "need to be removed",IDC_PING_BUTTON3,136,407,57,17,BS_MULTILINE | NOT WS_VISIBLE
+    PUSHBUTTON      "R&eset Counts",IDC_RESET_COUNTS_BUTTON3,423,388,50,14,BS_MULTILINE
+    LISTBOX         IDC_LOG_MESSAGES3,224,271,189,170,NOT LBS_NOTIFY | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_USETABSTOPS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | WS_VSCROLL | WS_HSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Save Log...",IDC_SAVELOG3,231,444,45,14
+    PUSHBUTTON      "Cle&ar Log",IDC_CLEARLOG3,279,444,45,14
+    PUSHBUTTON      "&TEST",IDC_TEST_BUTTON3,328,444,29,14
+    CONTROL         "",IDC_TEST_RESULT3,"Static",SS_BITMAP | SS_REALSIZEIMAGE | WS_BORDER,367,444,12,12
+    LTEXT           "Dialog ID",IDC_DIALOG_ID_LABEL3,224,259,38,8
+    LTEXT           "Log Status",IDC_LOG_STATUS_LABEL3,288,259,43,8
+    GROUPBOX        "Transaction Activity",IDC_STATIC,7,250,207,216
+    LTEXT           "Date",IDC_LOG_DATE_LABEL3,231,259,23,9
+    LTEXT           "Service",IDC_LOG_SERVICE_LABEL3,339,259,29,9
+    LTEXT           "Type",IDC_LOG_TYPE_LABEL3,294,259,24,9
+    LTEXT           "Message",IDC_LOG_MSG_LABEL3,390,259,20,9
+    LTEXT           "Time",IDC_LOG_TIME_LABEL3,268,259,23,9
+    CONTROL         138,IDC_NC_STATUS3,"Static",SS_BITMAP | SS_CENTERIMAGE | SS_REALSIZEIMAGE | SS_SUNKEN,432,253,28,25
+    CONTROL         "Mute",IDC_CHECK3,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,426,448,42,10
+    LTEXT           "Name",IDC_NAME_LABEL3,352,259,24,8
+    PUSHBUTTON      "AC&Q Off",IDC_ACQUIRER_OFF3,423,356,50,14,WS_DISABLED
+    CONTROL         "",IDC_NET_TRAN_LIST3,"SysListView32",LVS_REPORT | WS_BORDER | WS_TABSTOP,14,261,196,202
+    PUSHBUTTON      "&Ping Service",IDC_PING3,423,372,50,14
+    LISTBOX         IDC_NETWORK_STATUS3,224,422,48,40,LBS_SORT | LBS_NOINTEGRALHEIGHT | NOT WS_VISIBLE | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Key Request",IDC_CUP_KEY_REQ_BUTTON3,423,403,50,14,BS_MULTILINE | WS_DISABLED
+    PUSHBUTTON      "Key &Send",IDC_CUP_KEY_UPDATE_BUTTON4,423,418,50,14,BS_MULTILINE | WS_DISABLED
+    PUSHBUTTON      "Key &Reload",IDC_CUP_KEY_RELOAD3,423,434,50,14,BS_MULTILINE | WS_DISABLED
+    LISTBOX         IDC_DIALOG_CONNECT_STATUS4,699,271,188,191,NOT LBS_NOTIFY | LBS_SORT | LBS_MULTIPLESEL | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_USETABSTOPS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | WS_VSCROLL | WS_HSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Log On",IDC_LOGON4,896,279,50,14
+    PUSHBUTTON      "Log &Off",IDC_LOGOFF4,896,294,50,14
+    PUSHBUTTON      "&Echo Test",IDC_ECHOTEST4,896,309,50,14
+    PUSHBUTTON      "Get Ad&vices",IDC_SAF4,896,325,50,14
+    PUSHBUTTON      "&Refresh",IDC_REFRESH4,896,341,50,14
+    PUSHBUTTON      "P&ing Dialog",IDC_PING_DIALOG_BUTTON4,843,245,44,12,0,WS_EX_TRANSPARENT
+    LISTBOX         IDC_TRAN_ACTIVITY_LIST4,489,350,187,48,NOT LBS_NOTIFY | LBS_SORT | LBS_MULTIPLESEL | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_USETABSTOPS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | NOT WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | WS_TABSTOP,WS_EX_RIGHT
+    PUSHBUTTON      "need to be removed",IDC_PING_BUTTON4,610,407,57,17,BS_MULTILINE | NOT WS_VISIBLE
+    PUSHBUTTON      "R&eset Counts",IDC_RESET_COUNTS_BUTTON4,896,388,50,14,BS_MULTILINE
+    LISTBOX         IDC_LOG_MESSAGES4,699,271,188,167,NOT LBS_NOTIFY | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_USETABSTOPS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | WS_VSCROLL | WS_HSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Save Log...",IDC_SAVELOG4,707,443,42,14
+    PUSHBUTTON      "Cle&ar Log",IDC_CLEARLOG4,755,443,43,14
+    PUSHBUTTON      "&TEST",IDC_TEST_BUTTON4,804,443,34,12
+    CONTROL         "",IDC_TEST_RESULT4,"Static",SS_BITMAP | SS_REALSIZEIMAGE | WS_BORDER,843,443,12,12
+    LTEXT           "Dialog ID",IDC_DIALOG_ID_LABEL4,700,259,38,8
+    LTEXT           "Log Status",IDC_LOG_STATUS_LABEL4,759,259,43,8
+    GROUPBOX        "Transaction Activity",IDC_STATIC,481,250,208,216
+    LTEXT           "Date",IDC_LOG_DATE_LABEL4,708,259,23,9
+    LTEXT           "Time",IDC_LOG_TIME_LABEL4,739,259,23,9
+    LTEXT           "Service",IDC_LOG_SERVICE_LABEL4,812,259,29,9
+    LTEXT           "Type",IDC_LOG_TYPE_LABEL4,767,259,24,9
+    LTEXT           "Message",IDC_LOG_MSG_LABEL4,862,259,25,9
+    CONTROL         138,IDC_NC_STATUS4,"Static",SS_BITMAP | SS_CENTERIMAGE | SS_REALSIZEIMAGE | SS_SUNKEN,906,253,28,25
+    CONTROL         "Mute",IDC_CHECK4,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,901,449,41,10
+    LTEXT           "Name",IDC_NAME_LABEL4,819,259,24,8
+    PUSHBUTTON      "AC&Q Off",IDC_ACQUIRER_OFF4,896,357,50,14,WS_DISABLED
+    CONTROL         "",IDC_NET_TRAN_LIST4,"SysListView32",LVS_REPORT | WS_BORDER | WS_TABSTOP,488,261,197,202
+    PUSHBUTTON      "&Ping Service",IDC_PING4,896,372,50,14
+    LISTBOX         IDC_NETWORK_STATUS4,699,422,48,40,LBS_SORT | LBS_NOINTEGRALHEIGHT | NOT WS_VISIBLE | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Key Request",IDC_CUP_KEY_REQ_BUTTON4,896,404,50,14,BS_MULTILINE | WS_DISABLED
+    PUSHBUTTON      "Key &Send",IDC_CUP_KEY_UPDATE_BUTTON5,896,419,50,14,BS_MULTILINE | WS_DISABLED
+    PUSHBUTTON      "Key &Reload",IDC_CUP_KEY_RELOAD4,896,434,50,14,BS_MULTILINE | WS_DISABLED
+    CONTROL         "",IDC_TAB3,"SysTabControl32",0x0,224,238,189,224
+    CONTROL         "",IDC_TAB1,"SysTabControl32",0x0,224,7,190,224
+    CONTROL         "",IDC_TAB2,"SysTabControl32",0x0,699,7,189,221
+    CONTROL         "",IDC_TAB4,"SysTabControl32",0x0,699,238,189,225
+    CONTROL         "Mute All",IDC_CHECK5,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,404,469,41,11
+    GROUPBOX        "",IDC_STATIC,6,2,473,233,0,WS_EX_DLGMODALFRAME | WS_EX_CLIENTEDGE
+    GROUPBOX        "",IDC_STATIC,477,2,474,233,0,WS_EX_DLGMODALFRAME | WS_EX_CLIENTEDGE
+    GROUPBOX        "",IDC_STATIC,6,233,473,234,0,WS_EX_DLGMODALFRAME | WS_EX_CLIENTEDGE
+    GROUPBOX        "",IDC_STATIC,477,233,474,234,0,WS_EX_DLGMODALFRAME | WS_EX_CLIENTEDGE
+    CONTROL         "",IDC_MONITOR1_NAME,"Static",SS_BITMAP | SS_REALSIZEIMAGE | WS_BORDER,91,11,12,12
+    CONTROL         "",IDC_MONITOR2_NAME,"Static",SS_BITMAP | SS_REALSIZEIMAGE | WS_BORDER,566,11,12,12
+    CONTROL         "",IDC_MONITOR3_NAME,"Static",SS_BITMAP | SS_REALSIZEIMAGE | WS_BORDER,90,243,12,12
+    CONTROL         "",IDC_MONITOR4_NAME,"Static",SS_BITMAP | SS_REALSIZEIMAGE | WS_BORDER,566,242,12,12
+END
+
+IDD_ADVICES DIALOG 0, 0, 229, 135
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "ADVICES"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "&Exit",IDC_EXIT,17,96,48,15
+    PUSHBUTTON      "Sta&rt Advices",IDC_START_ADVICES,18,17,47,16
+    PUSHBUTTON      "Sto&p Advices",IDC_STOP_ADVICES,18,40,47,16
+    PUSHBUTTON      "&SAF",IDC_SAF,17,63,48,14
+    LTEXT           "Start Transmission of Advices (Visa SMS)",IDC_STATIC,75,22,139,8
+    LTEXT           "Stop Transmission of Advices (Visa SMS)",IDC_STATIC,75,43,136,8
+    LTEXT           "SAF Session Request (MasterCard)",IDC_STATIC,75,65,116,8
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 11,6,3,0
+ PRODUCTVERSION 11,6,3,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "Comments", "ATP_11.6.3"
+            VALUE "CompanyName", "Hypercom Corp"
+            VALUE "FileDescription", "MONITORDCO MFC Application"
+            VALUE "FileVersion", "11, 6, 3, 0"
+            VALUE "InternalName", "MONITORDCO"
+            VALUE "LegalCopyright", "ThoughtFocus Copyright © 2012"
+            VALUE "OriginalFilename", "MONITORDCO.EXE"
+            VALUE "ProductName", "Ascendent"
+            VALUE "ProductVersion", "11, 6, 3, 0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_ABOUTBOX, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 210
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 48
+    END
+
+    IDD_MONITORDCO_FORM_Orignial, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 803
+        VERTGUIDE, 439
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 342
+        HORZGUIDE, 52
+    END
+
+    IDD_PRIMARYACCOUNT_SELECTION, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 147
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 152
+    END
+
+    IDD_MONITORDCO_FORM, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 960
+        VERTGUIDE, 85
+        VERTGUIDE, 172
+        VERTGUIDE, 224
+        VERTGUIDE, 339
+        VERTGUIDE, 481
+        VERTGUIDE, 561
+        VERTGUIDE, 648
+        VERTGUIDE, 699
+        VERTGUIDE, 812
+        TOPMARGIN, 7
+        HORZGUIDE, 30
+        HORZGUIDE, 238
+    END
+
+    IDD_ADVICES, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 222
+        TOPMARGIN, 6
+        BOTTOMMARGIN, 128
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// RT_MANIFEST
+//
+
+1                       RT_MANIFEST             "monitordco.exe.manifest"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE
+BEGIN
+    IDR_MAINFRAME           "System DCO Monitor\nAscendent\n"
+END
+
+STRINGTABLE
+BEGIN
+    AFX_IDS_APP_TITLE       "Ascendent System DCO Monitor"
+    AFX_IDS_IDLEMESSAGE     "Ready"
+END
+
+STRINGTABLE
+BEGIN
+    ID_INDICATOR_EXT        "EXT"
+    ID_INDICATOR_CAPS       "CAP"
+    ID_INDICATOR_NUM        "NUM"
+    ID_INDICATOR_SCRL       "SCRL"
+    ID_INDICATOR_OVR        "OVR"
+    ID_INDICATOR_REC        "REC"
+END
+
+STRINGTABLE
+BEGIN
+    ID_FILE_NEW             "Create a new document\nNew"
+    ID_FILE_OPEN            "Open an existing document\nOpen"
+    ID_FILE_CLOSE           "Close the active document\nClose"
+    ID_FILE_SAVE            "Save the active document\nSave"
+    ID_FILE_SAVE_AS         "Save the active document with a new name\nSave As"
+END
+
+STRINGTABLE
+BEGIN
+    ID_APP_ABOUT            "Display program information, version number and copyright\nAbout"
+    ID_APP_EXIT             "Quit the application; prompts to save documents\nExit"
+END
+
+STRINGTABLE
+BEGIN
+    ID_FILE_MRU_FILE1       "Open this document"
+    ID_FILE_MRU_FILE2       "Open this document"
+    ID_FILE_MRU_FILE3       "Open this document"
+    ID_FILE_MRU_FILE4       "Open this document"
+    ID_FILE_MRU_FILE5       "Open this document"
+    ID_FILE_MRU_FILE6       "Open this document"
+    ID_FILE_MRU_FILE7       "Open this document"
+    ID_FILE_MRU_FILE8       "Open this document"
+    ID_FILE_MRU_FILE9       "Open this document"
+    ID_FILE_MRU_FILE10      "Open this document"
+    ID_FILE_MRU_FILE11      "Open this document"
+    ID_FILE_MRU_FILE12      "Open this document"
+    ID_FILE_MRU_FILE13      "Open this document"
+    ID_FILE_MRU_FILE14      "Open this document"
+    ID_FILE_MRU_FILE15      "Open this document"
+    ID_FILE_MRU_FILE16      "Open this document"
+END
+
+STRINGTABLE
+BEGIN
+    ID_NEXT_PANE            "Switch to the next window pane\nNext Pane"
+    ID_PREV_PANE            "Switch back to the previous window pane\nPrevious Pane"
+END
+
+STRINGTABLE
+BEGIN
+    ID_WINDOW_SPLIT         "Split the active window into panes\nSplit"
+END
+
+STRINGTABLE
+BEGIN
+    ID_EDIT_CLEAR           "Erase the selection\nErase"
+    ID_EDIT_CLEAR_ALL       "Erase everything\nErase All"
+    ID_EDIT_COPY            "Copy the selection and put it on the Clipboard\nCopy"
+    ID_EDIT_CUT             "Cut the selection and put it on the Clipboard\nCut"
+    ID_EDIT_FIND            "Find the specified text\nFind"
+    ID_EDIT_PASTE           "Insert Clipboard contents\nPaste"
+    ID_EDIT_REPEAT          "Repeat the last action\nRepeat"
+    ID_EDIT_REPLACE         "Replace specific text with different text\nReplace"
+    ID_EDIT_SELECT_ALL      "Select the entire document\nSelect All"
+    ID_EDIT_UNDO            "Undo the last action\nUndo"
+    ID_EDIT_REDO            "Redo the previously undone action\nRedo"
+END
+
+STRINGTABLE
+BEGIN
+    ID_VIEW_TOOLBAR         "Show or hide the toolbar\nToggle ToolBar"
+    ID_VIEW_STATUS_BAR      "Show or hide the status bar\nToggle StatusBar"
+END
+
+STRINGTABLE
+BEGIN
+    AFX_IDS_SCSIZE          "Change the window size"
+    AFX_IDS_SCMOVE          "Change the window position"
+    AFX_IDS_SCMINIMIZE      "Reduce the window to an icon"
+    AFX_IDS_SCMAXIMIZE      "Enlarge the window to full size"
+    AFX_IDS_SCNEXTWINDOW    "Switch to the next document window"
+    AFX_IDS_SCPREVWINDOW    "Switch to the previous document window"
+    AFX_IDS_SCCLOSE         "Close the active window and prompts to save the documents"
+END
+
+STRINGTABLE
+BEGIN
+    AFX_IDS_SCRESTORE       "Restore the window to normal size"
+    AFX_IDS_SCTASKLIST      "Activate Task List"
+    IDS_PRODUCT_VERSION     "ATP_11.6.3"
+END
+
+#endif    // English (United States) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+#define _AFX_NO_SPLITTER_RESOURCES
+#define _AFX_NO_OLE_RESOURCES
+#define _AFX_NO_TRACKER_RESOURCES
+#define _AFX_NO_PROPERTY_RESOURCES
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE 9, 1
+#pragma code_page(1252)
+#endif
+#include "res\monitordco.rc2"  // non-Microsoft Visual C++ edited resources
+#include "afxres.rc"         // Standard components
+#endif
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

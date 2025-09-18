@@ -1,0 +1,530 @@
+/*******************************************************************************
+*  
+* MODULE:      mega.c
+*  
+* TITLE:       
+*  
+* DESCRIPTION:
+*
+* APPLICATION: Ascendent import Processor.  This application takes a dump file in the ASCII
+*              format.  It parses it and populates the ATM01 table record and inserts in 
+*              the data server.
+*
+* AUTHOR:  Faramarz Arad  1/28/1999.
+*
+* REVISION HISTORY:
+*
+* $Log:   N:\POS\PVCS6.6\EPICPORTZ\PTE\Equitable\Mega_Link\mega.c  $
+   
+      Rev 1.12   Apr 05 2005 14:47:00   dirby
+   Updated version to 4.4.1.1
+   SCR 12785
+   
+      Rev 1.11   Jul 08 2004 17:27:38   dirby
+   Updated to 4.4.0.1
+   SCRs 1287 & 1388
+   
+      Rev 1.10   May 27 2004 17:34:42   dirby
+   Updated version to 4.3.0.1
+   SCR 1380
+   
+      Rev 1.9   Feb 19 2003 16:33:12   dirby
+   Updated version to 4.2.0.1
+   SCR 955
+   
+      Rev 1.8   Aug 22 2002 12:07:46   dirby
+   Updated version to 4.1.1.1
+   SCR 255
+   
+      Rev 1.7   Dec 11 2001 15:09:06   dirby
+   Updated version to 4.0.0.1
+   
+      Rev 1.6   Jan 09 2001 13:45:40   dirby
+   Updated the version number.  This release marks a full
+   release to Equitable because the production stability problem
+   has been resolved.  Everything is now being compiled with a
+   non-debug daemon process.
+   
+      Rev 1.5   Jul 31 2000 09:52:16   dirby
+   Modified to display version number at startup and shutdown.
+   
+   
+      Rev 1.4   May 17 1999 16:47:58   farad
+   Modified the code such that it does the xipcshutdown instead of xipclogout.
+   
+      Rev 1.3   Apr 08 1999 16:29:24   farad
+   Added the "?" command line.  Took out the @ for the AIX machine.
+   
+      Rev 1.2   Mar 18 1999 14:31:30   farad
+   Fixed the bug which caused the memory error.
+   
+      Rev 1.1   Mar 08 1999 16:03:18   farad
+   Modified to match the latest version of the mega link text file.
+   
+      Rev 1.0   Feb 22 1999 16:43:08   farad
+   Initial Release
+*
+*
+*******************************************************************************/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include "ntutils.h"
+#include "pteipc.h"
+
+#include "app_info.h"
+#include "equitdb.h"
+#include "tx_dbstruct.h"
+#include "nc_dbstruct.h"
+#include "dc_dbstruct.h"
+
+#include "txutils.h"
+#include "txdsapi.h"
+
+#define RECORD_LENGTH 228
+
+CHAR      Version[] = "ATP_11.1.0";
+
+#ifdef _DEBUG
+   #define MYPRINT(tempMsg) printf("%s ",tempMsg);
+#else
+   #define MYPRINT(tempMsg) ;
+#endif
+
+//////////////////////////////////////farad 01/10/1999////////////////////////
+FILE *fptr;
+FILE *dumpPtr;
+#define NOT_CORRECT 1
+#define CORRECT 0
+
+typedef struct 
+{
+   BYTE bourder      [3];
+   BYTE mnemonic     [5];
+   BYTE brchname     [16];
+   BYTE bkcb_name    [3];
+   BYTE termnumr     [9];
+   BYTE termsite     [4];
+   BYTE termaddr     [51];
+   BYTE termdist     [26];
+   BYTE termcimu     [26];
+   BYTE termprov     [26];
+   BYTE termregn     [7];
+   BYTE machtype     [21];
+   BYTE termodel     [11];
+   BYTE dateinst     [9];
+   BYTE termloc      [13];
+   BYTE termtype     [6];
+   BYTE refnum       [7];
+   BYTE linktype     [2];
+} atmStruct;
+
+atmStruct  parseMegaLinkRecord(char dataRecord[]);
+ATM01      populateAtm01Table(atmStruct atmRec);
+void       returnNumbers(char input[]);
+INT        atm01HasBlankReq(ATM01 atm01);
+
+/*************************************************************************************
+       NAME:           main
+
+       DESCRIPTION:    This module is the entry point for the application.
+                       
+       INPUTS:         argv[1] is the name of the ascii file which would get parsed.
+			   None.
+       OUTPUTS:
+            None.       
+       RETURNS:        
+		      None.                       
+                               
+      AUTHOR:         Faramarz Arad 
+      MODIFIED BY:    None.
+*************************************************************************************/
+void main( int argc, char *argv[] )
+{
+   CHAR dataRecord[RECORD_LENGTH + 10];
+   CHAR xipcinstance_name[30] = {0}, app_name[12] = {0};
+   CHAR temp_str[250] = {0};
+   ATM01 atm01;
+   int EndProcessImport = 0;
+   atmStruct atmRec;
+   BYTE ret= 0;
+   char tempMsg[100] = {0};
+
+   //added by farad on 4/8/1999.  Requested my msaleh.
+   if(strcmp(argv[1],"?") == 0 )
+   {
+      printf("mega [filename]\n");
+      printf("Example: mega mega.txt\n \n \n \n");
+      exit(0);
+   }
+
+
+   InitEventLogging();
+   sprintf( temp_str,
+           "Ascendent Mega Processor was started, version %s", Version );
+   LogEvent( temp_str, INFO_MSG );
+   strcat( temp_str, "\n" );
+   MYPRINT(temp_str);
+
+#ifndef _DEBUG
+   
+   if( argc != 2 )
+   {
+      LogEvent( "Error - command line has two parameters.", ERROR_MSG );
+
+      exit( 0 );
+   }
+  
+#endif
+
+   GetXipcInstanceName( temp_str );
+   //sprintf( xipcinstance_name, "@%s", temp_str );
+   sprintf( xipcinstance_name, "%s", temp_str );
+   GetAppName( app_name );
+
+   //farad 4/6/1999.  This is AIX fix.  The GetAppName does not work under UNIX.
+   if('\0' == app_name[0])
+      strcpy(app_name,argv[0]);
+
+
+   // login to XIPC and create queues for the application
+   if( !pteipc_init_single_instance_app( app_name, xipcinstance_name ))
+   {
+	   MYPRINT( "Failed to login to XIPC\n" );
+      LogEvent( "Failed to login to XIPC\n", ERROR_MSG );
+      pteipc_shutdown_single_instance_app();
+      exit( 0 );
+   }
+   else
+	   MYPRINT( "pteipc init successful\n" );
+
+   //open the dump file.
+   if (NULL == (dumpPtr = fopen("dump.txt","w")))
+   {
+      LogEvent( "Failed to open the dump.txt file.\n", ERROR_MSG );
+      MYPRINT("Error - Can not open the dump.txt file.\n");
+      exit(0);
+   }   
+
+#ifdef _DEBUG
+   
+   //open the input file.
+   if (NULL == (fptr = fopen("Atmloc.txt","r")))
+   {
+      sprintf(tempMsg,"Error - %s could not be open",argv[1]);
+      TxUtils_Send_Msg_To_Operator(1,tempMsg,0,INFO_MSG,"Negative",1,"",NULL_PTR,NULL_PTR,NULL_PTR);      
+      fclose(fptr);
+      exit(0);
+   }
+      
+#else
+
+   if(NULL == (fptr = fopen(argv[1],"r")))
+   {
+      sprintf(tempMsg,"Error - %s could not be open",argv[1]);
+      TxUtils_Send_Msg_To_Operator(1,tempMsg,0,INFO_MSG,"Negative",1,"",NULL_PTR,NULL_PTR,NULL_PTR);      
+      exit(0);
+   }
+
+#endif
+
+   //This is the main loop.  Read a record at a time to parse.
+   while(!EndProcessImport)
+   {
+      //read a record.  If there is any problem Quit.            
+      memset (&dataRecord,0,sizeof(dataRecord));
+      if (NULL == fgets(dataRecord,RECORD_LENGTH ,fptr))
+      {
+         EndProcessImport = 1;
+         break;
+      }
+
+      atmRec = parseMegaLinkRecord(dataRecord);
+      atm01  = populateAtm01Table(atmRec);
+
+      //insert the atm01 table to the data server.
+      if (atm01HasBlankReq(atm01) == CORRECT)
+      {
+         sprintf(tempMsg , "A mega link record has a blank required field ");
+         TxUtils_Send_Msg_To_Operator(1,tempMsg,1,INFO_MSG,"Mega",1,"",NULL_PTR,NULL_PTR,NULL_PTR);
+         MYPRINT(tempMsg);
+         fputs(dataRecord,dumpPtr);
+         fputs("\n",dumpPtr);
+         continue;
+      }
+
+      ret = txdsapi_insert_record((pBYTE)&atm01,sizeof(ATM01), ATM01_DATA, temp_str);
+      if (PTEMSG_OK != ret)
+      {
+         sprintf(tempMsg , "%s record was not inserted to Data Server ",dataRecord);
+         TxUtils_Send_Msg_To_Operator(1,tempMsg,0,INFO_MSG,"Mega",1,"",NULL_PTR,NULL_PTR,NULL_PTR);
+         MYPRINT(tempMsg);
+         fputs(dataRecord,dumpPtr);
+         fputs("\n",dumpPtr);
+      }
+    
+   }//end of the main while loop.
+   pteipc_shutdown_single_instance_app();
+
+   sprintf( temp_str, "Ascendent Mega Processor complete, version %s", Version );
+   LogEvent( temp_str, INFO_MSG );
+   strcat( temp_str, "\n" );
+   MYPRINT( temp_str );
+
+   ShutDownEventLogging();
+}  //end of main.
+
+
+
+///////////////////////////////farad////////////////////////////
+
+
+
+
+/*************************************************************************************
+       NAME:           parseMegaLinkRecord()
+
+       DESCRIPTION:    This module takes in the string of character and
+       parses it to populate the strucutre.
+					                               
+       INPUTS:         string of character.
+
+	    OUTPUTS:        None.
+                       
+       RETURNS:        the structure.
+		           
+                               
+      AUTHOR:          Faramarz Arad 1/27/1999.
+      MODIFIED BY:     None.
+*************************************************************************************/
+atmStruct parseMegaLinkRecord(char dataRecord[])
+{
+
+   atmStruct aStruct;
+   int dummy=0;
+   
+   MYPRINT("parseMegaLinkRecord.\n");
+
+   memset(&aStruct,0,sizeof(aStruct));
+
+   dummy = 0;
+   strncpy(aStruct.bourder      ,dataRecord + dummy  ,sizeof(aStruct.bourder      )-1); 
+   dummy = dummy + sizeof(aStruct.bourder      )-1;
+   strncpy(aStruct.mnemonic     ,dataRecord + dummy  ,sizeof(aStruct.mnemonic     )-1);
+   dummy = dummy + sizeof(aStruct.mnemonic     )-1;
+   strncpy(aStruct.brchname     ,dataRecord + dummy  ,sizeof(aStruct.brchname     )-1);
+   dummy = dummy + sizeof(aStruct.brchname     )-1;
+   strncpy(aStruct.bkcb_name    ,dataRecord + dummy  ,sizeof(aStruct.bkcb_name    )-1);
+   dummy = dummy + sizeof(aStruct.bkcb_name    )-1;
+   strncpy(aStruct.termnumr     ,dataRecord + dummy  ,sizeof(aStruct.termnumr     )-1);
+   dummy = dummy + sizeof(aStruct.termnumr     )-1;
+   strncpy(aStruct.termsite     ,dataRecord + dummy  ,sizeof(aStruct.termsite     )-1);
+   dummy = dummy + sizeof(aStruct.termsite     )-1;
+   strncpy(aStruct.termaddr     ,dataRecord + dummy  ,sizeof(aStruct.termaddr     )-1);
+   dummy = dummy + sizeof(aStruct.termaddr     )-1;
+   strncpy(aStruct.termdist     ,dataRecord + dummy  ,sizeof(aStruct.termdist     )-1);
+   dummy = dummy + sizeof(aStruct.termdist     )-1;
+   strncpy(aStruct.termcimu     ,dataRecord + dummy  ,sizeof(aStruct.termcimu     )-1);
+   dummy = dummy + sizeof(aStruct.termcimu     )-1;
+   strncpy(aStruct.termprov     ,dataRecord + dummy  ,sizeof(aStruct.termprov     )-1);
+   dummy = dummy + sizeof(aStruct.termprov     )-1;
+   strncpy(aStruct.termregn     ,dataRecord + dummy  ,sizeof(aStruct.termregn     )-1);
+   dummy = dummy + sizeof(aStruct.termregn     )-1;
+   strncpy(aStruct.machtype     ,dataRecord + dummy  ,sizeof(aStruct.machtype     )-1);
+   dummy = dummy + sizeof(aStruct.machtype     )-1;
+   strncpy(aStruct.termodel     ,dataRecord + dummy  ,sizeof(aStruct.termodel     )-1);
+   dummy = dummy + sizeof(aStruct.termodel     )-1;
+   strncpy(aStruct.dateinst     ,dataRecord + dummy  ,sizeof(aStruct.dateinst     )-1);
+   dummy = dummy + sizeof(aStruct.dateinst     )-1;
+   strncpy(aStruct.termloc      ,dataRecord + dummy  ,sizeof(aStruct.termloc      )-1);
+   dummy = dummy + sizeof(aStruct.termloc      )-1;
+   strncpy(aStruct.termtype     ,dataRecord + dummy  ,sizeof(aStruct.termtype     )-1);
+   dummy = dummy + sizeof(aStruct.termtype     )-1;
+   strncpy(aStruct.refnum       ,dataRecord + dummy  ,sizeof(aStruct.refnum       )-1);
+   dummy = dummy + sizeof(aStruct.refnum       )-1;
+   strncpy(aStruct.linktype     ,dataRecord + dummy  ,sizeof(aStruct.linktype     )-1);
+
+   //the next command will make sure the input has numbers only.
+   returnNumbers(aStruct.termnumr);
+   
+   return(aStruct);
+}  //end of parseMegaLinkRecord.
+
+
+
+/*************************************************************************************
+       NAME:           populateAtm01Table()
+
+       DESCRIPTION:    This module will take the a structure of atmStruct type.
+       It populates teh ATM01 table record. 
+       
+					                               
+       INPUTS:         atmStruct
+
+	    OUTPUTS:        None.
+                       
+       RETURNS:        ATM01 table record.
+		           
+                               
+      AUTHOR:          Faramarz Arad 1/27/1999.
+      MODIFIED BY:     None.
+*************************************************************************************/
+ATM01 populateAtm01Table(atmStruct atmRec)
+{
+   ATM01 atm01;
+   
+   MYPRINT("inside populate the ATM01 table\n");
+
+   memset( &atm01, 0, sizeof( atm01 ) );
+
+   strcpy(atm01.bourder                   ,atmRec.bourder      );
+   strcpy(atm01.mnemonic                  ,atmRec.mnemonic     );
+   strcpy(atm01.brchname                  ,atmRec.brchname     );
+   strcpy(atm01.primary_key.bkcb_name     ,atmRec.bkcb_name    );
+   strcpy(atm01.primary_key.termnumr      ,atmRec.termnumr     );
+   strcpy(atm01.termsite                  ,atmRec.termsite     );
+   strcpy(atm01.termaddr                  ,atmRec.termaddr     );
+   strcpy(atm01.termdist                  ,atmRec.termdist     );
+   strcpy(atm01.termcimu                  ,atmRec.termcimu     );
+   strcpy(atm01.termprov                  ,atmRec.termprov     );
+   strcpy(atm01.termregn                  ,atmRec.termregn     );
+   strcpy(atm01.machtype                  ,atmRec.machtype     );
+   strcpy(atm01.termodel                  ,atmRec.termodel     );
+   strcpy(atm01.dateinst                  ,atmRec.dateinst     );
+   strcpy(atm01.termloc                   ,atmRec.termloc      );
+   strcpy(atm01.termtype                  ,atmRec.termtype     );
+   strcpy(atm01.refnum                    ,atmRec.refnum       );
+   strcpy(atm01.linktype                  ,atmRec.linktype     );
+
+   return(atm01);
+}
+
+
+/*************************************************************************************
+       NAME:           atm01HasBlankReq()
+
+       DESCRIPTION:    This module would determine if the fields marked and requried have
+                       blank fields or not.   
+              
+					                               
+       INPUTS:         a variable of type ATM01
+
+	    OUTPUTS:        None.
+                       
+       RETURNS:        An integer determined if there is a blank field or not.
+		           
+                               
+      AUTHOR:          Faramarz Arad.
+      MODIFIED BY:     None.
+*************************************************************************************/
+INT atm01HasBlankReq(ATM01 atm01)
+{
+   char tempStr  [50] = {0};
+   
+   //check to see if the bkcb_name is all spaces or null.
+   if(strlen(atm01.primary_key.bkcb_name) != 0)
+   {
+      memset(tempStr,0,sizeof(tempStr));
+      memset(tempStr,' ',sizeof(atm01.primary_key.bkcb_name)-1);
+      if (strcmp(atm01.primary_key.bkcb_name,tempStr) == 0)
+         return(CORRECT);
+   }
+   else
+      return(CORRECT);
+
+   //check to see if the termnumr is all spaces or null.
+   if(strlen(atm01.primary_key.termnumr) != 0)
+   {
+      memset(tempStr,0,sizeof(tempStr));
+      memset(tempStr,' ',sizeof(atm01.primary_key.termnumr)-1);
+      if (strcmp(atm01.primary_key.termnumr,tempStr) == 0)
+         return(CORRECT);
+   }
+   else
+      return(CORRECT);
+
+   //check to see if the mnemonic is all spaces or null.
+   if(strlen(atm01.mnemonic) != 0)
+   {
+      memset(tempStr,0,sizeof(tempStr));
+      memset(tempStr,' ',sizeof(atm01.mnemonic)-1);
+      if (strcmp(atm01.mnemonic,tempStr) == 0)
+         return(CORRECT);
+   }
+   else
+      return(CORRECT);
+
+   //check to see if the termaddr is all spaces or null.
+   if(strlen(atm01.termaddr) != 0)
+   {
+      memset(tempStr,0,sizeof(tempStr));
+      memset(tempStr,' ',sizeof(atm01.termaddr)-1);
+      if (strcmp(atm01.termaddr,tempStr) == 0)
+         return(CORRECT);
+   }
+   else
+      return(CORRECT);
+
+   //check to see if the termcimu is all spaces or null.
+   if(strlen(atm01.termcimu) != 0)
+   {
+      memset(tempStr,0,sizeof(tempStr));
+      memset(tempStr,' ',sizeof(atm01.termcimu)-1);
+      if (strcmp(atm01.termcimu,tempStr) == 0)
+         return(CORRECT);
+   }
+   else
+      return(CORRECT);
+
+   return(NOT_CORRECT);
+
+}
+
+
+/*************************************************************************************
+       NAME:           returnNumbers()
+
+       DESCRIPTION:    This module takes the character array.  It compares it
+       against a number array.  When it enconters the first non number character, it 
+       replaces it with a null.  This code requires the end of the input array 
+       be the Null character.
+					                               
+       INPUTS:         input array of numbers.
+
+	    OUTPUTS:        None.
+                       
+       RETURNS:        output array of numbers.
+		           
+                               
+      AUTHOR:          Faramarz Arad.
+      MODIFIED BY:     None.
+*************************************************************************************/
+void returnNumbers(char input[])
+{
+   char numberChar [] = "0123456789";
+   int cnt = 0, CNT = 0,ENDFLAG = 0;
+   
+   while(input[cnt] != '\0' )
+   {
+      CNT = 0;
+      ENDFLAG = 0;
+      while( numberChar[CNT] != '\0')
+      {  if (input[cnt] == numberChar[CNT])
+         {
+            ENDFLAG = 1;
+            break;
+         }  
+         CNT++;
+      }
+      if(ENDFLAG != 1) 
+      {  
+         input[cnt] = '\0';
+         break;   }
+      cnt++;
+   }
+} // end of returnNumbers
+
+
+/////////////////////////////////////end of farad////////////////////////

@@ -1,0 +1,474 @@
+/******************************************************************************
+  
+        Module: email.c
+   
+         Title: email
+  
+   Description: 
+
+   $Log$
+   Revision 1.4  Dec-10-2009 14:35:04  TF-Ajay
+		Changed code to display msg once succssfully email sent
+	    Updated version 1.0.0.2
+
+
+   Revision 1.3  Jul-06-2009 15:24:04  TF-Ajay
+	  Build with new PTE and ATP lib
+	  For masking card number- PCI compliance
+	  Updated version 1.0.0.1
+ * 
+ *    Rev 1.2   Jun 08 2006 15:26:06   dirby
+ * Made FROM and SUBJECT configurable items from tf.ini.
+ * 
+ *    Rev 1.1   Jan 24 2002 15:04:36   msaleh
+ * modified to send the exact message that is logged
+ * 
+ *    Rev 1.0   Jan 21 2002 17:11:58   msaleh
+ * Initial revision.
+   
+******************************************************************************/
+
+#include <stdlib.h>
+#include <stdio.h>
+
+#ifdef WIN32
+#include <process.h>
+#endif
+
+#include "pte.h"
+#include "convert.h"
+#include "ptecom.h"
+#include "pteipc.h"
+#include "ptesystm.h"
+#include "ptestats.h"
+#include "ntutils.h"
+#include "coreinfo.h"
+#include "app_info.h"
+
+#define CRLF     "\r\n"
+
+#define State220   220
+#define State250   250
+#define State354   354
+#define State221   221 
+
+/* Extern definition section */
+extern int  volatile EndProcessSignalled;
+extern int  volatile MainProcessDone;
+extern CHAR          ServiceName[12];
+
+PRIVATE INT             connection_type;
+PRIVATE LOCAL_DM_CONFIG dm_config;
+PRIVATE CHAR            EmailAddress1[128];
+PRIVATE CHAR            EmailAddress2[128];
+PRIVATE CHAR            EmailAddress3[128];
+PRIVATE CHAR            EmailFromAcct[128];
+PRIVATE CHAR            EmailSubject [128];
+
+INT     volatile        State;
+INT     volatile        GotResponse;
+
+#ifdef WIN32
+__declspec(dllimport) XipcMaxThreads;
+#else
+extern XINT XipcMaxThreads;
+#endif
+
+CHAR Version[]="ATP_5.18.0";
+
+/*************************************************************
+ *************************************************************/
+void SetStartupEnvironment()
+{
+   DWORD rc;
+   CHAR sectionname  [] = "EMAIL";
+   CHAR filename     [256];
+   CHAR tmpstr       [256];
+   
+   GetAscendentConfigDirectory(tmpstr);
+   sprintf(filename, "%stf.ini", tmpstr);
+  
+   strcpy(dm_config.db_subsystem_name  , "email");
+   strcpy(dm_config.db_connection_type , "TCP/IP");
+   strcpy(dm_config.db_tcp_socket_type , "CLIENT");
+   strcpy(dm_config.db_tpdu_processing , "WITHOUT");
+   dm_config.db_tcp_header_length = 0;
+
+   rc = GetPrivateProfileString(
+      sectionname,	                  
+      "EMAIL_TCP_PORT",                     
+      "25",     	                 
+      tmpstr,                    
+      sizeof(tmpstr) - 1,        
+      filename                         
+   );
+   
+   dm_config.db_tcp_port = atoi(tmpstr);
+
+   rc = GetPrivateProfileString(
+      sectionname,	                  
+      "EMAIL_SERVER",                     
+      "",     	                 
+      tmpstr,                    
+      sizeof(tmpstr) - 1,        
+      filename                         
+   );
+   
+   strcpy(dm_config.db_host_name , tmpstr);
+
+   rc = GetPrivateProfileString(
+      sectionname,	                  
+      "EMAIL_ADDRESS1",                     
+      "",     	                 
+      tmpstr,                    
+      sizeof(tmpstr) - 1,        
+      filename                         
+   );
+   
+   memset(EmailAddress1, 0, sizeof(EmailAddress1));
+   memcpy(EmailAddress1, tmpstr, sizeof(EmailAddress1));
+
+   rc = GetPrivateProfileString(
+      sectionname,	                  
+      "EMAIL_ADDRESS2",                     
+      "",     	                 
+      tmpstr,                    
+      sizeof(tmpstr) - 1,        
+      filename                         
+   );
+   
+   memset(EmailAddress2, 0, sizeof(EmailAddress2));
+   memcpy(EmailAddress2, tmpstr, sizeof(EmailAddress2));
+
+   rc = GetPrivateProfileString(
+      sectionname,	                  
+      "EMAIL_ADDRESS3",                     
+      "",     	                 
+      tmpstr,                    
+      sizeof(tmpstr) - 1,        
+      filename                         
+   );
+   
+   memset(EmailAddress3, 0, sizeof(EmailAddress3));
+   memcpy(EmailAddress3, tmpstr, sizeof(EmailAddress3));
+
+
+   rc = GetPrivateProfileString(
+      sectionname,	                  
+      "EMAIL_FROM_ACCOUNT",                     
+      "",     	                 
+      tmpstr,                    
+      sizeof(tmpstr) - 1,        
+      filename                         
+   );
+   
+   memset( EmailFromAcct, 0x00, sizeof(EmailFromAcct) );
+   if ( tmpstr[0] == 0x00 )
+      strcpy( EmailFromAcct, dm_config.db_host_name );
+   else
+      memcpy( EmailFromAcct, tmpstr, sizeof(EmailFromAcct) );
+
+
+   rc = GetPrivateProfileString(
+      sectionname,	                  
+      "EMAIL_SUBJECT",                     
+      "",     	                 
+      tmpstr,                    
+      sizeof(tmpstr) - 1,        
+      filename                         
+   );
+   
+   memset( EmailSubject, 0x00, sizeof(EmailSubject) );
+   if ( tmpstr[0] == 0x00 )
+      strcpy( EmailSubject, "Production Issue" );
+   else
+      memcpy( EmailSubject, tmpstr, sizeof(EmailSubject) );
+
+}   /* SetStartupEnvironment() */
+
+/*************************************************************
+ *************************************************************/
+void set_connection_status(INT status)
+{
+  connection_up = status;
+}
+
+/*************************************************************
+ *************************************************************/
+void terminate_connection()
+{
+  if (port_close) 
+     port_close(connection_type);
+  
+  set_connection_status(FALSE);
+}
+
+
+/*****************************************************************/
+/*****************************************************************/
+INT dm_connection()
+{
+  BOOLEAN conn_successful = FALSE;
+  CHAR    info_msg[256];
+
+  conn_successful = tcp_convert((BYTE)connection_type, dm_config.db_tcp_port,
+                                dm_config.db_tcp_header_length, dm_config.db_host_name);
+  sprintf(info_msg, "dm_connection(), TCP/IP, port=%0ld, IP=%s",
+                 dm_config.db_tcp_port, (strlen(dm_config.db_host_name) ? dm_config.db_host_name : "NONE"));
+
+  //LogSystemEvent(INFO_CONNECTION_INFO, info_msg);
+  // Log-messages converted to use BDO functions.
+  TxUtils_Send_Msg_To_Operator(0, info_msg,
+	1, INFO_MSG, "email-dm_connection", 0,
+	INFO_ERROR, NULL_PTR, NULL_PTR, NULL_PTR);
+
+  set_connection_status (conn_successful);
+
+  return(conn_successful);
+}
+
+/*************************************************************
+ *************************************************************/
+INT connection_is_up()
+{
+  return(connection_up);
+}
+
+/*************************************************************
+ *************************************************************/
+INT establish_connection()
+{
+  if (!dm_connection()) 
+  {
+    //LogSystemEvent(ERR_CONNECTION_NOT_ESTABLISHED, "establish_connection()");
+    // Logs modified to use BDO logging function
+    TxUtils_Send_Msg_To_Operator(1, "Connection not established.",
+	1, ERROR_MSG, "email-establish_connection", 0,
+	FATAL_ERROR, NULL_PTR, NULL_PTR, NULL_PTR);
+    return(FALSE);
+  }
+
+  return(TRUE);
+}
+/*************************************************************
+ *************************************************************/
+INT check(pCHAR buffer, WORD len, pCHAR state_desc, pIPC_INFO ipc_info)
+{
+   CHAR desc[48];
+
+   sprintf(desc, "Function failed: check(), state=%s", state_desc);
+
+   if (!port_write(len, buffer, ipc_info))
+   {
+      //LogSystemEvent(ERR_FUNCTION_FAILED, desc);
+	// Logs modified to use BDO logging function
+	TxUtils_Send_Msg_To_Operator(1, desc,
+	    1, ERROR_MSG, "email-check", 0,
+	    FATAL_ERROR, NULL_PTR, NULL_PTR, NULL_PTR);
+      terminate_connection();
+      return (FALSE);
+   }
+
+   while (!GotResponse) pteipc_sleep(1000);
+   if (GotResponse < 0)
+   {
+      //LogSystemEvent(ERR_FUNCTION_FAILED, desc);
+	// Logs modified to use BDO logging function
+	TxUtils_Send_Msg_To_Operator(1, desc,
+	    1, ERROR_MSG, "email-check", 0,
+	    FATAL_ERROR, NULL_PTR, NULL_PTR, NULL_PTR);
+      terminate_connection();
+      return(FALSE);
+   }
+
+   return (TRUE);
+}
+
+/*************************************************************
+ *************************************************************/
+void MainProcessor()
+{
+   pPTE_MSG    p_msg;
+   INT         max_threads = 0;
+   LONG        ret_code;
+   IPC_INFO    ipc_info;
+   CHAR        AppName [8];
+   CHAR        ErrorMsg[256];
+   CHAR        Buffer  [256];
+
+  //GetXipcMaxThread(&max_threads);
+  //XipcMaxThreads = max_threads;
+  XipcMaxThreads = 1024;
+
+  GetAppName( AppName );
+  GetXipcInstanceName( Buffer );
+
+  if( !pteipc_init_multiple_instance_app( AppName, ServiceName,  Buffer ) ) 
+  {
+      //LogSystemEvent( ERR_XIPC_CREATE_QUEUES, "MainProcessor()" ); 
+	// Logs modified to use BDO logging function
+	TxUtils_Send_Msg_To_Operator(1, "Failed to create XIPC queues.",
+	    1, ERROR_MSG, "email-MainProcessor", 0,
+	    FATAL_ERROR, NULL_PTR, NULL_PTR, NULL_PTR);
+      EndProcessSignalled = 1;
+  }
+  else
+  {
+      SetStartupEnvironment();
+      connection_type = DM_PORTTYPE_TCP_CLIENT_WITHOUT_TPDU;
+      set_connection_status(FALSE);  
+      memset(&ipc_info, 0, sizeof(IPC_INFO));
+      ipc_info.connectiontype      = connection_type;
+      ipc_info.messageheaderlength = dm_config.db_tcp_header_length;
+      ipc_info.tpduoption          = WITHOUT_TPDU;
+  }
+
+  while(!EndProcessSignalled)
+   {
+      /* You are blocked here waiting for a message on either app queue or control que  */
+      /* if there is no message on either que for 5 seconds, the blocking call returns   */
+      p_msg = pteipc_receive( application_que_name, control_que_name, 5, &ret_code );
+
+      if( p_msg != NULL_PTR )
+      {
+         ptestats_accumulate_msg_stats (p_msg);
+
+         switch( ptemsg_get_msg_type( p_msg ) )
+         {
+          case MT_SYSTEM_REQUEST : 
+            ptesystm_system_msg_handler(p_msg);
+            break;
+
+          default:
+            /* Establish the connection and receive sign on message */
+            GotResponse = FALSE;
+            State = State220;
+            if (!establish_connection())
+            {
+               terminate_connection();
+               continue;
+            }
+            
+            while (!GotResponse) pteipc_sleep(1000);
+            if (GotResponse < 0)
+            {
+               sprintf(ErrorMsg, "MainProcessor(), dm_notify(), state=signon response, error=%0d", GotResponse);
+               //LogSystemEvent(ERR_FUNCTION_FAILED, ErrorMsg);
+		// Logs modified to use BDO logging function
+		TxUtils_Send_Msg_To_Operator(1, ErrorMsg,
+		    1, ERROR_MSG, "email-MainProcessor", 0,
+		    FATAL_ERROR, NULL_PTR, NULL_PTR, NULL_PTR);
+               terminate_connection();
+               continue;
+            }
+
+			//printf("Ajay: Sending mail \n");
+            /* send HELO message */
+            GotResponse = FALSE;
+            State = State250;
+            sprintf(Buffer, "HELO %s%s", dm_config.db_host_name, CRLF);
+            
+            if (!check(Buffer, (WORD)strlen(Buffer), "Signon", &ipc_info)) continue;
+
+            /* send MAIL FROM */
+            GotResponse = FALSE;
+            State = State250;
+            sprintf(Buffer, "MAIL FROM:<%s>%s", EmailFromAcct, CRLF);
+            if (!check(Buffer, (WORD)strlen(Buffer), "Mail From", &ipc_info)) continue;
+
+            /* send RCPT TO */
+            GotResponse = FALSE;
+            State = State250;
+            if (strlen(EmailAddress1))
+            {
+               sprintf(Buffer, "RCPT TO:<%s>%s", EmailAddress1, CRLF);
+               if (!check(Buffer, (WORD)strlen(Buffer), "Rcpt To Add1", &ipc_info)) continue;
+            }
+
+            if (strlen(EmailAddress2))
+            {
+               GotResponse = FALSE;
+               sprintf(Buffer, "RCPT TO:<%s>%s", EmailAddress2, CRLF);
+               if (!check(Buffer, (WORD)strlen(Buffer), "Rcpt To Add2", &ipc_info)) continue;
+            }
+
+            if (strlen(EmailAddress3))
+            {
+               GotResponse = FALSE;
+               sprintf(Buffer, "RCPT TO:<%s>%s", EmailAddress3, CRLF);
+               if (!check(Buffer, (WORD)strlen(Buffer), "Rcpt To Add3", &ipc_info)) continue;
+            }
+
+            /* send DATA */
+            GotResponse = FALSE;
+            State = State354;
+            sprintf(Buffer, "DATA%s", CRLF);
+            if (!check(Buffer, (WORD)strlen(Buffer), "Data", &ipc_info)) continue;
+
+            /* send message */
+            GotResponse = TRUE; /* no response expected until we send the ending */
+            State = State250;
+            sprintf(Buffer, "Subject: %s%s%s", EmailSubject, CRLF, CRLF);
+            if (!check(Buffer, (WORD)strlen(Buffer), "Message", &ipc_info)) continue;
+
+            GotResponse = TRUE;
+            memset(Buffer, 0, sizeof(ErrorMsg));
+            memcpy(Buffer, ptemsg_get_pte_msg_data_data(ptemsg_get_pte_msg_data(p_msg)),
+                             ptemsg_get_pte_msg_data_data_length(ptemsg_get_pte_msg_data(p_msg)));
+            if (!check(Buffer, (WORD)strlen(Buffer), "Message", &ipc_info)) continue;
+
+            GotResponse = FALSE;
+            sprintf(Buffer, "%s.%s", CRLF, CRLF);
+		    if (!check(Buffer, (WORD)strlen(Buffer), "Message EOT", &ipc_info)) continue;
+
+            /* send QUIT */
+            GotResponse = FALSE;
+            State = State221;
+            sprintf(Buffer, "QUIT%s", CRLF);
+            if (!check(Buffer, (WORD)strlen(Buffer), "Quit", &ipc_info)) continue;
+
+            terminate_connection();
+            pteipc_sleep(3000);
+			/* Display msg once successfully sent mail TF-Ajay 12 Dec,2009*/
+			sprintf(Buffer,"Email sent successfuly to %s, %s and %s :Successful",EmailAddress1,EmailAddress2,EmailAddress3);
+		    TxUtils_Send_Msg_To_Operator( 1,
+										  Buffer,
+										 1, WARN_MSG, "MainProcessor()", 3,
+											 "WARNING",NULL_PTR,
+										 NULL_PTR, NULL_PTR);
+            //LogSystemEvent (NC_GONE_OFFLINE, Buffer);
+         }
+        
+         free (p_msg);
+      }
+      else if( ret_code != QUE_ER_TIMEOUT ) 
+      {
+        pteipc_get_errormsg( ret_code, ErrorMsg );
+        sprintf( Buffer, "MainProcessor(), pteipc_receive(), error=%s", ErrorMsg );
+        //LogSystemEvent( ERR_FUNCTION_FAILED, Buffer );
+	// Logs modified to use BDO logging function
+	TxUtils_Send_Msg_To_Operator(1, Buffer,
+	    1, ERROR_MSG, "email-MainProcessor", 0,
+	    FATAL_ERROR, NULL_PTR, NULL_PTR, NULL_PTR);
+        if (ret_code == QUE_ER_NOTLOGGEDIN)
+           break;
+      }
+   }
+  
+  terminate_connection();
+  //LogSystemEvent(INFO_PROCESS_HAS_STOPPED, "EndProcess()");
+	// Logs modified to use BDO logging function
+	TxUtils_Send_Msg_To_Operator(0, "Process has stopped - EndProcess().",
+	    1, INFO_MSG, "email-MainProcessor", 0,
+	    INFO_ERROR, NULL_PTR, NULL_PTR, NULL_PTR);
+  pteipc_shutdown_multiple_instance_app(); 
+
+  MainProcessDone = 1;
+}
+
+/*************************************************************
+ *************************************************************/
+void EndProcess()
+{
+
+}

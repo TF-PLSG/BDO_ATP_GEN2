@@ -1,0 +1,122 @@
+/data/prd/ext/CADENCIE/Reports/R03MERCHBATCH_20150701_14534870_BATCH_MERCHANT-EFTPOS-REJ.0000REPORT: MERCHBATCH     GENERATED: 31 MAR 2015          13:05                  RUN: THURSDAY 02JUL2015  14:53                PAGE:000001
+              DATE : 01JUL15        **E F T P O S   R E J E C T E D   T R A N S A C T I O N S**                         B A N K    3
+                                                                                                 CARD SERVICES                 
+
+
+
+
+
+
+
+
+
+   DDDDD      IIIIII     SSSSS    TTTTTTTT    RRRRRR     IIIIII    BBBBBB     U     U    TTTTTTTT    IIIIII     OOO      N     N
+   D    D       II      S            TT       R     R      II      B     B    U     U       TT         II      O   O     NN    N
+   D     D      II      S            TT       R     R      II      B     B    U     U       TT         II     O     O    N N   N
+   D     D      II       SSSSS       TT       RRRRRR       II      BBBBBB     U     U       TT         II     O     O    N  N  N
+   D     D      II            S      TT       R   R        II      B     B    U     U       TT         II     O     O    N   N N
+   D    D       II            S      TT       R    R       II      B     B    U     U       TT         II      O   O     N    NN
+   DDDDD      IIIIII    SSSSSS       TT       R     R    IIIIII    BBBBBB      UUUUU        TT       IIIIII     OOO      N     N
+
+
+
+
+                                              L          IIIIII     SSSSS    TTTTTTTT
+                                              L            II      S            TT
+                                              L            II      S            TT
+                                              L            II       SSSSS       TT
+                                              L            II            S      TT
+                                              L            II            S      TT
+                                              LLLLLL     IIIIII    SSSSSS       TT
+
+
+
+
+
+
+
+
+                                              COPY 1  TO                        
+
+                                              COPY 2  TO                        
+
+                                              COPY 3  TO                         
+
+REPORT: MERCHBATCH     GENERATED: 31 MAR 2015          13:05                  RUN: THURSDAY 02JUL2015  15:26                PAGE:000002
+              DATE : 01JUL15        **E F T P O S   R E J E C T E D   T R A N S A C T I O N S**                         B A N K    3
+                                                                                                 CARD SERVICES                 
+
+ THE FOLLOWING MERCHANTS DID NOT MATCH THE TRANSACTION CURRENCY CODE ON FILE OR
+ THE FOLLOWING MERCHANT NO(S) COULD NOT BE FOUND - REQUEST RESUBMISSION OF TRANS
+ AFTER CORRECTING THE BANK MERCHANT NO. HELD AGAINST TERMINAL IN ACQUIRING SYSTEM
+
+         AMOUNT     MERCHANT     CARD NUMBER            TERMINAL             SEQ        REASON
+         695.00     0001008887   4034 1979 0077 3405    31213191          424736        PURCHASE DATE MUST BE < 360 DAYS AGO    
+         590.00     0001121029   4028 9391 1022 5132    80514081          611143        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1425.00     0001121029   4034 1860 0022 2892    80514081          658137        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1040.00     0001121029   4034 1945 0024 9688    80514081          420358        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1169.46     0001121029   4034 1979 0039 3899    80514081          336584        PURCHASE DATE MUST BE < 360 DAYS AGO    
+         620.00     0001121029   4055 9843 8569 1002    80514081          917501        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1277.14     0001121029   4147 4630 0043 1037    80514081          500292        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        3220.00     0001121029   4183 5800 2942 0108    80514081          651254        PURCHASE DATE MUST BE < 360 DAYS AGO    
+         500.00     0001121029   4293 8207 4534 5008    80514081          135200        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        3685.00     0001121029   4500 6000 3405 3466    80514081          853001        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1100.00     0001121029   4539 7168 0118 9963    80514081          125879        PURCHASE DATE MUST BE < 360 DAYS AGO    
+         950.00     0001121029   4705 8630 0028 8887    80514081          944723        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1728.33     0001121029   4771 2400 0170 6143    80514081          744035        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1035.00     0001121029   4925 5750 0071 2492    80514081          356687        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        2336.37     0001121029   5178 0572 9091 2885    80514081          376942        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1690.50     0001121029   5179 8210 0123 4007    80514081          902221        PURCHASE DATE MUST BE < 360 DAYS AGO    
+         635.00     0001121029   5188 6901 1879 1129    80514081          097000        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        3380.00     0001121029   5226 0403 0016 7718    80514081          217451        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1300.00     0001121029   5312 2950 0003 4783    80514081          364392        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1675.00     0001121029   5312 2950 0010 5666    80514081          094383        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        2535.00     0001121029   5312 2960 0010 7967    80514081          277000        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1020.00     0001121029   5423 3982 0011 3906    80514081          831740        PURCHASE DATE MUST BE < 360 DAYS AGO    
+         360.00     0001121029   5455 1229 0212 7118    80514081          996543        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        2271.00     0001121029   5455 1229 0257 7080    80514081          339462        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1380.00     0001121029   5464 9853 1123 1302    80514081          207011        PURCHASE DATE MUST BE < 360 DAYS AGO    
+         950.00     0001121029   5587 6910 0107 7987    80514081          003842        PURCHASE DATE MUST BE < 360 DAYS AGO    
+         950.00     0001121029   5587 6910 0107 7987    80514081          806202        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1000.00     0001121029   5587 6910 0901 1608    80514081          001733        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        3000.00     9180022410   3776 702712 30489      00112686          169351        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        3000.00     9180022410   4663 0478 4639 4600    00112686          107454        PURCHASE DATE MUST BE < 360 DAYS AGO    
+         500.00     9180022410   5181 2710 8804 2319    00112686          524034        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1000.00     9180022410   5181 7800 0041 8191    00112686          273904        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        2300.00     9180022410   5181 7800 0041 8191    00112686          900493        PURCHASE DATE MUST BE < 360 DAYS AGO    
+       10000.00     9180022410   5185 4200 0023 8804    00112686          742153        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        2100.00     9180022410   5191 4909 0986 4002    00112686          491170        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        3350.00     9180022410   5213 8710 0026 5930    00112686          130070        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        5400.00     9180022410   5213 8710 0026 5930    00112686          507414        PURCHASE DATE MUST BE < 360 DAYS AGO    
+       16160.00     9180022410   5213 8710 0026 5930    00112686          607064        PURCHASE DATE MUST BE < 360 DAYS AGO    
+         500.00     9180022410   5228 7900 1736 0307    00112686          680421        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        5000.00     9180022410   5228 7900 1736 0307    00112686          216144        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        2100.00     9180022410   5336 5397 0043 1159    00112686          120361        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        2200.00     9180022410   5455 1229 0165 6299    00112686          514941        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1280.00     9180022410   5464 9832 0142 5464    00112686          852900        PURCHASE DATE MUST BE < 360 DAYS AGO    
+         820.00     9180022410   5464 9839 2141 6017    00112686          811804        PURCHASE DATE MUST BE < 360 DAYS AGO    
+       11050.00     9180022410   5464 9850 2626 5108    00112686          992450        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        3000.00     9180022410   5464 9859 1582 6002    00112686          721043        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1500.00     9180022410   5488 0938 0510 3210    00112686          590040        PURCHASE DATE MUST BE < 360 DAYS AGO    
+       15000.00     9180035107   5488 0938 0001 7092    33410090          543590        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        2057.00     9180529786   5424 5870 0148 0584    36501695          968320        PURCHASE DATE MUST BE < 360 DAYS AGO    
+         372.00     9181168790   4183 5902 0326 2101    22000081          048091        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1085.15     9181173212   4183 5800 8007 1105    33410613          842234        PURCHASE DATE MUST BE < 360 DAYS AGO     
+
+REPORT: MERCHBATCH     GENERATED: 31 MAR 2015          13:05                  RUN: THURSDAY 02JUL2015  15:26                PAGE:000003
+              DATE : 01JUL15        **E F T P O S   R E J E C T E D   T R A N S A C T I O N S**                         B A N K    3
+                                                                                                 CARD SERVICES                 
+
+ THE FOLLOWING MERCHANTS DID NOT MATCH THE TRANSACTION CURRENCY CODE ON FILE OR
+ THE FOLLOWING MERCHANT NO(S) COULD NOT BE FOUND - REQUEST RESUBMISSION OF TRANS
+ AFTER CORRECTING THE BANK MERCHANT NO. HELD AGAINST TERMINAL IN ACQUIRING SYSTEM
+
+         AMOUNT     MERCHANT     CARD NUMBER            TERMINAL             SEQ        REASON
+         995.00     9189945348   4404 5406 5643 9758    32104157          525535        TRANSACTION ALREADY PROCESSED           
+         447.50     9189945348   5149 2100 0517 6108    32104157          957950        TRANSACTION ALREADY PROCESSED           
+        1242.50     9189945348   5243 3711 7125 8578    32104157          329233        TRANSACTION ALREADY PROCESSED           
+        3387.50     9189945348   5455 1229 0179 1666    32104157          142724        TRANSACTION ALREADY PROCESSED           
+ ----------------
+       139364.45         Unknown               TOTAL NOT SETTLED WITH ACQUIRER - XREF TO SUSPENSE OUT OF BALANCE!
+
+                          *****    R E P O R T    C O M P L E T E D    S U C C E S S F U L L Y    ***** 

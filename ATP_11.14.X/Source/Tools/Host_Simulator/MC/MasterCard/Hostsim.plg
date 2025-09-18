@@ -1,0 +1,74 @@
+<html>
+<body>
+<pre>
+<h1>Build Log</h1>
+<h3>
+--------------------Configuration: hostsim - Win32 Release--------------------
+</h3>
+<h3>Command Lines</h3>
+Creating command line "rc.exe /l 0x409 /fo".\Release/hostsim.res" /d "NDEBUG" /d "_AFXDLL" "F:\CD_HYC\Hostsims\Hostsims\MasterCard\hostsim.rc"" 
+Creating temporary file "C:\DOCUME~1\PHANIK~1\LOCALS~1\Temp\RSP67.tmp" with contents
+[
+/nologo /MD /W3 /GX /O2 /I "c:\hostsim_includes\pinnacle\pte\include\core\1_2_1" /I "n:\pinnacle\pte\include\bea\1_0_0" /I "F:\All\petco\pte\include\bea\1_0_0" /I "F:\All\petco\pte\include\CORE\1_2_1" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_AFXDLL" /D "_MBCS" /Fo".\Release/" /Fd".\Release/" /FD /c 
+"F:\CD_HYC\Hostsims\Hostsims\MasterCard\convert.c"
+"F:\CD_HYC\Hostsims\Hostsims\MasterCard\hostsim.cpp"
+"F:\CD_HYC\Hostsims\Hostsims\MasterCard\hostsimDlg.cpp"
+"F:\CD_HYC\Hostsims\Hostsims\MasterCard\hostsimn.c"
+"F:\CD_HYC\Hostsims\Hostsims\MasterCard\response.c"
+"F:\CD_HYC\Hostsims\Hostsims\MasterCard\serialc.cpp"
+"F:\CD_HYC\Hostsims\Hostsims\MasterCard\tcpip.cpp"
+"F:\CD_HYC\Hostsims\Hostsims\MasterCard\trace.c"
+]
+Creating command line "cl.exe @C:\DOCUME~1\PHANIK~1\LOCALS~1\Temp\RSP67.tmp" 
+Creating temporary file "C:\DOCUME~1\PHANIK~1\LOCALS~1\Temp\RSP68.tmp" with contents
+[
+/nologo /MD /W3 /GX /O2 /I "c:\hostsim_includes\pinnacle\pte\include\core\1_2_1" /I "n:\pinnacle\pte\include\bea\1_0_0" /I "F:\All\petco\pte\include\bea\1_0_0" /I "F:\All\petco\pte\include\CORE\1_2_1" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_AFXDLL" /D "_MBCS" /Fp".\Release/Hostsim.pch" /Yc"stdafx.h" /Fo".\Release/" /Fd".\Release/" /FD /c 
+"F:\CD_HYC\Hostsims\Hostsims\MasterCard\StdAfx.cpp"
+]
+Creating command line "cl.exe @C:\DOCUME~1\PHANIK~1\LOCALS~1\Temp\RSP68.tmp" 
+Creating temporary file "C:\DOCUME~1\PHANIK~1\LOCALS~1\Temp\RSP69.tmp" with contents
+[
+kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib pte.lib ptecom.lib pteipc.lib /nologo /subsystem:windows /pdb:none /machine:I386 /nodefaultlib:"libcmt" /nodefaultlib:"libcmtd" /nodefaultlib:"nafxcw" /out:".\Release/Hostsim.exe" /libpath:"n:\pinnacle\pte\lib\core\1_2_1" /libpath:"n:\pinnacle\pte\lib\bea\1_0_0" /libpath:"F:\All\petco\pte\lib\LIB\CORE\1_2_1" /libpath:"F:\All\petco\pte\lib\LIB\bea\1_0_0" 
+.\Release\convert.obj
+.\Release\hostsim.obj
+.\Release\hostsimDlg.obj
+.\Release\hostsimn.obj
+.\Release\response.obj
+.\Release\serialc.obj
+.\Release\StdAfx.obj
+.\Release\tcpip.obj
+.\Release\trace.obj
+.\Release\hostsim.res
+]
+Creating command line "link.exe @C:\DOCUME~1\PHANIK~1\LOCALS~1\Temp\RSP69.tmp"
+<h3>Output Window</h3>
+Compiling resources...
+Compiling...
+StdAfx.cpp
+Compiling...
+convert.c
+Generating Code...
+Compiling...
+hostsim.cpp
+hostsimDlg.cpp
+Generating Code...
+Compiling...
+hostsimn.c
+response.c
+Generating Code...
+Compiling...
+serialc.cpp
+tcpip.cpp
+Generating Code...
+Compiling...
+trace.c
+Generating Code...
+Linking...
+
+
+
+<h3>Results</h3>
+Hostsim.exe - 0 error(s), 0 warning(s)
+</pre>
+</body>
+</html>

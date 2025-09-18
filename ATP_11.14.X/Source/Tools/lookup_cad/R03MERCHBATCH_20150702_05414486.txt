@@ -1,0 +1,96 @@
+/data/prd/ext/CADENCIE/Reports/R03MERCHBATCH_20150702_05414486_BATCH_MERCHANT-EFTPOS-REJ.0000REPORT: MERCHBATCH     GENERATED: 31 MAR 2015          13:05                  RUN: FRIDAY 03JUL2015  05:41                  PAGE:000001
+              DATE : 02JUL15        **E F T P O S   R E J E C T E D   T R A N S A C T I O N S**                         B A N K    3
+                                                                                                 CARD SERVICES                 
+
+
+
+
+
+
+
+
+
+   DDDDD      IIIIII     SSSSS    TTTTTTTT    RRRRRR     IIIIII    BBBBBB     U     U    TTTTTTTT    IIIIII     OOO      N     N
+   D    D       II      S            TT       R     R      II      B     B    U     U       TT         II      O   O     NN    N
+   D     D      II      S            TT       R     R      II      B     B    U     U       TT         II     O     O    N N   N
+   D     D      II       SSSSS       TT       RRRRRR       II      BBBBBB     U     U       TT         II     O     O    N  N  N
+   D     D      II            S      TT       R   R        II      B     B    U     U       TT         II     O     O    N   N N
+   D    D       II            S      TT       R    R       II      B     B    U     U       TT         II      O   O     N    NN
+   DDDDD      IIIIII    SSSSSS       TT       R     R    IIIIII    BBBBBB      UUUUU        TT       IIIIII     OOO      N     N
+
+
+
+
+                                              L          IIIIII     SSSSS    TTTTTTTT
+                                              L            II      S            TT
+                                              L            II      S            TT
+                                              L            II       SSSSS       TT
+                                              L            II            S      TT
+                                              L            II            S      TT
+                                              LLLLLL     IIIIII    SSSSSS       TT
+
+
+
+
+
+
+
+
+                                              COPY 1  TO                        
+
+                                              COPY 2  TO                        
+
+                                              COPY 3  TO                         
+
+REPORT: MERCHBATCH     GENERATED: 31 MAR 2015          13:05                  RUN: FRIDAY 03JUL2015  06:35                  PAGE:000002
+              DATE : 02JUL15        **E F T P O S   R E J E C T E D   T R A N S A C T I O N S**                         B A N K    3
+                                                                                                 CARD SERVICES                 
+
+ THE FOLLOWING MERCHANTS DID NOT MATCH THE TRANSACTION CURRENCY CODE ON FILE OR
+ THE FOLLOWING MERCHANT NO(S) COULD NOT BE FOUND - REQUEST RESUBMISSION OF TRANS
+ AFTER CORRECTING THE BANK MERCHANT NO. HELD AGAINST TERMINAL IN ACQUIRING SYSTEM
+
+         AMOUNT     MERCHANT     CARD NUMBER            TERMINAL             SEQ        REASON
+        2333.04     0000036244   4404 5303 8951 9539    33211621          114957        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        4004.70     0000036244   5455 1229 0240 0614    33211621          876640        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        5510.22     0000246488   4266 8413 9880 0605    31406852          537505        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        2884.00     0000994509   5188 6901 7839 9201    40510888          078413        TRANSACTION ALREADY PROCESSED           
+         370.00     0000994509   5195 9776 5186 9755    40510888          792691        TRANSACTION ALREADY PROCESSED           
+        2307.00     0000994509   5286 6706 6014 4472    40510888          879773        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1161.24     0000994509   5464 9836 1138 7015    40510888          283273        PURCHASE DATE MUST BE < 360 DAYS AGO    
+         678.43     0000994509   5545 5064 6370 7007    40510888          184162        TRANSACTION ALREADY PROCESSED           
+        1615.00     0001252253   4126 1185 5169 8005    70119442          409735        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        5991.00     0001252253   5124 6459 3253 8004    70119442          621872        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1200.00     0001330653   4034 1941 0014 7662    80513919          215867        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1200.00     0001330653   4055 9883 0421 3004    80513919          046922        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        2000.00     0001330653   4388 5760 8695 8322    80513919          533417        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        2000.00     0001330653   4388 5760 8695 8322    80513919          832331        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1400.00     0001330653   4450 8631 1051 1779    80513919          320181        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        2400.00     0001330653   4532 4880 0141 6789    80513919          704167        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1080.00     0001330653   5125 7107 7316 6106    80513919          024070        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1000.00     0001330653   5400 7693 0001 6412    80513919          211624        PURCHASE DATE MUST BE < 360 DAYS AGO    
+       50856.79     9180007411   3737 640039 11005      42511283          583142        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1593.20     9180041014   4400 6694 2366 7856    33111014          206447        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1900.00     9180041014   5121 0721 1029 3208    33111014          483632        PURCHASE DATE MUST BE < 360 DAYS AGO    
+         861.00     9180041014   5523 6605 0964 1005    33111014          087324        PURCHASE DATE MUST BE < 360 DAYS AGO    
+       23784.40     9180113383   3762 203105 63002      72513497          671572        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1150.00     9180121188   4079 1601 7850 5137    70515488          140591        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1426.55     9180121188   4079 1601 7850 5137    70515488          603390        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1150.00     9180121188   5522 8098 0008 0964    70515488          794881        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        7000.00     9180123614   5455 1229 0061 5627    33410816          821693        PURCHASE DATE MUST BE < 360 DAYS AGO    
+         400.00     9180501132   3562 7700 4610 3026    35620162          078962        PURCHASE DATE MUST BE < 360 DAYS AGO    
+         625.00     9180501132   4147 2021 9492 3056    35620162          243672        PURCHASE DATE MUST BE < 360 DAYS AGO    
+         300.00     9180501132   4532 4880 0006 0943    35620162          156083        PURCHASE DATE MUST BE < 360 DAYS AGO    
+         400.00     9180501132   5464 9712 3502 0005    35620162          284023        PURCHASE DATE MUST BE < 360 DAYS AGO    
+           1.00     9180736316   5452 7500 0621 7105    35310222          789522        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        3690.07     9180840175   3715 715898 53002      93401642          250144        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1560.28     9181020611   5218 2285 1737 3001    33406970          497851        PURCHASE DATE MUST BE < 360 DAYS AGO    
+       45566.13     9181079534   3762 165723 11007      35310611          496550        PURCHASE DATE MUST BE < 360 DAYS AGO    
+           0.01     9181354200   3562 3200 0756 9102    33790089          171693        PURCHASE DATE MUST BE < 360 DAYS AGO    
+         544.60     9181354200   4055 9843 9414 8119    33790089          857114        PURCHASE DATE MUST BE < 360 DAYS AGO    
+        1057.35     9181354200   4126 1185 8132 8003    33790089          547380        PURCHASE DATE MUST BE < 360 DAYS AGO    
+         272.00     9181354200   4404 5311 3845 6429    33790089          319472        PURCHASE DATE MUST BE < 360 DAYS AGO    
+ ----------------
+       183273.01         Unknown               TOTAL NOT SETTLED WITH ACQUIRER - XREF TO SUSPENSE OUT OF BALANCE!
+
+                          *****    R E P O R T    C O M P L E T E D    S U C C E S S F U L L Y    ***** 

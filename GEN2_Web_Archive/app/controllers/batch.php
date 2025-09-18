@@ -1,0 +1,287 @@
+<?php
+
+/**
+ * batch.php
+ *
+ * batch application controller
+ *
+ * @package		MVC
+ * @author		Gopal Sikhawal
+ */
+
+class Batch_Controller extends MVC_Controller
+{
+	function csv() {
+		if(isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
+			$columns = $_POST['exp'];
+			$this->load->model('Batch_Model', 'batch');
+			$type = isset($this->parameter[0])?$this->parameter[0]:false;
+			$card_num_mask = $_POST['card_num_mask'];
+			$_SESSION[$type]['UNMASK'] = $card_num_mask;
+			$this->batch->exportCsv($type, $columns);
+		}
+	}
+	function index()
+	{
+		$this->redirect('batch/details');
+	}
+	function header()
+	{
+		if($this->authorize()) {
+			$page = isset($this->parameter[0])?$this->parameter[0]:1;
+			$clear_filter = isset($this->parameter[0])?false:true;
+			$data = array();
+			$result = array();
+			$error = false;
+			$this->load->model('Batch_Model', 'batch');
+			if(isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
+				$temp = $_POST['data'];
+				//var_dump($_POST);
+				$data['DEVICE_ID'] = isset($temp['DEVICE_ID']) ? trim($temp['DEVICE_ID']) : false;
+				//$data['DEVICE_ID'] = preg_replace("/[^0-9]+/", "", $data['DEVICE_ID']);
+				
+				$data['BATCH_NBR'] = isset($temp['BATCH_NBR']) ? trim($temp['BATCH_NBR']) : false;
+				
+				//$data['BATCH_NBR'] = preg_replace("/[^0-9]+/", "", $data['BATCH_NBR']);
+				//$data['BATCH_NBR'] = preg_replace("/[^0-9]+/", "", $data['BATCH_NBR']);
+				
+				$_SESSION['search'] = $data;
+			} elseif($clear_filter) {
+				unset($_SESSION['search']);
+				$data = array();
+			} else {
+				$data = isset($_SESSION['search']) ? $_SESSION['search'] : array();
+			}
+			//var_dump($data);
+			if(!empty($data)) {
+				if((!isset($data['DEVICE_ID']) || !$data['DEVICE_ID']) && (!isset($data['BATCH_NBR']) || !$data['BATCH_NBR'])) {
+					$error = 'Please enter value for at least one search field.';
+				}
+				if($error === false) {
+					$result = $this->batch->getAllHeaderLookUp($page, $data);
+					$_SESSION['header'] = $data;
+					$result['page_number'] = ceil($result['Total']/$result['NUM_RESULT_PER_PAGE']);
+					$this->view->assign('page', $page);
+				}
+			}
+			$this->view->assign('error', $error);
+			$expColumns = $this->batch->getHeaderExportColumns();
+			$this->view->assign('expColumns', $expColumns);
+			$this->view->assign('data', $data);
+			$this->view->assign('result', $result);
+			
+			$this->view->display('batch_header_view');
+		}
+	}
+  function headinfo() {
+	if($this->authorize()) {
+		$device_id = isset($this->parameter[0])?$this->parameter[0]:false;
+		$batch_num = isset($this->parameter[1])?$this->parameter[1]:false;
+		$this->load->model('Batch_Model', 'batch');
+		$data = array();
+		if($device_id && $batch_num) {
+			$data = $this->batch->getHeadDetail($device_id, $batch_num);
+		}
+		//echo '<pre>';print_r($data);
+		$this->view->assign('data', $data);
+		$this->view->display('batch_headinfo_view', 'ajax');
+	}
+  }
+  function detailinfo() {
+	if($this->authorize()) {
+		$batch_num = isset($this->parameter[0])?$this->parameter[0]:false;
+		$this->load->model('Batch_Model', 'batch');
+		$data = array();
+		if($batch_num) {
+			$data = $this->batch->getBatchDetail($batch_num);
+		}
+		if(!empty($data)) {
+			if(isset($_SESSION['search']['UNMASK']) && $_SESSION['search']['UNMASK'] == 1) {
+			} elseif(isset($data['CARD_NBR']) && !empty($data['CARD_NBR'])) {
+				//$data['CARD_NBR'] = substr($data['CARD_NBR'], 0, 6) . str_repeat("X", strlen($data['CARD_NBR']) - 10) . substr($data['CARD_NBR'], -4);
+				
+			}
+			if(!empty($data['CARD_NBR'])) {
+				$data['CARD_NBR_MASK'] = substr($data['CARD_NBR'], 0, 6) . str_repeat("X", strlen($data['CARD_NBR']) - 10) . substr($data['CARD_NBR'], -4);
+			} else {
+				$data['CARD_NBR_MASK'] = "";
+			}
+		}
+		//echo '<pre>';var_dump($data);die();
+		$this->view->assign('data', $data);
+		$this->view->display('batch_detailinfo_view', 'ajax');
+	}
+  }
+  function details()
+  {
+	if($this->authorize()) {
+		$page = isset($this->parameter[0])?$this->parameter[0]:1;
+		$clear_filter = isset($this->parameter[0])?false:true;
+		$data = array();
+		$result = array();
+		$error = false;
+		$this->load->model('Batch_Model', 'batch');
+		if(isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
+			// $temp = $_POST['data'];
+			$temp = array_map('htmlspecialchars',$_POST['data']);
+			
+			$data['DEVICE_ID'] = isset($temp['DEVICE_ID']) ? trim($temp['DEVICE_ID']) : false;
+			$data['MERCHANT_ID'] = isset($temp['MERCHANT_ID']) ? trim($temp['MERCHANT_ID']) : false;
+			$data['BATCH_NBR'] = isset($temp['BATCH_NBR']) ? trim($temp['BATCH_NBR']) : false;
+			$data['RETRIEVAL_REF_NUM'] = isset($temp['RETRIEVAL_REF_NUM']) ? trim($temp['RETRIEVAL_REF_NUM']) : false;
+			$data['TRAN_DATE'] = isset($temp['TRAN_DATE']) ? trim($temp['TRAN_DATE']) : false;
+			$data['OPEN_DATE'] = isset($temp['OPEN_DATE']) ? trim($temp['OPEN_DATE']) : false;
+			
+			if(! is_numeric($data['RETRIEVAL_REF_NUM']) && $data['RETRIEVAL_REF_NUM'] != "") {
+				$error = 'Please enter correct retrieval ref number.';
+				$data['RETRIEVAL_REF_NUM'] = '';
+			}
+			
+			if(! is_numeric($data['BATCH_NBR']) && $data['BATCH_NBR'] != "") {
+				$error = 'Please enter correct Batch number.';
+				$data['BATCH_NBR'] = '';
+			}
+			
+			/*if(! is_numeric($data['MERCHANT_ID']) && $data['MERCHANT_ID'] != "") {
+				$error = 'Please enter correct Merchant ID.';
+				$data['MERCHANT_ID'] = '';
+			}
+			
+			if(! is_numeric($data['DEVICE_ID']) && $data['DEVICE_ID'] != "") {
+				$error = 'Please enter correct Device ID.';
+				$data['DEVICE_ID'] = '';
+			}*/
+			
+			if($temp['OPEN_DATE'] != "") {
+			$date = DateTime::createFromFormat('Y-m-d', $data['OPEN_DATE']);
+			if($date == false) {
+				$error = 'Please enter correct open date.';
+				$data['OPEN_DATE'] = '';
+			}
+			}
+			if($temp['TRAN_DATE'] != "") {
+			$date = DateTime::createFromFormat('Y-m-d', $data['TRAN_DATE']);
+			if($date == false) {
+				$error = 'Please enter correct tran date.';
+				$data['TRAN_DATE'] = '';
+			}
+			}
+			$data['UNMASK'] = isset($temp['UNMASK']) ? trim($temp['UNMASK']) : 0;
+			
+			if(isset($data['UNMASK'])) {
+				if($data['UNMASK'] != 0 && $data['UNMASK'] != 1) {
+					$data['UNMASK'] = 0;
+				}
+			}
+			$_SESSION['search'] = $data;
+			//die();
+		} elseif($clear_filter) {
+			unset($_SESSION['search']);
+			$data = array();
+		} else {
+			$data = isset($_SESSION['search']) ? $_SESSION['search'] : array();
+		}
+		if(!empty($data)) {
+			if((!isset($data['DEVICE_ID']) || !$data['DEVICE_ID']) 
+				&& (!isset($data['MERCHANT_ID']) || !$data['MERCHANT_ID'])
+				&& (!isset($data['BATCH_NBR']) || !$data['BATCH_NBR'])
+				&& (!isset($data['RETRIEVAL_REF_NUM']) || !$data['RETRIEVAL_REF_NUM'])
+				&& (!isset($data['TRAN_DATE']) || !$data['TRAN_DATE'])
+				&& (!isset($data['OPEN_DATE']) || !$data['OPEN_DATE'])
+				) {
+				$error = 'Please enter value for at least one search field.';
+			}
+			if($error === false) {
+				$result = $this->batch->getAllDetailLookUp($page, $data);
+				$_SESSION['details'] = $data;
+				//echo '<pre>';print_r($_SESSION['details']);exit;
+				$result['page_number'] = ceil($result['Total']/$result['NUM_RESULT_PER_PAGE']);
+			}
+		}
+		$expColumns = $this->batch->getDetailExportColumns();
+		$this->view->assign('expColumns', $expColumns);
+		$this->view->assign('data', $data);
+		$this->view->assign('result', $result);
+		$this->view->assign('page', $page);
+		$this->view->assign('error', $error);
+		$this->view->display('batch_details_view');
+	}
+  }
+  function auth()
+  {
+	if($this->authorize()) {
+		$page = isset($this->parameter[0])?$this->parameter[0]:1;
+		$clear_filter = isset($this->parameter[0])?false:true;
+		$data = array();
+		$result = array();
+		$error = false;
+		$this->load->model('Batch_Model', 'batch');
+		if(isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
+			$temp = $_POST['data'];
+			$data['DEVICE_ID'] = isset($temp['DEVICE_ID']) ? trim($temp['DEVICE_ID']) : false;
+			$data['MERCHANT_ID'] = isset($temp['MERCHANT_ID']) ? trim($temp['MERCHANT_ID']) : false;
+			$data['BATCH_NBR'] = isset($temp['BATCH_NBR']) ? trim($temp['BATCH_NBR']) : false;
+			$data['RETRIEVAL_REF_NUM'] = isset($temp['RETRIEVAL_REF_NUM']) ? trim($temp['RETRIEVAL_REF_NUM']) : false;
+			$data['TRAN_DATE'] = isset($temp['TRAN_DATE']) ? trim($temp['TRAN_DATE']) : false;
+			$data['OPEN_DATE'] = isset($temp['OPEN_DATE']) ? trim($temp['OPEN_DATE']) : false;
+			$data['UNMASK'] = isset($temp['UNMASK']) ? trim($temp['UNMASK']) : 0;
+			$_SESSION['search'] = $data;
+		} elseif($clear_filter) {
+			unset($_SESSION['search']);
+			$data = array();
+		} else {
+			$data = isset($_SESSION['search']) ? $_SESSION['search'] : array();
+		}
+		if(!empty($data)) {
+			if((!isset($data['DEVICE_ID']) || !$data['DEVICE_ID']) 
+				&& (!isset($data['MERCHANT_ID']) || !$data['MERCHANT_ID'])
+				&& (!isset($data['BATCH_NBR']) || !$data['BATCH_NBR'])
+				&& (!isset($data['RETRIEVAL_REF_NUM']) || !$data['RETRIEVAL_REF_NUM'])
+				&& (!isset($data['TRAN_DATE']) || !$data['TRAN_DATE'])
+				&& (!isset($data['OPEN_DATE']) || !$data['OPEN_DATE'])
+				) {
+				$error = 'Please enter value for at least one search field.';
+			}
+			if($error === false) {
+				$result = $this->batch->getAllAuthLookUp($page, $data);
+				$result['page_number'] = ceil($result['Total']/$result['NUM_RESULT_PER_PAGE']);
+				$_SESSION['auth'] = $data;
+			}
+			
+		}
+		$expColumns = $this->batch->getAuthExportColumns();
+		$this->view->assign('expColumns', $expColumns);
+		$this->view->assign('data', $data);
+		$this->view->assign('result', $result);
+		$this->view->assign('error', $error);
+		$this->view->assign('page', $page);
+		$this->view->display('batch_auth_view');
+	}
+  }
+  function authinfo() {
+	if($this->authorize()) {
+		$transaction_id = isset($this->parameter[0])?$this->parameter[0]:false;
+		
+		$this->load->model('Batch_Model', 'batch');
+		$data = array();
+		if($transaction_id) {
+			$data = $this->batch->getBatchAuth($transaction_id);
+		}
+		if(!empty($data)) {
+			if(isset($_SESSION['search']['UNMASK']) && $_SESSION['search']['UNMASK'] == 1) {
+			} elseif(isset($data['CARD_NBR']) && !empty($data['CARD_NBR'])) {
+				//$data['CARD_NBR'] = substr($data['CARD_NBR'], 0, 6) . str_repeat("X", strlen($data['CARD_NBR']) - 10) . substr($data['CARD_NBR'], -4);
+			}
+			if(!empty($data['CARD_NBR'])) {
+				$data['CARD_NBR_MASK'] = substr($data['CARD_NBR'], 0, 6) . str_repeat("X", strlen($data['CARD_NBR']) - 10) . substr($data['CARD_NBR'], -4);
+			} else {
+				$data['CARD_NBR_MASK'] = "";
+			}
+		}
+		//echo '<pre>';print_r($data);
+		$this->view->assign('data', $data);
+		$this->view->display('batch_authinfo_view', 'ajax');
+	}
+  }
+}
+?>

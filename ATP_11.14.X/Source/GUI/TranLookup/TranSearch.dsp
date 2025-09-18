@@ -1,0 +1,216 @@
+# Microsoft Developer Studio Project File - Name="TranSearch" - Package Owner=<4>
+# Microsoft Developer Studio Generated Build File, Format Version 6.00
+# ** DO NOT EDIT **
+
+# TARGTYPE "Win32 (x86) Application" 0x0101
+
+CFG=TranSearch - Win32 Release
+!MESSAGE This is not a valid makefile. To build this project using NMAKE,
+!MESSAGE use the Export Makefile command and run
+!MESSAGE 
+!MESSAGE NMAKE /f "TranSearch.mak".
+!MESSAGE 
+!MESSAGE You can specify a configuration when running NMAKE
+!MESSAGE by defining the macro CFG on the command line. For example:
+!MESSAGE 
+!MESSAGE NMAKE /f "TranSearch.mak" CFG="TranSearch - Win32 Release"
+!MESSAGE 
+!MESSAGE Possible choices for configuration are:
+!MESSAGE 
+!MESSAGE "TranSearch - Win32 Release" (based on "Win32 (x86) Application")
+!MESSAGE "TranSearch - Win32 Debug" (based on "Win32 (x86) Application")
+!MESSAGE 
+
+# Begin Project
+# PROP AllowPerConfigDependencies 0
+# PROP Scc_ProjName ""
+# PROP Scc_LocalPath ""
+CPP=cl.exe
+MTL=midl.exe
+RSC=rc.exe
+
+!IF  "$(CFG)" == "TranSearch - Win32 Release"
+
+# PROP BASE Use_MFC 6
+# PROP BASE Use_Debug_Libraries 0
+# PROP BASE Output_Dir ".\Release"
+# PROP BASE Intermediate_Dir ".\Release"
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 6
+# PROP Use_Debug_Libraries 0
+# PROP Output_Dir ".\Release"
+# PROP Intermediate_Dir ".\Release"
+# PROP Ignore_Export_Lib 0
+# PROP Target_Dir ""
+# ADD BASE CPP /nologo /MD /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_AFXDLL" /D "_MBCS" /Yu"stdafx.h" /c
+# ADD CPP /nologo /MD /W3 /GX /I "..\..\Libraries\include" /I "..\..\Libraries\Application_Win95\include" /I "..\..\Third_Party_Libraries\Win95\SSL" /I "..\..\Server_AIX\include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_AFXDLL" /D "_MBCS" /FR /Yu"stdafx.h" /FD /c
+# ADD BASE MTL /nologo /D "NDEBUG" /win32
+# ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
+# ADD BASE RSC /l 0x409 /d "NDEBUG" /d "_AFXDLL"
+# ADD RSC /l 0x409 /d "NDEBUG" /d "_AFXDLL"
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LINK32=link.exe
+# ADD BASE LINK32 /nologo /subsystem:windows /machine:I386
+# ADD LINK32 atptcp.lib pte.lib ptetcp.lib wsock32.lib shrmem.lib mutex.lib ptepci.lib version.lib /nologo /subsystem:windows /machine:I386 /nodefaultlib:"nafxcw" /nodefaultlib:"libcmt" /nodefaultlib:"libcmtd" /nodefaultlib:"libcd" /nodefaultlib:"libc" /nodefaultlib:"nafxcwd" /libpath:"..\..\Build_GUI\lib\Release"
+# Begin Special Build Tool
+SOURCE="$(InputPath)"
+PostBuild_Cmds=copy .\Release\TranSearch.exe  ..\..\Build_gui\bin\Release
+# End Special Build Tool
+
+!ELSEIF  "$(CFG)" == "TranSearch - Win32 Debug"
+
+# PROP BASE Use_MFC 6
+# PROP BASE Use_Debug_Libraries 1
+# PROP BASE Output_Dir ".\Debug"
+# PROP BASE Intermediate_Dir ".\Debug"
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 6
+# PROP Use_Debug_Libraries 1
+# PROP Output_Dir ".\Debug"
+# PROP Intermediate_Dir ".\Debug"
+# PROP Ignore_Export_Lib 0
+# PROP Target_Dir ""
+# ADD BASE CPP /nologo /MDd /W3 /Gm /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_AFXDLL" /D "_MBCS" /Yu"stdafx.h" /c
+# ADD CPP /nologo /MDd /W3 /GX /Z7 /Od /I "..\..\Libraries\include" /I "..\..\Libraries\Application_Win95\include" /I "..\..\Third_Party_Libraries\Win95\SSL" /I "..\..\Server_AIX\include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_AFXDLL" /D "_MBCS" /FR /Yu"stdafx.h" /FD /c
+# ADD BASE MTL /nologo /D "_DEBUG" /win32
+# ADD MTL /nologo /D "_DEBUG" /mktyplib203 /win32
+# ADD BASE RSC /l 0x409 /d "_DEBUG" /d "_AFXDLL"
+# ADD RSC /l 0x409 /d "_DEBUG" /d "_AFXDLL"
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LINK32=link.exe
+# ADD BASE LINK32 /nologo /subsystem:windows /debug /machine:I386
+# ADD LINK32 atptcp.lib pte.lib ptetcp.lib wsock32.lib shrmem.lib mutex.lib ptepci.lib version.lib /nologo /subsystem:windows /debug /machine:I386 /nodefaultlib:"nafxcw" /nodefaultlib:"libcmt" /nodefaultlib:"libcmtd" /nodefaultlib:"libcd" /nodefaultlib:"libc" /nodefaultlib:"nafxcwd" /libpath:"..\..\Build_GUI\lib\Debug"
+# Begin Special Build Tool
+SOURCE="$(InputPath)"
+PostBuild_Cmds=copy .\Debug\TranSearch.exe  ..\..\Build_gui\bin\Debug
+# End Special Build Tool
+
+!ENDIF 
+
+# Begin Target
+
+# Name "TranSearch - Win32 Release"
+# Name "TranSearch - Win32 Debug"
+# Begin Group "Source Files"
+
+# PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat;for;f90"
+# Begin Source File
+
+SOURCE=.\ListCtrlEx.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\Loginfrm.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\MainFrm.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\MYUTILS.CPP
+# End Source File
+# Begin Source File
+
+SOURCE=.\ReadMe.txt
+# End Source File
+# Begin Source File
+
+SOURCE=.\StdAfx.cpp
+# ADD CPP /Yc"stdafx.h"
+# End Source File
+# Begin Source File
+
+SOURCE=.\TranInquiry.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\TransactionDetails.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\TranSearch.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\TranSearch.rc
+# End Source File
+# Begin Source File
+
+SOURCE=.\TranSearchDoc.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\TranSearchView.cpp
+# End Source File
+# End Group
+# Begin Group "Header Files"
+
+# PROP Default_Filter "h;hpp;hxx;hm;inl;fi;fd"
+# Begin Source File
+
+SOURCE=.\CVector.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\Loginfrm.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\MainFrm.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\MYUTILS.H
+# End Source File
+# Begin Source File
+
+SOURCE=.\Resource.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\StdAfx.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\TranInquiry.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\transactiondetails.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\TranSearch.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\TranSearchDoc.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\TranSearchView.h
+# End Source File
+# End Group
+# Begin Group "Resource Files"
+
+# PROP Default_Filter "ico;cur;bmp;dlg;rc2;rct;bin;cnt;rtf;gif;jpg;jpeg;jpe"
+# Begin Source File
+
+SOURCE=.\res\TranSearch.ico
+# End Source File
+# Begin Source File
+
+SOURCE=.\res\TranSearch.rc2
+# End Source File
+# Begin Source File
+
+SOURCE=.\res\TranSearchDoc.ico
+# End Source File
+# End Group
+# End Target
+# End Project

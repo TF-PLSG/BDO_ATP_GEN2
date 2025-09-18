@@ -1,0 +1,1643 @@
+/******************************************************************************
+
+   qcheck.c
+
+   Copyright (c) 2006, Hypercom, Inc.
+   All Rights Reserved.
+
+   TITLE:  XIPC Queue Message Count Checker
+
+   This application logs into Xipc and gets the message count
+   for all 'A' queues.  It displays the 10 queues with the
+   most messages in them, along with the number of messages.
+   This application is also used to perform a check of the QueSys
+   and MemSys statistics, such as percent of nodes or users currently
+   in use.  If a percentage is too high, a warning is logged.
+
+   APPLICATION:  Advanced Transaction Processor (ATP)
+
+   REVISION HISTORY
+
+   $Log:   N:\POS\PVCS6.6\EPICPORTZ\PTE\Equitable\qcheck\qcheck.c  $
+   
+      Rev 1.7   Aug 21 2006 16:58:00   jgrguric
+   Change references from AIX to Unix - works on AIX & Solaris. In remove_dead_services(), correct HANDLE definition for Unix, fix grep option for Solaris on system() call, and enhance return value logic on system() call.
+   
+      Rev 1.6   Apr 11 2006 17:42:48   dirby
+   Modified to have the 'remove_dead_services' functionality work
+   in the Windows environment.  Previously this only worked on AIX.
+   This functionality checks the Process IDs (PID) XIPC users to
+   make sure they still exist.  If not, the Xipc user is removed.
+   SCR 20677
+   
+      Rev 1.5   Nov 01 2005 16:35:00   dirby
+   Added functionality to check for XIPC users whose PIDs no longer exist.
+   SCR 15091
+   
+      Rev 1.4   Feb 01 2005 16:42:54   dirby
+   Added logic to monitor QueSys and MemSys parameters.
+   
+      Rev 1.3   Jan 28 2005 10:51:26   dirby
+   Rewrote the application:
+   1.  Removed option to monitor a specific queue.
+   2.  Modified to run continuously, sleeping between runs for a
+       configurable number of seconds.
+   3.  Modified to make friendly, compact log entries.
+   
+      Rev 1.1   Jul 09 2002 16:07:14   dirby
+   1.  Added code to only process 1 instance of services that have
+       multiple instances in the startup.ini file.
+   2.  Added code to also process the applnk queue.
+   
+      Rev 1.0   Jul 09 2002 08:13:08   dirby
+   C application to interrogate queues and report
+   on the number of messages in them.
+ ******************************************************************************/
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#ifdef WIN32
+   #include <windows.h>
+#endif
+
+#include "basictyp.h"
+#include "pte.h"
+#include "ptemsg.h"
+#include "pteipc.h"
+#include "ptestats.h"
+#include "ptesystm.h"
+#include "ptetime.h"
+#include "ntutils.h"
+
+#include "txutils.h"
+
+
+/************************************************
+    FUNCTION PROTOTYPES
+ ************************************************/
+void    process_all_queues( void );
+INT     get_startup_file_location( pCHAR );
+INT     read_startup_file( void );
+void    process_queues( void );
+void    process_que_sys_stats( void );
+INT     que_access( pCHAR );
+void    insert_q_into_list( void );
+void    log_queues( void );
+void    log_stats( pCHAR log_message );
+void    get_qcheck_config_info();
+void    get_date( pCHAR time_date, pCHAR date_str );
+void    get_time( pCHAR time_date, pCHAR time_str );
+void    get_xipc_err_text( INT err_code, pCHAR err_text );
+void    remove_dead_services(void);
+void 	qcheck_log_message( INT dest, INT sev, pCHAR msg, pCHAR func, int details );
+void 	qcheck_create_Error_Filename();
+INT  	qcheck_Log_error_warning_to_File(pCHAR Error_Buf,int sev, pCHAR func,int detail);
+void 	qcheck_get_error_warning_file_name_path(void );
+
+/************************************************
+    GLOBAL DECLARATIONS
+ ************************************************/
+#define  MAX_SERVICES 250
+#define  QUE_NAME_SIZE     20
+#define  STARTUP_FILE     "startup.bak"
+#define  STARTUP_FILE_UNIX "startup.0"
+
+CHAR  Service_Names[MAX_SERVICES][QUE_NAME_SIZE+1];
+
+CHAR  qcheck_Error_warning_Filename[256]={0};
+CHAR  qcheck_module_error_warning_file_name[256]={0};
+CHAR  qcheck_error_warning_file_path[256]={0};
+UINT  Max_File_Size_Defined = 0 ;
+
+typedef struct
+{
+   CHAR  q_name[QUE_NAME_SIZE+1];
+   INT   msg_cnt;
+} Q_INFO_ST;
+
+Q_INFO_ST  q_info[MAX_SERVICES];
+Q_INFO_ST  q_temp;
+
+INT  Service_Cnt;
+INT  I_Freq;
+INT  Q_Sys_Percent;
+INT  M_Sys_Percent;
+INT  Empty_Queues;
+INT  Test_UIDs;
+
+FILE *fptr     = NULL;
+FILE *fptr_log = NULL;
+
+CHAR LogFile[80] = "";
+
+/* For XIPC */
+CHAR  AppName[80];
+CHAR  xipc_instance[30];
+
+QUEINFOSYS  Q_Sys_Info;
+MEMINFOSYS  M_Sys_Info;
+
+PRIVATE LONG      application_que_id;
+PRIVATE LONG      control_que_id;
+PRIVATE LONG      interactive_que_id;
+
+extern INT  volatile EndProcessSignalled;
+extern INT  volatile MainProcessDone;
+
+CHAR Version[] = "ATP_11.1.0";
+
+/******************************************************************************
+ *
+ *  NAME:         MainProcessor
+ *
+ *  DESCRIPTION:  This function is the entry point for qcheck.  This 
+ *                calls a function to check message count of all 'A'
+ *                queues and report on the top 10 that is, the message
+ *                count in the queue is logged.  The log file, new one
+ *                each day, is stored in Ascendent\log\qcheck_yyyymmdd.log.
+ *
+ *  INPUTS:       None
+ *
+ *  OUTPUTS:      Report of messages counts and queue names is logged.
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       Dennis Irby
+ *
+ ******************************************************************************/
+void MainProcessor(int argc, char *argv[])
+{
+   CHAR buffer[100] = "";
+
+   GetAppName( AppName );
+
+   sprintf( buffer, "Starting %s, version %s", AppName, Version );
+   LogEvent( buffer, INFO_MSG );
+
+   /* Get start up parameters. */
+   get_qcheck_config_info();
+
+   #ifdef WIN32
+      I_Freq *= 1000;    /* Convert number of secs into milliseconds */
+   #else
+      I_Freq *= 1000000; /* Convert number of secs into microseconds */
+   #endif
+
+   /* Process all queues based on startup.bak. */
+   (void)process_all_queues();
+
+   return;
+}
+
+/******************************************************************************
+ *
+ *  NAME:         PROCESS_ALL_QUEUES
+ *
+ *  DESCRIPTION:  This function will get the list of services from the
+ *                startup.bak file.  It will then get the message count
+ *                for each service's A queue and display a report on the
+ *                ten queues that have the most messages.
+ *
+ *  INPUTS:       None
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       Dennis Irby
+ *
+ ******************************************************************************/
+void process_all_queues()
+{
+   CHAR  errbuf[250]       = "";
+   CHAR  Buffer[100]       = "";
+   CHAR  dir_location[100] = "";
+   CHAR  file_name[110]    = "";
+   INT   ret_val;
+   INT   dead_service_timer = 0;
+
+   ret_val = get_startup_file_location( dir_location );
+   if ( ret_val == false )
+   {
+      sprintf( errbuf, 
+              "Unable to locate the startup.bak file: %s",
+               dir_location );
+      LogEvent( errbuf, ERROR_MSG );
+   }
+   else
+   {
+      /* Open the Startup file containing the list of services. */
+      strcpy( file_name, dir_location );
+      #ifdef WIN32
+         strcat( file_name, STARTUP_FILE );
+      #else
+         strcat( file_name, STARTUP_FILE_UNIX );
+      #endif
+
+      if ( NULL == (fptr = fopen( file_name, "r" )) )
+      {
+         sprintf( errbuf, 
+                 "Unable to open startup file: %s",
+                  file_name );
+         LogEvent( errbuf, ERROR_MSG );
+      }
+      else
+      {
+         /* Read the list of services and append A to them. */
+         Service_Cnt = read_startup_file();
+         if ( Service_Cnt > MAX_SERVICES )
+         {
+            sprintf( errbuf,
+                    "There are more services (%d) than the max allowed (%d)",
+                     Service_Cnt, MAX_SERVICES );
+            LogEvent( errbuf, WARN_MSG );
+
+            sprintf( errbuf,
+                    "Processing will take place for the first %d",
+                     MAX_SERVICES );
+            LogEvent( errbuf, WARN_MSG );
+
+            Service_Cnt = MAX_SERVICES;
+         }
+
+         /* We are done reading the startup.bak file, so close it. */
+         fclose( fptr );
+
+         /* Log into XIPC */
+         GetXipcInstanceName( xipc_instance );
+
+         if( !pteipc_init_multiple_instance_app( AppName, AppName, Buffer) )
+         {
+            sprintf( errbuf,
+                    "Failed to log into XIPC: %s, Instance %s",
+                     AppName, xipc_instance );
+            LogEvent( errbuf, ERROR_MSG );
+         }
+         else
+         {
+            /* Go process the queues. */
+            while( !EndProcessSignalled )
+            {
+               /* Check queues every 'I_Freq' seconds. */
+               #ifdef WIN32
+                  Sleep( I_Freq );
+               #else
+                  usleep( I_Freq );
+               #endif
+
+               if ( !EndProcessSignalled )
+               {
+                  (void)process_queues();
+                  (void)process_que_sys_stats();
+
+//                  #ifndef WIN32
+                     dead_service_timer++;
+                     if ( dead_service_timer >= 20 )
+                     {
+                        /* This checks for services whose XIPC users still
+                         * exist, but the service does not. These users
+                         * will be removed so that XIPC resources do not
+                         * build up. Do this every I_Freq * 20.  Don't want
+                         * to do it too often because this event does not
+                         * occur frequently.
+                         */
+                        remove_dead_services();
+                        dead_service_timer = 0;
+                     }
+//                  #endif
+               }
+            }
+            pteipc_shutdown_multiple_instance_app();
+         }
+      }
+   }
+
+   MainProcessDone = 1;
+   return;
+}
+
+/******************************************************************************
+ *
+ *  NAME:         PROCESS_QUEUES
+ *
+ *  DESCRIPTION:  This function gets the message count for each queue and
+ *                sorts them according to number of messages.  Then calls
+ *                a function to report on the top ten queues.
+ *
+ *  INPUTS:       None
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       Dennis Irby
+ *
+ ******************************************************************************/
+void process_queues()
+{
+   INT  i;
+
+   /* Initialize the Q structures. */
+   for ( i=0; i<MAX_SERVICES; i++ )
+   {
+      memset( q_info[i].q_name, 0x00, QUE_NAME_SIZE+1 );
+      q_info[i].msg_cnt = 0;
+   }
+
+   /* Loop for each service. */
+   for ( i=0; i<Service_Cnt; i++ )
+   {
+      /* Get the message count of a queue. */
+      if ( true == que_access(Service_Names[i]) )
+      {
+         (void)insert_q_into_list();
+      }
+   }
+
+   /* Log the queue message counts to the log file. */
+   if ( i > 0 )
+   {
+      (void)log_queues();
+   }
+   return;
+}
+
+/******************************************************************************
+ *
+ *  NAME:         INSERT_Q_INTO_LIST
+ *
+ *  DESCRIPTION:  This function takes the queue and its message count that is
+ *                in q_temp and inserts it into the list of queues. It is
+ *                inserted based on message count.  The most messages is always
+ *                at the top of the list.
+ *
+ *  INPUTS:       None
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       Dennis Irby
+ *
+ ******************************************************************************/
+void insert_q_into_list()
+{
+   INT  i,j;
+
+   /* Loop through the list of services to find where to insert the new one. */
+   for ( i=0; i<MAX_SERVICES; i++ )
+   {
+      if ( 0 == strcmp(q_temp.q_name,q_info[i].q_name) )
+      {
+         /* If the queue is already in our list, do not process it again.
+          * Need to do this check because of multiple instances in the
+          * .bak file.  This line here forces an exit from the loop.
+          */
+         i = MAX_SERVICES;
+      }
+      else if ( q_info[i].q_name[0] == 0x00 )
+      {
+         /* The end of the queue. Insert new queue here. */
+         strcpy( q_info[i].q_name, q_temp.q_name );
+         q_info[i].msg_cnt = q_temp.msg_cnt;
+
+         /* Exit the main FOR loop. */
+         i = MAX_SERVICES;
+      }
+      else if ( q_temp.msg_cnt > q_info[i].msg_cnt )
+      {
+         /* Found where to insert it.
+          * Locate the end of the list so that all queues in the list that
+          * are below the new one can be moved down a spot.
+          */
+         for ( j=i; j<MAX_SERVICES; j++ )
+         {
+            if ( q_info[j].q_name[0] == 0x00 )
+            {
+               /* This spot is empty.  This is the bottom of the list. */
+               break;  /* Exit loop */
+            }
+         }
+
+         /* The bottom has been found. Now move all queues, below
+          * where the new one will be inserted, down one spot.
+          */
+         while( j > i )
+         {
+            strcpy( q_info[j].q_name, q_info[j-1].q_name );
+            q_info[j].msg_cnt = q_info[j-1].msg_cnt;
+            j--;
+         }
+
+         /* Insert new queue. */
+         strcpy( q_info[i].q_name, q_temp.q_name );
+         q_info[i].msg_cnt = q_temp.msg_cnt;
+
+         /* Exit the main FOR loop. */
+         i = MAX_SERVICES;
+      }
+   }
+   return;
+}
+
+/******************************************************************************
+ *
+ *  NAME:         LOG_QUEUES
+ *
+ *  DESCRIPTION:  This function logs the ten queues with the most messages.
+ *                A new log file is created each day.
+ *                Log file name is: qcheck_yyyymmdd.log in Ascendent\log.
+ *
+ *                Log entry format is:
+ *
+ *                   hhmmss  queue_name:count | queue_name:count | ...
+ *
+ *                Up to 10 queues are logged.  Highest count is first.
+ *                Only queues with messages in them are logged.
+ *
+ *                Example:
+ *                   13:52:49  trands01A:22 | trands02A:17 | dcpisoA:3
+ *
+ *  INPUTS:       None
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       Dennis Irby
+ *
+ ******************************************************************************/
+void log_queues()
+{
+   INT   i;
+   INT   errflg  = false;
+   INT   ret_val = true;
+   CHAR  errbuf[110];
+   CHAR  temp_file_name[100] = "";
+   CHAR  time_str [ 7] = "";
+   CHAR  date_str [ 9] = "";
+   CHAR  time_date[25] = "";
+   CHAR  log_entry[200]= "";
+   CHAR  tmp_entry[20];
+
+   /* Create file name each time to see if a new file is needed. */
+   ret_val = GetAscendentLogDirectory(temp_file_name);
+   if ( ret_val == true )
+   {
+      #ifndef WIN32
+         strcat(temp_file_name, "/");
+      #else
+         strcat(temp_file_name, "\\");
+      #endif
+
+      strcat( temp_file_name, "qcheck_" );
+
+      /* Get system date to complete the file name. */
+      ptetime_get_timestamp( time_date );
+      get_date( time_date, date_str );
+      strcat( temp_file_name, date_str );
+      strcat( temp_file_name, ".log" );
+
+      /* Do we need a new file? */
+      if ( 0 != strcmp(LogFile, temp_file_name) )
+      {
+         /* Yes - flush and close the old one, then open the new. */
+         if ( fptr_log != NULL )
+         {
+            fflush( fptr_log ); /* Don't worry about errors here */
+            fclose( fptr_log ); /* Don't worry about errors here */
+         }
+
+         /* Open new file */
+         strcpy( LogFile, temp_file_name );
+         if ( NULL == (fptr_log = fopen( LogFile, "a" )) )
+         {
+            sprintf( errbuf, 
+                    "Unable to open log file: %s",
+                     LogFile );
+            LogEvent( errbuf, ERROR_MSG );
+            EndProcessSignalled++; /* Exit */
+            errflg = true;
+         }
+      }
+
+      if ( errflg == false )
+      {
+         /* No errors. Format the log entry. */
+         get_time( time_date, time_str );
+         sprintf( log_entry, "%s  ", time_str );
+
+         if ( q_info[0].msg_cnt == 0 )
+         {
+            strcat( log_entry, "<< all queues empty >>" );
+         }
+         else
+         {
+            for ( i=0; i<10; i++ )
+            {
+               if ( q_info[i].msg_cnt > 0 )
+               {
+                  if ( i > 0 )
+                  {
+                     sprintf( tmp_entry, " | %s:%d",
+                              q_info[i].q_name, q_info[i].msg_cnt );
+                  }
+                  else
+                  {
+                     sprintf( tmp_entry, "%s:%d",
+                              q_info[i].q_name, q_info[i].msg_cnt );
+                  }
+                  strcat( log_entry, tmp_entry );
+               }
+               else
+               {
+                  /* Break 'for' loop when no more Q's with msgs. */
+                  break;
+               }
+            }
+         }
+
+         /* Write the log entry to the file. */
+         if ( (Empty_Queues == 1) || (q_info[0].msg_cnt != 0) )
+         {
+            if ( fputs( log_entry, fptr_log ) == EOF )
+               ret_val = false;
+            else if ( fputc( '\n', fptr_log ) == EOF )
+               ret_val = false;
+
+            if ( ret_val == false )
+            {
+               sprintf( errbuf, 
+                       "Unable to write to log file: %s",
+                        LogFile );
+               LogEvent( errbuf, ERROR_MSG );
+               EndProcessSignalled++; /* Exit */
+            }
+            else
+            {
+               fflush( fptr_log ); /* Don't worry about errors here */
+            }
+         }
+      }
+   }
+   else
+   {
+      sprintf( errbuf,
+              "Unable to locate Ascendent log directory: %s",
+               temp_file_name );
+      LogEvent( errbuf, ERROR_MSG );
+      EndProcessSignalled++; /* Exit */
+   }
+
+   return;
+}
+
+/******************************************************************************
+ *
+ *  NAME:         QUE_ACCESS
+ *
+ *  DESCRIPTION:  This function accesses the queue of the given queue name.
+ *                It gets the number of messages in the queue.
+ *
+ *  INPUTS:       q_name - Name of queue to access
+ *
+ *  OUTPUTS:      q_temp - Structure containing queue name and message count
+ *
+ *  RTRN VALUE:   True if queue was successfully accessed, else false
+ *
+ *  AUTHOR:       Dennis Irby
+ *
+ ******************************************************************************/
+INT que_access( pCHAR q_name )
+{
+   INT         ret_val = false;
+   LONG        tmpQueId;
+   BYTE strMessage[256] = {0};
+   LONG        RetCode;
+	QUEINFOQUE	QueData;
+
+   /* Initialize the output structure. */
+   strcpy( q_temp.q_name, q_name );
+   q_temp.msg_cnt = 0;
+
+   /* Access the queue to get the ID. */
+   tmpQueId = pteipc_queaccess ( q_name );
+   if ( tmpQueId > 0 ) 
+   {
+      memset( (pCHAR)&QueData, 0x00, sizeof(QUEINFOQUE) );
+      RetCode = QueInfoQue( tmpQueId, &QueData );
+
+      /* We now have the queue information.  Copy it into q_temp and return. */
+      q_temp.msg_cnt = QueData.CountMessages;
+    /* Logs into monitor if the message count exceeds 100 */
+      if(q_temp.msg_cnt>100)
+       {
+          sprintf (strMessage, "The number of queues exceeding 100: %s%d",
+          	q_temp.q_name, q_temp.msg_cnt);
+
+           qcheck_log_message( 1, 2,strMessage, "que_access", 1 );
+       }
+      ret_val = true;
+   }
+   return( ret_val );
+}
+
+/******************************************************************************
+ *
+ *  NAME:         READ_STARTUP_FILE
+ *
+ *  DESCRIPTION:  This function reads the input file until end of file.
+ *                For each line it reads, it gets the first parameter up to
+ *                a colon; appends an A to it, then stores it into the list
+ *                of services.  If a colon is not found, or if the name is
+ *                too long, that line is skipped.
+ *
+ *  INPUTS:       None
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   Number of services read from the file.
+ *
+ *  AUTHOR:       Dennis Irby
+ *
+ ******************************************************************************/
+INT read_startup_file()
+{
+   INT     rec_cnt=0;
+   INT     len;
+   CHAR    tempstr[100]="";
+   pCHAR   tempptr;
+
+   while( NULL != fgets(tempstr,100,fptr) )
+   {
+      if ((tempptr = strchr(tempstr, ':')) != 0x00)
+      {
+         len = tempptr - tempstr;
+         if ( QUE_NAME_SIZE >= (len+1) )
+         {
+            tempstr[len] = 'A';
+            tempstr[len+1] = 0x00;
+            strcpy( Service_Names[rec_cnt], tempstr );
+            rec_cnt++;
+            memset( tempstr, 0x00, sizeof(tempstr) );
+         }
+      }
+   }
+
+   /* Add the Applnk queue, which is not part of the startup file. */
+   if ( rec_cnt > 0 )
+   {
+      strcpy( Service_Names[rec_cnt], "applnkA" );
+      rec_cnt++;
+   }
+   return( rec_cnt );
+}
+
+
+/******************************************************************************
+ *
+ *  NAME:         GET_STARTUP_FILE_LOCATION
+ *
+ *  DESCRIPTION:  This function determines where the input file is located.
+ *                It then appends a slash to it.
+ *
+ *  INPUTS:       None
+ *
+ *  OUTPUTS:      input_file_path - Path of the input file
+ *
+ *  RTRN VALUE:   True if successful at finding the location of the input file
+ *                else false
+ *
+ *  AUTHOR:       Dennis Irby
+ *
+ ******************************************************************************/
+INT get_startup_file_location( pCHAR input_file_path )
+{
+   INT   ret_val;
+
+   ret_val = GetAscendentConfigDirectory(input_file_path);
+   if ( ret_val == true )
+   {
+      #ifndef WIN32
+         strcat(input_file_path, "/");
+      #else
+         strcat(input_file_path, "\\");
+      #endif
+   }
+
+   return( ret_val );
+}
+
+/******************************************************************************
+ *
+ *  NAME:         GET_QCHECK_CONFIG_INFO
+ *
+ *  DESCRIPTION:  This function finds the QCHECK section in the tf.ini
+ *                file.  It then reads the frequency value to determine how
+ *                often to check the queues.  This value is in seconds.
+ *
+ *                It then reads the THRESHOLD value to determine when
+ *                to log messages indicating a QueSys statistic is approaching
+ *                its maximum.  Default value is 80%.
+ *  INPUTS:       None
+ *
+ *  OUTPUTS:      I_FREQ        - (Global) Nbr of secs to sleep between checks
+ *                Q_Sys_Percent - (Global) Percentage at which to log Q Sys info
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       Dennis Irby
+ *
+ ******************************************************************************/
+void get_qcheck_config_info()
+{
+   #define DEFAULT_FREQ       "10"
+   #define DEFAULT_THRESHOLD  "80"
+
+   DWORD rc;
+   CHAR  filename       [80] = "";
+   CHAR  tmpstr         [80] = "";
+   CHAR  errbuf        [100] = "";
+   CHAR  freq_value      [5] = "";
+   CHAR  threshold_value [5] = "";
+
+   /* Get path to the tf.ini file. */
+   memset( tmpstr, 0x00, sizeof(tmpstr) );
+   GetPinnacleConfigDirectory(tmpstr);
+   sprintf(filename, "%s%s", tmpstr, "tf.ini" );
+
+   /*---------------------*/
+   /* Get Frequency Value */
+   /*---------------------*/
+   rc = GetPrivateProfileString(
+            "QCHECK",                  /* points to section name         */
+            "FREQUENCY",               /* points to key name             */
+             DEFAULT_FREQ,             /* Default string                 */
+             freq_value,               /* points to destination buffer   */
+             sizeof(freq_value)-1,     /* size of destination buffer     */
+             filename                  /* points to ini filename         */
+   );
+
+   I_Freq = atoi(freq_value);
+
+   if ( (I_Freq <= 0) || (I_Freq > 999) )
+   {
+      /* Invalid value in ini file.  Use default value. */
+      I_Freq = atoi( DEFAULT_FREQ );
+      sprintf( errbuf,
+              "%s:Invalid qcheck freq value (%s) in tf.ini. Using default %s",
+               AppName, freq_value, DEFAULT_FREQ );
+      LogEvent( errbuf, INFO_MSG );
+   }
+
+   /*-------------------------------------*/
+   /* Get Threshold for QueSys Statistics */
+   /*-------------------------------------*/
+   rc = GetPrivateProfileString(
+            "QCHECK",                  /* points to section name         */
+            "Q_THRESHOLD",             /* points to key name             */
+             DEFAULT_THRESHOLD,        /* Default string                 */
+             threshold_value,          /* points to destination buffer   */
+             sizeof(threshold_value)-1,/* size of destination buffer     */
+             filename                  /* points to ini filename         */
+   );
+
+   Q_Sys_Percent = atoi(threshold_value);
+
+   if ( (Q_Sys_Percent <= 0) || (Q_Sys_Percent > 99) )
+   {
+      /* Invalid value in ini file.  Use default value. */
+      I_Freq = atoi( DEFAULT_THRESHOLD );
+      sprintf( errbuf,
+              "%s:Invalid QueSys threshold value (%s) in tf.ini. Using default %s",
+               AppName, threshold_value, DEFAULT_THRESHOLD );
+      LogEvent( errbuf, INFO_MSG );
+   }
+
+   /*-------------------------------------*/
+   /* Get Threshold for MemSys Statistics */
+   /*-------------------------------------*/
+   rc = GetPrivateProfileString(
+            "QCHECK",                  /* points to section name         */
+            "M_THRESHOLD",             /* points to key name             */
+             DEFAULT_THRESHOLD,        /* Default string                 */
+             threshold_value,          /* points to destination buffer   */
+             sizeof(threshold_value)-1,/* size of destination buffer     */
+             filename                  /* points to ini filename         */
+   );
+
+   M_Sys_Percent = atoi(threshold_value);
+
+   if ( (M_Sys_Percent <= 0) || (M_Sys_Percent > 99) )
+   {
+      /* Invalid value in ini file.  Use default value. */
+      I_Freq = atoi( DEFAULT_THRESHOLD );
+      sprintf( errbuf,
+              "%s:Invalid MemSys threshold value (%s) in tf.ini. Using default %s",
+               AppName, threshold_value, DEFAULT_THRESHOLD );
+      LogEvent( errbuf, INFO_MSG );
+   }
+
+   /*------------------------*/
+   /* Get Empty_Queues Value */
+   /*------------------------*/
+   rc = GetPrivateProfileString(
+            "QCHECK",                  /* points to section name         */
+            "EMPTY_QUEUES",            /* points to key name             */
+             "1",                      /* Default string - enabled       */
+             freq_value,               /* points to destination buffer   */
+             sizeof(freq_value)-1,     /* size of destination buffer     */
+             filename                  /* points to ini filename         */
+   );
+
+   Empty_Queues = atoi(freq_value);
+
+   if ( (Empty_Queues < 0) || (Empty_Queues > 1) )
+   {
+      /* Invalid value in ini file.  Use default value. */
+      Empty_Queues = 1; /* Enabled */
+      sprintf( errbuf,
+              "%s:Invalid qcheck Empty_Queues value (%s) in tf.ini. Enabling logging.",
+               AppName, freq_value );
+      LogEvent( errbuf, INFO_MSG );
+   }
+
+   /*---------------------*/
+   /* Get TEST_UIDS Value */
+   /*---------------------*/
+   rc = GetPrivateProfileString(
+            "QCHECK",                  /* points to section name         */
+            "TEST_UIDS",               /* points to key name             */
+             "0",                      /* Default string - disabled      */
+             freq_value,               /* points to destination buffer   */
+             sizeof(freq_value)-1,     /* size of destination buffer     */
+             filename                  /* points to ini filename         */
+   );
+
+   Test_UIDs = atoi(freq_value);
+
+   if ( (Test_UIDs < 0) || (Test_UIDs > 1) )
+   {
+      /* Invalid value in ini file.  Use default value. */
+      Test_UIDs = 0; /* Disabled */
+   }
+
+   return;
+}
+
+
+/******************************************************************************
+ *
+ *  NAME:         GET_DATE
+ *
+ *  DESCRIPTION:  This procedure takes an input string that contains a date and
+ *                time.  It copies the date portion into an output string, 
+ *                formatted slightly different.
+ *
+ *  AUTHOR:       Dennis Irby
+ *
+ *  INPUTS:       time_date : Format = "YYYY-0M-0D-0H.0I.0S.JJJ"
+ *  OUTPUTS:      date_str  : Format = "YYYY0M0D"
+ *  RTRN VALUE:   None
+ *
+ ******************************************************************************/
+void get_date( pCHAR time_date, pCHAR date_str ) 
+{
+   memset ( date_str,  0x00,         9 ); 
+   strncpy( date_str,  time_date,    4 ); 
+   strncat( date_str, &time_date[5], 2 ); 
+   strncat( date_str, &time_date[8], 2 );
+}
+
+/******************************************************************************
+ *
+ *  NAME:         GET_TIME
+ *
+ *  DESCRIPTION:  This procedure takes an input string that contains a date and
+ *                time.  It copies the time portion into an output string, 
+ *                formatted slightly different.
+ *
+ *  AUTHOR:       Dennis Irby
+ *
+ *  INPUTS:       time_date : Format = "YYYY-0M-0D-0H.0I.0S.JJJ"
+ *  OUTPUTS:      time_str  : Format = "0H0I0S"
+ *  RTRN VALUE:   None
+ *
+ ******************************************************************************/
+void get_time( pCHAR time_date, pCHAR time_str ) 
+{
+   memset ( time_str,  0x00,          7 );
+   strncpy( time_str, &time_date[11], 2 );
+   strcat ( time_str, ":"               );
+   strncat( time_str, &time_date[14], 2 );
+   strcat ( time_str, ":"               );
+   strncat( time_str, &time_date[17], 2 );
+}
+
+/******************************************************************************
+ *
+ *  NAME:         PROCESS_QUE_SYS_STATS
+ *
+ *  DESCRIPTION:  This function gets the QueSys information and calculates
+ *                the percentage of available nodes, users, queues, headers,
+ *                text pool, and tick blocks.
+ *
+ *                If any of these stats are greater than the threshold (from
+ *                the tf.ini file), then a message is written to the log
+ *                file containing these stats.
+ *
+ *  INPUTS:       None
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       Dennis Irby
+ *
+ ******************************************************************************/
+void process_que_sys_stats()
+{
+   #define  q_sys_text "XIPC QueSys - "
+   #define  m_sys_text "XIPC MemSys - "
+
+   INT    retval;
+   INT    used_mnodes;
+   INT    used_nodes;
+   INT    used_hdrs;
+   INT    used_pool;
+   INT    used_sections;
+   float  mUsers;
+   float  mNodes;
+   float  mSegments;
+   float  mSections;
+   float  fUsers;
+   float  fQueues;
+   float  fNodes;
+   float  fHeaders;
+   float  fBlocks;
+   float  q_percent;
+   float  m_percent;
+   double fPool;
+   CHAR   errbuf[100];
+   CHAR   log_text[300];
+   CHAR   xipc_err_text[200];
+
+   /* Get QueSys subsystem information */
+   retval = QueInfoSys( &Q_Sys_Info );
+   if ( 0 > retval )
+   {
+      /* Error - translate retval into text */
+      memset( xipc_err_text, 0x00, sizeof(xipc_err_text) );
+      get_xipc_err_text( retval, xipc_err_text );
+
+      sprintf( errbuf, "Err getting QueSys stats: %s",  xipc_err_text );
+      LogEvent( errbuf, ERROR_MSG );
+      log_stats( errbuf );
+   }
+   else
+   {
+      /* Get MemSys subsystem information */
+      retval = MemInfoSys( &M_Sys_Info );
+      if ( 0 > retval )
+      {
+         /* Error - translate retval into text */
+         memset( xipc_err_text, 0x00, sizeof(xipc_err_text) );
+         get_xipc_err_text( retval, xipc_err_text );
+
+         sprintf( errbuf, "Err getting MemSys stats: %s",  xipc_err_text );
+         LogEvent( errbuf, ERROR_MSG );
+         log_stats( errbuf );
+      }
+      else
+      {
+
+         /* Calculate the QueSys percentages - percent used for each category. */
+         used_nodes  = Q_Sys_Info.MaxNodes          - Q_Sys_Info.FreeNCnt;
+         used_hdrs   = Q_Sys_Info.MaxHeaders        - Q_Sys_Info.FreeHCnt;
+         used_pool   = Q_Sys_Info.MsgPoolSizeBytes  - Q_Sys_Info.MsgPoolTotalAvail;
+
+         fUsers   = (float) Q_Sys_Info.CurUsers         / (float)Q_Sys_Info.MaxUsers;
+         fQueues  = (float) Q_Sys_Info.CurQueues        / (float)Q_Sys_Info.MaxQueues;
+         fBlocks  = (float) Q_Sys_Info.MsgPoolTotalBlks / (float)Q_Sys_Info.MsgPoolMaxPosBlks;
+
+         fNodes   = (float) used_nodes  / (float) Q_Sys_Info.MaxNodes;
+         fHeaders = (float) used_hdrs   / (float) Q_Sys_Info.MaxHeaders;
+         fPool    = (double)used_pool   / (double)Q_Sys_Info.MsgPoolSizeBytes;
+
+         /* Calculate MemSys percentages. */
+         used_mnodes   = M_Sys_Info.MaxNodes    - M_Sys_Info.FreeNCnt;
+         used_sections = M_Sys_Info.MaxSections - M_Sys_Info.FreeSCnt;
+
+         mUsers    = (float)M_Sys_Info.CurUsers    / (float)M_Sys_Info.MaxUsers;
+         mNodes    = (float)used_mnodes            / (float)M_Sys_Info.MaxNodes;
+         mSections = (float)used_sections          / (float)M_Sys_Info.MaxSections;
+         mSegments = (float)M_Sys_Info.CurSegments / (float)M_Sys_Info.MaxSegments;
+
+         /* Determine if any are above threshold */
+         q_percent = (float)Q_Sys_Percent / 100;
+         m_percent = (float)M_Sys_Percent / 100;
+
+         if ( (        q_percent < fUsers   ) ||
+              (        q_percent < fQueues  ) ||
+              (        q_percent < fNodes   ) ||
+              (        q_percent < fHeaders ) ||
+              (        q_percent < fBlocks  ) ||
+              (        m_percent < mUsers   ) ||
+              (        m_percent < mNodes   ) ||
+              (        m_percent < mSections) ||
+              (        m_percent < mSegments) ||
+              ((double)q_percent < fPool    )  )
+         {
+            /* Someone is above threshold. Format a log entry for Qsys. */
+            memset( log_text, 0x00, sizeof(log_text) );
+            sprintf( log_text,
+                    "%sUsr:%d/%d(%.0f%%) || Nd:%d/%d(%.0f%%) || Q:%d/%d(%.0f%%) || Hdr:%d/%d(%.0f%%) || Blk:%d/%d(%.0f%%) || Pool:%d/%d(%.0f%%)",
+                     q_sys_text,
+                     Q_Sys_Info.CurUsers,         Q_Sys_Info.MaxUsers,          fUsers  *100.0,
+                     used_nodes,                  Q_Sys_Info.MaxNodes,          fNodes  *100.0,
+                     Q_Sys_Info.CurQueues,        Q_Sys_Info.MaxQueues,         fQueues *100.0,
+                     used_hdrs,                   Q_Sys_Info.MaxHeaders,        fHeaders*100.0,
+                     Q_Sys_Info.MsgPoolTotalBlks, Q_Sys_Info.MsgPoolMaxPosBlks, fBlocks *100.0,
+                     used_pool,                   Q_Sys_Info.MsgPoolSizeBytes,  fPool   *100.0 );
+
+            log_stats( log_text );
+
+            /* Format a log entry for Msys. */
+            memset( log_text, 0x00, sizeof(log_text) );
+            sprintf( log_text,
+                    "%sUsr:%d/%d(%.0f%%) || Nd:%d/%d(%.0f%%) || Seg:%d/%d(%.0f%%) || Sec:%d/%d(%.0f%%)",
+                     m_sys_text,
+                     M_Sys_Info.CurUsers,    M_Sys_Info.MaxUsers,    mUsers   *100.0,
+                     used_mnodes,            M_Sys_Info.MaxNodes,    mNodes   *100.0,
+                     M_Sys_Info.CurSegments, M_Sys_Info.MaxSegments, mSegments*100.0,
+                     used_sections,          M_Sys_Info.MaxSections, mSections*100.0 );
+
+            log_stats( log_text );
+         }
+      }
+   }
+   return;
+}
+
+
+/******************************************************************************
+ *
+ *  NAME:         LOG_STATS
+ *
+ *  DESCRIPTION:  This function logs a message that deals with the QueSys
+ *                or MemSys statistics.  It goes to the same log file as
+ *                the queue information, but it is in a different format.
+ *                Log entry format is 'time' followed by a message.
+ *
+ *  INPUTS:       log_message - the message to be logged
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       Dennis Irby
+ *
+ ******************************************************************************/
+void log_stats( pCHAR log_message )
+{
+   INT   ret_val = true;
+   CHAR  errbuf[110];
+   CHAR  time_str [ 7] = "";
+   CHAR  time_date[25] = "";
+   CHAR  log_entry[400]= "";
+
+   /* Timestamp the log entry. */
+   ptetime_get_timestamp( time_date );
+   get_time( time_date, time_str );
+
+   sprintf( log_entry, "%s  %s", time_str, log_message );
+
+   /* Write the log entry to the file. */
+   if ( fputs( log_entry, fptr_log ) == EOF )
+      ret_val = false;
+   else if ( fputc( '\n', fptr_log ) == EOF )
+      ret_val = false;
+
+   if ( ret_val == false )
+   {
+      sprintf( errbuf, 
+              "Unable to write to log file: %s",
+               LogFile );
+      LogEvent( errbuf, ERROR_MSG );
+      EndProcessSignalled++; /* Exit */
+   }
+   else
+   {
+      fflush( fptr_log ); /* Don't worry about errors here */
+   }
+   return;
+}
+
+
+/******************************************************************************
+ *
+ *  NAME:         GET_XIPC_ERR_TEXT
+ *
+ *  DESCRIPTION:  This function converts an XIPC error code into a text
+ *                message.
+ *
+ *  INPUTS:       err_code - XIPC error code
+ *
+ *  OUTPUTS:      err_text - Text message related to err_code
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       Dennis Irby
+ *
+ ******************************************************************************/
+void get_xipc_err_text( INT err_code, pCHAR err_text )
+{
+   switch( err_code )
+   {
+      case QUE_ER_BADLISTOFFSET:
+              strcpy( err_text, "Invalid offset value specified" );
+              break;
+
+      /* case MEM_ER_NOSUBSYSTEM: same value as QUE_ER_NOSUBSYSTEM */
+      case QUE_ER_NOSUBSYSTEM:
+              strcpy( err_text, "QueSys or MemSys is not configured in the instance" );
+              break;
+
+      /* case MEM_ER_NOTLOGGEDIN: same value as QUE_ER_NOTLOGGEDIN */
+      case QUE_ER_NOTLOGGEDIN:
+              strcpy( err_text, "User not logged into instance" );
+              break;
+
+      case XIPCNET_ER_CONNECTLOST:
+              strcpy( err_text, "Connection to instance lost" );
+              break;
+
+      case XIPCNET_ER_NETERR:
+              strcpy( err_text, "Network transmission error" );
+              break;
+
+      case XIPCNET_ER_SYSERR:
+              strcpy( err_text, "Operating system error" );
+              break;
+
+      case XIPC_ER_BADUID:
+              strcpy( err_text, "Invalid UID Parameter" );
+              break;
+
+      default:
+              sprintf( err_text, "Err code not defined: %d", err_code );
+              break;
+   }
+   return;
+}
+
+
+/******************************************************************************
+ *
+ *  NAME:         EndProcess
+ *
+ *  DESCRIPTION:  This function logs a message to notify the user that
+ *                qcheck is being shut down.
+ *
+ *  INPUTS:       None
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       Dennis Irby
+ *
+ ******************************************************************************/
+void EndProcess()
+{
+   CHAR Buffer[100] = "";
+
+   sprintf( Buffer, "Shutting down the %s Service, version %s",
+            AppName, Version );
+
+   LogEvent( Buffer, INFO_MSG );
+
+   fflush( fptr_log ); /* Don't worry about errors here */
+   fclose( fptr_log ); /* Don't worry about errors here */
+
+   return;
+}
+
+
+/******************************************************************************
+ *
+ *  NAME:         REMOVE_DEAD_SERVICES
+ *
+ *  DESCRIPTION:  This function checks the process Id (PID) of each XIPC user
+ *                to see if the PID really exists.  If it does not, the XIPC
+ *                user is removed from XIPC, freeing up XIPC resources.
+ *
+ *  INPUTS:       None
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       Dennis Irby
+ *
+ ******************************************************************************/
+void remove_dead_services()
+{
+/* WIN32 logic and unix line added here by JMG on 8/10/06 to correct error
+  in unix link. HANDLE defined only in Windows. */
+#ifdef WIN32
+   HANDLE        hProcess;
+#else
+#ifndef BDO_SOLARIS_PORT
+   idComDev      hProcess;
+#endif
+#endif
+   INT           retval;
+   INT           max_users;
+   INT           uid;
+   INT           bad_uid_cnt = 0;
+   LONG          pid;
+   CHAR          cmd[100];
+   CHAR          errbuf[100];
+   CHAR          xipc_err_text[200];
+   XIPCINFOUSER  xipc_info;
+
+   /* Get number of users - max and current. */
+   retval = QueInfoSys( &Q_Sys_Info );
+   if ( 0 > retval )
+   {
+      /* Error - translate retval into text */
+      memset( xipc_err_text, 0x00, sizeof(xipc_err_text) );
+      get_xipc_err_text( retval, xipc_err_text );
+
+      sprintf( errbuf,
+              "Err getting QueSys stats (num users): %s",
+               xipc_err_text );
+      LogEvent( errbuf, ERROR_MSG );
+      log_stats( errbuf );
+   }
+   else
+   {
+      max_users = Q_Sys_Info.MaxUsers;
+      for( uid=0; uid<=max_users; uid++ )
+      {
+         /* Get Process ID of each XIPC user. */
+         retval = XipcInfoUser( uid, &xipc_info );
+         if ( retval == XIPC_ER_BADUID )
+         {
+            /* XIPC user does not exist. Go to next one. */
+            continue;
+         }
+         else if ( retval < 0 )
+         {
+            /* Error - translate retval into text */
+            memset( xipc_err_text, 0x00, sizeof(xipc_err_text) );
+            get_xipc_err_text( retval, xipc_err_text );
+
+            sprintf( errbuf,
+                    "Err getting XIPC UID (%d) Info: %s",
+                     uid, xipc_err_text );
+            LogEvent( errbuf, ERROR_MSG );
+            log_stats( errbuf );
+         }
+         else
+         {
+            pid = xipc_info.Pid;
+            memset( cmd, 0x00, sizeof(cmd) );
+
+            /* The following code determines whether a Process ID
+             * exists.  It is dependent on OS: Windows or Unix.
+             */
+            #ifdef WIN32
+            {
+               /* Get the Handle of a Windows PID to see if it exists. */
+               hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, (DWORD)pid );
+               if ( hProcess == NULL )
+               {
+                  /* It does not exist. */
+                  retval = GetLastError();
+                  sprintf( errbuf,
+                          "Unable to access %s handle. Err Code: %d",
+                           xipc_info.Name, retval );
+                  retval = 1;
+               }
+               else
+               {
+                  /* It does exist. Close the handle. */
+                  retval = 0;
+                  (void)CloseHandle( hProcess );
+               }
+            }
+            #else
+            {
+               /* Format a UNIX script command to see if PID still exists. */
+               /* JMG - modified 8/18/06 to remove -q from grep because it
+                 does not work on Solaris. Will use redirection to /dev/null
+                 instead. Also, will check for a return value = 1 to delete
+                 user, because if > 1 means command failed. */
+               sprintf( cmd,
+                       "ps -ef | grep %d | grep -v grep > /dev/null",
+                        pid );
+
+               /* Execute the command. */
+               retval = system( cmd );
+            }
+            #endif
+            /* JMG - 8/18/05 - error logic changed on retval for
+                               system call */
+            if ( retval == 1 )
+            {
+               /* Pid does not exist */
+               bad_uid_cnt++;
+               sprintf( errbuf,
+                       "%s: PID (%d) not found. Removing XIPC user %d",
+                        xipc_info.Name, pid, uid );
+
+               LogEvent( errbuf, INFO_MSG );
+               log_stats( errbuf );
+
+               /* Now remove it. */
+               retval = XipcAbort( uid );
+               if ( retval < 0 )
+               {
+                  /* Error - translate retval into text */
+                  memset( xipc_err_text, 0x00, sizeof(xipc_err_text) );
+                  get_xipc_err_text( retval, xipc_err_text );
+
+                  sprintf( errbuf,
+                          "Err: Unable to abort XIPC User %d (%s): %s",
+                           uid, xipc_info.Name, xipc_err_text );
+                  LogEvent( errbuf, ERROR_MSG );
+                  log_stats( errbuf );
+               }
+            }
+            else if ( retval > 1 )
+            {
+               sprintf( errbuf,
+                       "%s: PID (%d) not checked. System command failed.",
+                        xipc_info.Name, pid );
+               LogEvent( errbuf, INFO_MSG );
+               log_stats( errbuf );
+            }
+         }
+      }  /* End UID Loop */
+
+      if ( Test_UIDs == 1 )
+      {
+         if ( bad_uid_cnt == 0 )
+         {
+            log_stats( "No BAD UIDs" );
+         }
+      }
+   }
+   return;
+}
+void qcheck_create_Error_Filename()
+{
+	CHAR  system_date[25] = {0};
+
+   /* Get system timestamp "YYYY-MM-DD-hh.mm.ss.jjj" */
+	ptetime_get_timestamp( system_date );
+
+    strcpy( qcheck_Error_warning_Filename, qcheck_error_warning_file_path );
+    strcat( qcheck_Error_warning_Filename, qcheck_module_error_warning_file_name );
+	strcat( qcheck_Error_warning_Filename, ".EW." );
+    strncat(qcheck_Error_warning_Filename, system_date,   4 );  /* YYYY */
+    strncat(qcheck_Error_warning_Filename, system_date+5, 2 );  /* MM   */
+    strncat(qcheck_Error_warning_Filename, system_date+8, 2 );  /* DD   */
+}
+/*******************************************************
+ * This function will get the values from tf.ini file
+ * from the section DATASERVER with keyname DB_ERROR_STATICS_FLAG &
+ *	DB_ERROR_STATICS_VALUE which will help to decide the db statics
+ *	logging mechanism.
+ * *******************************************************/
+
+void qcheck_get_error_warning_file_name_path(void )
+{
+   DWORD rc;
+   CHAR  filename   [80] = {0};
+   CHAR  tmpstr     [80] = {0};
+   CHAR  qcheck_error_warning_file_size[5] = {0};
+
+   /* Get path to the tf.ini file. */
+   memset( tmpstr, 0x00, sizeof(tmpstr) );
+   GetPinnacleConfigDirectory(tmpstr);
+   sprintf(filename, "%s%s", tmpstr, "tf.ini" );
+
+   /*Read path for creating file in order to log db statics and db oracle error messages */
+   rc = GetPrivateProfileString(
+								  "DATASERVERS",             /* points to section name         */
+								  "DB_STATICS_PATH",       	/* points to key name             */
+								   "",  					/* Default string                 */
+								   qcheck_error_warning_file_path,              	/* points to destination buffer   */
+								   sizeof(qcheck_error_warning_file_path)-1,   	 /* size of destination buffer     */
+								   filename                  /* points to ini filename         */
+						 	   );
+
+   rc = GetPrivateProfileString(
+								  "ERROR_WARNING",             /* points to section name         */
+								  AppName,       	/* points to key name             */
+								  "",  					/* Default string                 */
+								  qcheck_module_error_warning_file_name,              	/* points to destination buffer   */
+								  sizeof(qcheck_module_error_warning_file_name)-1,   	 /* size of destination buffer     */
+								  filename                  /* points to ini filename         */
+								);
+
+   rc = GetPrivateProfileString(
+							  "ERROR_WARNING",             /* points to section name         */
+							  "ERROR_WARNING_FILE_SIZE",       	/* points to key name             */
+							  "500",  					/* Default string                 */
+							  qcheck_error_warning_file_size,              	/* points to destination buffer   */
+							  sizeof(qcheck_error_warning_file_size)-1,   	 /* size of destination buffer     */
+							  filename                  /* points to ini filename         */
+							);
+
+	/* File size size conversion */
+	Max_File_Size_Defined = atoi(qcheck_error_warning_file_size);
+	if(Max_File_Size_Defined <= 0)
+	{
+		Max_File_Size_Defined = 500 ;
+	}
+	Max_File_Size_Defined = Max_File_Size_Defined * ONE_MB_IN_BYTES ; /* 1 MB = 1048576 BYTES*/
+
+   if((strlen(qcheck_error_warning_file_path) > 0) &&
+	  (strlen(qcheck_module_error_warning_file_name)> 0))
+   {
+	   qcheck_create_Error_Filename();
+   }
+}
+INT qcheck_Log_error_warning_to_File(pCHAR Error_Buf,int sev,pCHAR func, int detail)
+{
+	INT   ret_val = 0;
+	INT   len=0;
+	INT   cardlen = 0;
+	INT   path_len = 0;
+	INT   nIndex = 0;
+	CHAR  time_date[25]  ={0};
+	CHAR  timestamp[14]  ={0};
+	CHAR  current_mmdd[5]={0};
+	CHAR Buffer[1024]={0};
+	CHAR card_tid_mid_details [256] = {0};
+	CHAR tempcard[21] = {0};
+	CHAR masked_cardnum[21] = {0};
+	char *cardIndex = NULL ;
+	FILE *fp;
+	UINT file_size = 0 ;
+	char buf[256] = {0} ;
+
+
+	/* Get system timestamp "YYYY-MM-DD-hh.mm.ss.jjj" */
+	ptetime_get_timestamp( time_date );
+
+	/* Pick out the month and day to compare to filename extenstion. */
+    memcpy( current_mmdd,   time_date+5, 2 );
+    memcpy( current_mmdd+2, time_date+8, 2 );
+
+	/* Compare filename extension to current date. */
+    len = strlen(qcheck_Log_error_warning_to_File);
+    path_len = strlen(qcheck_error_warning_file_path);
+    if( len == 0 ||
+    	path_len==0 )
+    {
+    	LogEvent(Error_Buf,INFO_MSG);
+    	return 0;
+    }
+    if ( 0 != strcmp(&qcheck_Error_warning_Filename[len-4], current_mmdd) )
+    {
+		/* Now create the new filename.*/
+    	qcheck_create_Error_Filename();
+    }
+	if((fp = fopen(qcheck_Error_warning_Filename,"a+b"))==NULL)
+	{
+		LogEvent(Error_Buf,INFO_MSG);
+		return 0;
+	}
+	strcpy(Buffer,time_date);
+	strcat(Buffer,":");
+	if(sev == 1)
+	{
+		strcat(Buffer," INFO");
+	}
+	else if (sev == 2)
+	{
+		strcat(Buffer," WARN");
+	}
+	else
+	{
+		strcat(Buffer," ERROR");
+	}
+	strcat(Buffer,": ");
+	strcat(Buffer,Error_Buf);
+	strcat(Buffer," ");
+	strcat(Buffer, func);
+	strcat(Buffer,"\n");
+	len=strlen(Buffer);
+
+	if(fwrite(Buffer, len, NUM_SIZE_WRITES, fp)==NUM_SIZE_WRITES)
+	{
+		// Do nothing fall below
+	}
+	else
+	{
+		LogEvent(Buffer,INFO_MSG);
+		fclose(fp);
+		return  0;
+	}
+	fseek (fp, 0, SEEK_END);
+	file_size=ftell (fp);
+
+	if( file_size >= Max_File_Size_Defined )
+	{
+		sprintf(buf,"ERROR_WARNING_FILE  size is exceeding the permissible size, need attention" );
+		TxUtils_Send_Msg_To_Operator( 1, buf,1, ALERT_MSG, "", 4, INFO_ERROR,NULL,NULL,NULL );
+	}
+	fclose(fp);
+	return  0;
+}
+/******************************************************************************
+ *
+ *  NAME:         qcheck_log_message
+ *
+ *  DESCRIPTION:  This function takes a string and input parameters and
+ *                formats a message to be sent to either Monitor, Event Log
+ *                or both.  Based on inputs, it sets the severity.
+ *
+ *  INPUTS:       dest - 1 = Monitor, 2 = Event Log, 3 = Both
+ *                sev  - 1 = Info,    2 = Warning,   3 = Error
+ *                msg  - Text message to be logged
+ *                func - Name of function logging the error
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       Abhishek Verma
+ *
+ ******************************************************************************/
+void qcheck_log_message( INT dest, INT sev, pCHAR msg, pCHAR func, int details )
+{
+   INT  monitor_flag = 0;
+   INT  eventlog_flag = 0;
+   INT  msg_type = 0;
+   BYTE severity = 0;
+   BYTE log_type[20] = {0};
+   CHAR text_message [200] = {0};
+   INT  Appname_len = 0;
+   CHAR  appname[512] = {0};
+
+   GetAppName (appname) ;
+   /* Set Monitor flag */
+   if ( dest == 1  ||  dest == 3 )
+      monitor_flag = 1;
+   else
+      monitor_flag = 0;
+
+   /* Set message type and severity */
+   if ( sev == 2 )
+   {
+      msg_type = WARN_MSG;
+      severity = '3';
+      strcpy( log_type, WARNING_ERROR );
+   }
+   else if ( sev == 1 )
+   {
+      msg_type = INFO_MSG;
+      severity = '0';
+      strcpy( log_type, INFO_ERROR );
+   }
+   else if ( sev == 3 )
+   {
+      msg_type = ALERT_MSG;
+      severity = '4';
+      strcpy( log_type, FATAL_ERROR );
+   }
+
+   /* Make sure text message is not too long. */
+   sprintf(text_message,"%s ,",appname);
+   Appname_len = strlen(text_message);
+
+   memcpy( text_message + Appname_len, msg, (sizeof(text_message)-1 -Appname_len));
+   /* Call function to post the message. */
+   qcheck_Log_error_warning_to_File(text_message,sev,func,details);
+   if(monitor_flag == 1)
+   {
+	   if(details == 1)
+	   {
+		   TxUtils_Send_Msg_To_Operator( monitor_flag, text_message,
+			   	   	   	   	   	   	 	 eventlog_flag, msg_type, func,
+										 severity, log_type,
+										 NULL,NULL,NULL );
+	   }
+	   else
+	   {
+		   TxUtils_Send_Msg_To_Operator( monitor_flag, text_message,
+										 eventlog_flag, msg_type, func,
+										 severity, log_type,
+										 NULL, NULL,NULL );
+	   }
+   }
+
+   return;
+}

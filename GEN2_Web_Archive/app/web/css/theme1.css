@@ -1,0 +1,23 @@
+/* theme styles strats  */
+
+/*body background color*/
+body {background:#ECECEC}
+
+/*header border color*/
+.header {border-bottom: 3px solid #471E5E;}
+
+/*menu hover color*/
+.nav li:hover a {background: #471E5E; color: #ffffff}
+
+/*profile headings color*/
+.profileBox h3 {color: #471E5E}
+
+/*table header color*/
+.table thead > tr > th {
+    background: none repeat scroll 0 0 #471E5E;
+}
+.ribbon-green {background-color: #471e5e; color: #ffffff;}
+.ribbon-green:before, .ribbon-green:after {border-top:3px solid #393939;}
+.modal-dialog {
+    width: 75% !important;
+}

@@ -1,0 +1,461 @@
+/******************************************************************************
+  
+        Module: dbcommon.pc
+  
+         Title: Common Dataserver DB Routines
+  
+   Description: 
+
+   $Log:   N:\PVCS\PTE\CORE\ptedb_lib\dbcommon.pc  $
+   
+      Rev 1.3   Aug 07 1998 10:23:18   drodden
+   Added the capability to store user data with the timer.  This data
+   is then returned in the read/clear timer replies.
+   
+   
+      Rev 1.2   Jun 01 1998 07:59:50   drodden
+   Changed the timer table back to the old column format.  Oracle 7.3
+   is too slow with raw (longraw) columns.
+   
+   
+      Rev 1.1   May 19 1998 09:28:46   drodden
+   Changed the dataserver timer routines to NOT send a timeout if the 
+   timer request did originate on this system.  This is for high availability
+   systems. 
+   
+   
+      Rev 1.0   Apr 23 1998 10:57:58   drodden
+   Initial code for the Core Dataserver.
+   
+
+******************************************************************************/
+
+/* Do not remove the following lines. These are the Custom build settings for the ProC pre-compiler */
+/*proc $(ProjDir)\$(InputName).pc dbms=native sqlcheck=semantics userid=core/pinnacle@pinnacle*/
+/*$(ProjDir)\$(InputName).c*/
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <sqlproto.h>
+
+#include "basictyp.h"
+#include "pte.h"
+#include "ptemsg.h"
+#include "ptetimer.h"
+#include "ntutils.h"
+#include "dbcommon.h"
+
+
+PRIVATE  CHAR  this_ds_name [MAX_APP_NAME_SIZE] = {'\0'};
+
+/* Oracle error codes */
+#define NULL_COLUMN_DATA -1405
+#define NO_DATA_FOUND    1403
+
+
+EXEC SQL INCLUDE sqlca;
+
+
+EXEC ORACLE OPTION (MAXOPENCURSORS=100);
+EXEC ORACLE OPTION (HOLD_CURSOR=YES);
+EXEC ORACLE OPTION (RELEASE_CURSOR=NO);
+
+
+EXEC SQL BEGIN DECLARE SECTION;
+
+   /* error code variable */
+   long    SQLCODE;
+
+
+   EXEC SQL TYPE RAW256  is VARRAW (256);
+   EXEC SQL TYPE RAW512  is VARRAW (512);
+   EXEC SQL TYPE RAW768  is VARRAW (768);
+   EXEC SQL TYPE RAW1024 is VARRAW (1024);
+   EXEC SQL TYPE RAW1280 is VARRAW (1280);
+   EXEC SQL TYPE RAW1536 is VARRAW (1536);
+
+
+   /* checkpoint table variables */
+   struct
+   {
+      varchar  checkpoint_id   [24];
+      varchar  checkpoint_trid [24];
+   } db_checkpoint;
+
+
+   /* timer variables */
+   struct 
+   {
+      varchar  timer_id    [24];
+      varchar  app_data1   [32];
+      varchar  app_data2   [32];
+      varchar  reply_que   [16];
+      varchar  orig_system [16];
+      varchar  ds_name     [16];
+      int      timeout;
+      int      interval;
+   } db_timer;
+
+EXEC SQL END DECLARE SECTION;
+
+
+
+/*************************************************************************************/
+/* convert oracle return codes to  pte result codes                                  */
+/*************************************************************************************/
+BYTE dbcommon_oracle_to_pte_rcode ( LONG oracle_rcode, pCHAR ErrorMsg )
+{
+   switch (oracle_rcode)
+   {
+      case NO_DATA_FOUND:
+         strcpy (ErrorMsg, "The Specified row was not found");
+         return (PTEMSG_NOT_FOUND);
+
+      default:
+         sprintf(ErrorMsg, "% .70s", sqlca.sqlerrm.sqlerrmc);
+         return (PTEMSG_DATABASE_ERROR);
+   }
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE dbcommon_connect ( pCHAR username, 
+                        pCHAR password,
+                        pCHAR alias,    
+                        pCHAR database,
+                        pCHAR ErrorMsg )
+{
+   EXEC SQL BEGIN DECLARE SECTION;
+      /* login values */
+      char  db_username[21];
+      char  db_password[21];
+      char  db_alias[21];
+      char  db_database[21];
+   EXEC SQL END DECLARE SECTION;
+
+
+   /* Connect to ORACLE. */
+   strcpy( db_username, username);
+   strcpy( db_password, password);
+   strcpy( db_alias,    alias   );
+   strcpy( db_database, database);
+   
+   /* EXEC SQL CONNECT :db_username IDENTIFIED BY :db_password  AT :db_alias using :db_database; */
+   EXEC SQL CONNECT :db_username  IDENTIFIED BY :db_password  USING :db_alias;
+   
+   if (SQLCODE != 0)
+      return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+   return (PTEMSG_OK);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE dbcommon_disconnect( pCHAR ErrorMsg )
+{
+   /* Disconnect from ORACLE. */
+   
+   EXEC SQL COMMIT WORK RELEASE;
+   
+   if (SQLCODE < 0)
+      return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+   return PTEMSG_OK;
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+void dbcommon_commit ()
+{
+   EXEC SQL COMMIT WORK;
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+void dbcommon_rollback ()
+{
+   EXEC SQL ROLLBACK WORK;
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+void db_to_checkpoint ( pCHECKPOINT p_checkpoint )
+{
+   memset (p_checkpoint, 0, sizeof(CHECKPOINT));
+   VARCHAR_TO_C (p_checkpoint->checkpoint_id,   db_checkpoint.checkpoint_id);
+   VARCHAR_TO_C (p_checkpoint->checkpoint_trid, db_checkpoint.checkpoint_trid);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+void checkpoint_to_db ( pCHECKPOINT p_checkpoint )
+{
+   memset (&db_checkpoint, 0, sizeof(db_checkpoint));
+   C_TO_VARCHAR (db_checkpoint.checkpoint_id,   p_checkpoint->checkpoint_id);
+   C_TO_VARCHAR (db_checkpoint.checkpoint_trid, p_checkpoint->checkpoint_trid);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE dbcommon_select_checkpoint ( pCHAR       checkpoint_id, 
+                                  pCHECKPOINT p_checkpoint, 
+                                  pCHAR       ErrorMsg )
+{
+   memset  (&db_checkpoint, 0, sizeof(db_checkpoint));
+   C_TO_VARCHAR(db_checkpoint.checkpoint_id, checkpoint_id);
+
+   EXEC SQL SELECT 
+      checkpoint_trid
+   INTO 
+      :db_checkpoint.checkpoint_trid
+   FROM checkpoint
+   WHERE checkpoint_id = :db_checkpoint.checkpoint_id;
+
+   if (SQLCODE == NO_DATA_FOUND)
+   {
+      memset  (p_checkpoint, 0, sizeof(CHECKPOINT));
+      strncpy (p_checkpoint->checkpoint_id, checkpoint_id, sizeof(p_checkpoint->checkpoint_id));
+
+      EXEC SQL INSERT INTO checkpoint
+        (checkpoint_id, 
+         checkpoint_trid)
+      VALUES 
+        (:db_checkpoint.checkpoint_id,
+         :db_checkpoint.checkpoint_trid);
+
+      if (SQLCODE != 0)
+         return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+      dbcommon_commit();
+      return (PTEMSG_OK);
+   }
+
+   if (SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA)
+      return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+   db_to_checkpoint (p_checkpoint);
+
+   return (PTEMSG_OK);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE dbcommon_update_checkpoint ( pCHECKPOINT p_checkpoint, 
+                                  pCHAR       ErrorMsg )
+{
+   checkpoint_to_db (p_checkpoint);
+
+   EXEC SQL UPDATE checkpoint
+   SET
+      checkpoint_trid = :db_checkpoint.checkpoint_trid
+   WHERE checkpoint_id = :db_checkpoint.checkpoint_id;
+       
+   if (SQLCODE != 0)
+      return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+   return (PTEMSG_OK);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE dbcommon_delete_checkpoint ( pCHAR checkpoint_id, 
+                                  pCHAR ErrorMsg )
+{
+   C_TO_VARCHAR(db_checkpoint.checkpoint_id, checkpoint_id);
+
+   EXEC SQL DELETE FROM checkpoint
+   WHERE checkpoint_id = :db_checkpoint.checkpoint_id;
+
+   if (SQLCODE != 0)
+      return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+   return (PTEMSG_OK);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+void timer_to_db ( pTIMER_DATA p_timer )
+{
+   memset (&db_timer, 0, sizeof(db_timer));
+   C_TO_VARCHAR (db_timer.timer_id ,   p_timer->timer_id);
+   C_TO_VARCHAR (db_timer.app_data1,   p_timer->app_data1);
+   C_TO_VARCHAR (db_timer.app_data2,   p_timer->app_data2);
+   C_TO_VARCHAR (db_timer.reply_que,   p_timer->reply_que);
+   C_TO_VARCHAR (db_timer.orig_system, p_timer->orig_system);
+   C_TO_VARCHAR (db_timer.ds_name,     this_ds_name);
+   db_timer.timeout  = p_timer->timeout;
+   db_timer.interval = p_timer->interval;
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+void db_to_timer ( pTIMER_DATA p_timer )
+{
+   memset (p_timer, 0, sizeof(TIMER_DATA));
+   VARCHAR_TO_C (p_timer->timer_id,    db_timer.timer_id);
+   VARCHAR_TO_C (p_timer->app_data1,   db_timer.app_data1);
+   VARCHAR_TO_C (p_timer->app_data2,   db_timer.app_data2);
+   VARCHAR_TO_C (p_timer->reply_que,   db_timer.reply_que);
+   VARCHAR_TO_C (p_timer->orig_system, db_timer.orig_system);
+   p_timer->timeout    = db_timer.timeout;
+   p_timer->interval   = db_timer.interval;
+   p_timer->timer_size = sizeof(TIMER_DATA);
+;
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE dbcommon_insert_timer ( pTIMER_DATA p_timer, 
+                             pCHAR       ErrorMsg )
+{
+   if (this_ds_name [0] == '\0')
+      GetAppName (this_ds_name);
+
+   timer_to_db (p_timer);
+
+   EXEC SQL INSERT INTO timer
+     (timer_id,
+      app_data1,
+      app_data2,
+      reply_que,
+      orig_system,
+      ds_name,
+      timeout,
+      interval 
+     )
+   VALUES
+     (:db_timer.timer_id,
+      :db_timer.app_data1,
+      :db_timer.app_data2,
+      :db_timer.reply_que,
+      :db_timer.orig_system,
+      :db_timer.ds_name,
+      :db_timer.timeout,
+      :db_timer.interval 
+     );
+
+   if (SQLCODE != 0)
+      return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+   return (PTEMSG_OK);
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE dbcommon_delete_timer ( pTIMER_DATA p_timer,
+                             pCHAR       ErrorMsg )
+{
+   if (this_ds_name [0] == '\0')
+      GetAppName (this_ds_name);
+
+   C_TO_VARCHAR (db_timer.timer_id, p_timer->timer_id);
+   C_TO_VARCHAR (db_timer.ds_name,  this_ds_name);
+
+   EXEC SQL DELETE FROM timer
+   WHERE timer_id = :db_timer.timer_id  AND   
+         ds_name  = :db_timer.ds_name;
+
+   if (SQLCODE != 0)
+      return( dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) );
+
+   return PTEMSG_OK;
+}
+
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE dbcommon_get_timer_table ( pTIMER_DB_LIST p_db_list,
+                                pCHAR          ErrorMsg )
+{
+   int temp ;
+
+
+   if (this_ds_name [0] == '\0')
+      GetAppName (this_ds_name);
+
+   C_TO_VARCHAR (db_timer.ds_name, this_ds_name);
+
+   memset (p_db_list, 0, sizeof(TIMER_DB_LIST));
+
+   EXEC SQL DECLARE timertable_cursor CURSOR FOR
+      SELECT 
+         timer_id,
+         app_data1,
+         app_data2,
+         reply_que,
+         orig_system,
+         timeout,
+         interval 
+      FROM timer
+      WHERE ds_name = :db_timer.ds_name
+      ORDER BY timeout;
+    
+   EXEC SQL WHENEVER SQLERROR goto sql_error;
+   EXEC SQL OPEN timertable_cursor;
+
+   /* Fetch each row from the timer table into the data struct. */
+   EXEC SQL WHENEVER SQLERROR goto sql_error2;
+   EXEC SQL WHENEVER NOTFOUND DO break;
+   
+   for (temp = 0; temp < TIMER_DB_LIST_SIZE; temp++)
+   {
+      EXEC SQL FETCH timertable_cursor
+      INTO 
+         :db_timer.timer_id,
+         :db_timer.app_data1,
+         :db_timer.app_data2,
+         :db_timer.reply_que,
+         :db_timer.orig_system,
+         :db_timer.timeout,
+         :db_timer.interval;
+
+      sql_error2:
+         if ( (SQLCODE != 0) && (SQLCODE != NULL_COLUMN_DATA) )
+            goto sql_error;
+
+      db_to_timer (&p_db_list->db_rec [temp]);
+
+      p_db_list->num_returned++;
+   }
+
+   /* Close the cursor. */
+   EXEC SQL CLOSE timertable_cursor;
+
+   return (PTEMSG_OK);
+
+sql_error:
+   EXEC SQL WHENEVER SQLERROR CONTINUE;
+   EXEC SQL WHENEVER NOTFOUND CONTINUE;
+
+   return (dbcommon_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+}
+
+

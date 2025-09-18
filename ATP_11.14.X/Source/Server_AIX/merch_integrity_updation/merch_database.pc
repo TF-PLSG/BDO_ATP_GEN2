@@ -1,0 +1,1100 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
+#include <math.h>
+#include <time.h>
+#include <sys/timeb.h>
+
+#include "basictyp.h"
+#include "pte.h"
+#include "pteipc.h"
+#include "ptemsg.h"
+#include "ptetimer.h"
+#include "ntutils.h"
+#include "app_info.h"
+#include "equitdb.h"
+#include "dbcommon.h"
+#include "txutils.h"
+#include "ptetime.h"
+#include "memmnger.h"
+#include "nc_dbstruct.h"
+
+#include "merch_param.h"
+
+#ifdef WIN32
+#include <sqlproto.h>
+#endif
+
+#define NULL_COLUMN_DATA -1405
+#define NO_DATA_FOUND    1403
+
+char er_buf[512];
+BYTE DB_rcode;
+long SQLCODE;
+long SQL_CODE;
+
+extern int    tf_debug;
+extern CHAR   visaEndDate[9];
+extern CHAR   mcEndDate[9];
+extern CHAR   macEndDate[9];
+extern CHAR   visaBeyondDate[9];
+extern CHAR   mcBeyondDate[9];
+extern CHAR   sys_current_date[9];
+extern INT    verify_and_update_reattempt_date(MERCH_INT_PARAMS);
+
+BYTE visaCardNbrStartsWith[3] = "4%";
+BYTE mcCardNbrStartsWith[3]   = "5%";
+BYTE mcCardNbrStartsWith2[3]  = "2%";
+BYTE macCardNbrStartsWith[3]  = "5%";
+BYTE macCardNbrStartsWith2[3] = "2%";
+BYTE visaCatCode[5] = "1234";
+BYTE mcCatCode[5]   = "1234";
+BYTE macCatCode[5]  = "1111";
+BYTE enabled[2]  = "Y";
+BYTE disabled[2] = "N";
+
+BYTE update_merchant_integrity_config_file_for_visa(Scheme_Integrity_Category, int);
+BYTE update_merchant_integrity_config_file_for_mc(Scheme_Integrity_Category, int);
+
+//Scheme_Integrity_Category - db structure
+struct
+{
+	varchar scheme			[2];
+	varchar	catgeory		[2];
+	varchar enable			[2];
+	varchar	description 	[26];
+	varchar alw_reattempts	[3];
+	varchar	reset_days		[3];
+	varchar	response_codes 	[101];
+	varchar	refresh_date	[9];
+
+}db_sic;
+
+struct
+{
+   varchar  merchant_id   		[16];
+   varchar  card_nbr      		[20];
+   varchar  category_cd   		[5];
+   varchar  c1_block            [2];
+   varchar  c2_block            [2];
+   varchar  c3_block            [2];
+   varchar  c4_block            [2];
+   varchar	c1_count			[3];
+   varchar  c1_block_start_date [9];
+   varchar  c1_block_end_date   [9];
+   varchar	c2_count			[3];
+   varchar  c2_block_start_date [9];
+   varchar  c2_block_end_date   [9];
+   varchar	c3_count			[3];
+   varchar  c3_block_start_date [9];
+   varchar  c3_block_end_date   [9];
+   varchar	c4_count			[3];
+   varchar  c4_block_start_date [9];
+   varchar  c4_block_end_date   [9];
+   varchar  block_reset_date	[9];
+   varchar  last_declined_rc    [3];
+   varchar  first_reattempt_date[9];
+   varchar  reattempts_date		[200];
+
+}db_merch_int_param;
+
+struct
+{
+   char  merchant_id   		 [16];
+   char  card_nbr      		 [20];
+   char  category_cd   		 [5];
+   char  c1_block            [2];
+   char  c2_block            [2];
+   char  c3_block            [2];
+   char  c4_block            [2];
+   char	 c1_count			 [3];
+   char  c1_block_start_date [9];
+   char  c1_block_end_date   [9];
+   char	 c2_count			 [3];
+   char  c2_block_start_date [9];
+   char  c2_block_end_date   [9];
+   char	 c3_count			 [3];
+   char  c3_block_start_date [9];
+   char  c3_block_end_date   [9];
+   char	 c4_count			 [3];
+   char  c4_block_start_date [9];
+   char  c4_block_end_date   [9];
+   char  block_reset_date	 [9];
+   char  last_declined_rc    [3];
+   char  first_reattempt_date[9];
+   char  reattempts_date	 [200];
+
+}pte_merch_int_param;
+
+
+void db_to_struct(pScheme_Integrity_Category sic_ptr)
+{
+	memset(sic_ptr, 0, sizeof(Scheme_Integrity_Category));
+	memcpy(sic_ptr->scheme, 		db_sic.scheme.arr, 			db_sic.scheme.len);
+	memcpy(sic_ptr->catgeory, 		db_sic.catgeory.arr, 		db_sic.catgeory.len);
+	memcpy(sic_ptr->enable, 		db_sic.enable.arr, 			db_sic.enable.len);
+	memcpy(sic_ptr->description, 	db_sic.description.arr, 	db_sic.description.len);
+	memcpy(sic_ptr->alw_reattempts, db_sic.alw_reattempts.arr, 	db_sic.alw_reattempts.len);
+	memcpy(sic_ptr->reset_days, 	db_sic.reset_days.arr, 		db_sic.reset_days.len);
+	memcpy(sic_ptr->response_codes, db_sic.response_codes.arr, 	db_sic.response_codes.len);
+	memcpy(sic_ptr->refresh_date, 	db_sic.refresh_date.arr, 	db_sic.refresh_date.len);
+}
+
+void db_to_merch_int_param ( pMERCH_INT_PARAMS mip_ptr)
+{
+    memset(mip_ptr, 0, sizeof(MERCH_INT_PARAMS));
+    memcpy(mip_ptr->primary_key.merchant_id, db_merch_int_param.merchant_id.arr, 	db_merch_int_param.merchant_id.len);
+    memcpy(mip_ptr->primary_key.card_nbr, 	db_merch_int_param.card_nbr.arr, 		db_merch_int_param.card_nbr.len);
+    memcpy(mip_ptr->primary_key.category_cd, db_merch_int_param.category_cd.arr, 	db_merch_int_param.category_cd.len);
+    memcpy(mip_ptr->c1_block, 			db_merch_int_param.c1_block.arr, 			db_merch_int_param.c1_block.len);
+    memcpy(mip_ptr->c2_block, 			db_merch_int_param.c2_block.arr, 			db_merch_int_param.c2_block.len);
+    memcpy(mip_ptr->c3_block, 			db_merch_int_param.c3_block.arr, 			db_merch_int_param.c3_block.len);
+    memcpy(mip_ptr->c4_block, 			db_merch_int_param.c4_block.arr, 			db_merch_int_param.c4_block.len);
+    memcpy(mip_ptr->c1_count, 			db_merch_int_param.c1_count.arr, 			db_merch_int_param.c1_count.len);
+    memcpy(mip_ptr->c1_block_start_date, db_merch_int_param.c1_block_start_date.arr, db_merch_int_param.c1_block_start_date.len);
+    memcpy(mip_ptr->c1_block_end_date, 	db_merch_int_param.c1_block_end_date.arr, 	db_merch_int_param.c1_block_end_date.len);
+    memcpy(mip_ptr->c2_count, 			db_merch_int_param.c2_count.arr, 			db_merch_int_param.c2_count.len);
+    memcpy(mip_ptr->c2_block_start_date, db_merch_int_param.c2_block_start_date.arr, db_merch_int_param.c2_block_start_date.len);
+    memcpy(mip_ptr->c2_block_end_date, 	db_merch_int_param.c2_block_end_date.arr, 	db_merch_int_param.c2_block_end_date.len);
+    memcpy(mip_ptr->c3_count, 			db_merch_int_param.c3_count.arr, 			db_merch_int_param.c3_count.len);
+    memcpy(mip_ptr->c3_block_start_date, db_merch_int_param.c3_block_start_date.arr, db_merch_int_param.c3_block_start_date.len);
+    memcpy(mip_ptr->c3_block_end_date, 	db_merch_int_param.c3_block_end_date.arr, 	db_merch_int_param.c3_block_end_date.len);
+    memcpy(mip_ptr->c4_count, 			db_merch_int_param.c4_count.arr, 			db_merch_int_param.c4_count.len);
+    memcpy(mip_ptr->c4_block_start_date, db_merch_int_param.c4_block_start_date.arr, db_merch_int_param.c4_block_start_date.len);
+    memcpy(mip_ptr->c4_block_end_date, 	db_merch_int_param.c4_block_end_date.arr,	db_merch_int_param.c4_block_end_date.len);
+    memcpy(mip_ptr->block_reset_date, 	db_merch_int_param.block_reset_date.arr, 	db_merch_int_param.block_reset_date.len);
+    memcpy(mip_ptr->last_declined_rc, 	db_merch_int_param.last_declined_rc.arr, 	db_merch_int_param.last_declined_rc.len);
+    memcpy(mip_ptr->first_reattempt_date,db_merch_int_param.first_reattempt_date.arr,db_merch_int_param.first_reattempt_date.len);
+    memcpy(mip_ptr->reattempts_date, 	db_merch_int_param.reattempts_date.arr, 	db_merch_int_param.reattempts_date.len);
+}
+
+void merchant_integrity_param_to_db( pMERCH_INT_PARAMS ptr_merchant_integrity_param )
+{
+    memcpy( &pte_merch_int_param, ptr_merchant_integrity_param, sizeof(pte_merch_int_param) );
+}
+
+BYTE db_verify_and_update_merchant(char *ErrMsg)
+{
+	int cnt=0;
+	int result_code;
+
+	EXEC SQL SELECT COUNT(*)
+	INTO :cnt
+	FROM MCF01
+	WHERE division_nbr = 'C'
+	AND   merchant_id not in (SELECT merchant_id 
+							  FROM merchant_integrity_param
+			  	  	  	  	  WHERE c1_block = :enabled OR
+			  	  	  	  		    c2_block = :enabled OR
+			  	  	  	  		    c3_block = :enabled OR
+			  	  	  	  		    c4_block = :enabled);
+		
+	if(cnt <= 0)
+		return PTEMSG_NOT_FOUND;
+	
+	EXEC SQL UPDATE MCF01
+	SET division_nbr = '000'
+	WHERE division_nbr = 'C'
+	AND   merchant_id not in (SELECT merchant_id 
+							  FROM merchant_integrity_param
+			  	  	  	  	  WHERE c1_block = :enabled OR
+			  	  	  	  		    c2_block = :enabled OR
+			  	  	  	  		    c3_block = :enabled OR
+			  	  	  	  		    c4_block = :enabled);
+	
+	if (( SQLCODE != 0 ))
+	{
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		strcpy(ErrMsg, ErrorMsg);
+		return DB_rcode;
+	}
+	
+	sprintf(ErrorMsg, "MCF01 : [%d] Merchants are updated", cnt);
+	mparam_log_message(2, 1, ErrorMsg, " db_verify_and_update_merchant");
+
+	return PTEMSG_OK;
+}
+
+/*******************************VISA DB functions - START**************************************/
+BYTE db_delete_merch_int_param_visa_cat1(char *ErrMsg)
+{   
+	EXEC SQL DELETE
+	FROM merchant_integrity_param
+	WHERE c1_block_end_date <= :visaEndDate    AND 
+		  c1_block    = :enabled      		   AND
+		  card_nbr LIKE :visaCardNbrStartsWith AND
+		  category_cd = :visaCatCode           AND
+		  c2_block is null	AND
+		  c3_block is null	AND
+		  c4_block is null;
+
+	if ( SQLCODE != 0 && SQLCODE != NO_DATA_FOUND )
+	{
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		mparam_log_message(2, 3, ErrorMsg, " db_delete_merch_int_param_visa_cat1");
+		return DB_rcode;
+	}
+	else if ( SQLCODE == NO_DATA_FOUND)
+	{
+		mparam_log_message(2, 1, "No VISA CAT1 records found for unblock", " db_delete_merch_int_param_visa_cat1");
+		return PTEMSG_NOT_FOUND;
+	}
+	
+	return PTEMSG_OK;
+	
+}
+
+BYTE db_update_merch_int_param_visa_cat1(char *ErrMsg)
+{ 
+	EXEC SQL UPDATE merchant_integrity_param
+	SET	   c1_block    		   = null,
+		   c1_count            = null,
+		   c1_block_start_date = null,
+		   c1_block_end_date   = null,
+		   last_declined_rc    = null
+	WHERE c1_block_end_date <= :visaEndDate    AND 
+	      c1_block    = :enabled               AND
+		  card_nbr LIKE :visaCardNbrStartsWith AND
+		  category_cd = :visaCatCode           AND
+		  (c2_block is not null	OR
+		   c3_block is not null	OR
+		   c4_block is not null);
+	
+	if ( SQLCODE != 0 && SQLCODE != NO_DATA_FOUND )
+	{
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		mparam_log_message(2, 3, ErrorMsg, " db_update_merch_int_param_visa_cat1");
+		return DB_rcode;
+	}
+	else if ( SQLCODE == NO_DATA_FOUND)
+	{
+		mparam_log_message(2, 1, "No VISA CAT1 records found for unblock", " db_update_merch_int_param_visa_cat1");
+		return PTEMSG_NOT_FOUND;
+	}
+	
+	return PTEMSG_OK;
+}
+
+BYTE db_delete_merch_int_param_visa_cat2(char *ErrMsg)
+{   
+	//remove category 2 blockage
+	EXEC SQL DELETE FROM merchant_integrity_param
+	WHERE c2_block_end_date <= :visaEndDate    AND 
+    	  c2_block    = :enabled               AND
+		  card_nbr LIKE :visaCardNbrStartsWith AND
+		  category_cd = :visaCatCode;
+	
+	if ( SQLCODE != 0 && SQLCODE != NO_DATA_FOUND )
+	{
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		mparam_log_message(2, 3, ErrorMsg, " db_delete_merch_int_param_visa_cat2");
+		return DB_rcode;
+	}
+	else if ( SQLCODE == NO_DATA_FOUND)
+	{
+		mparam_log_message(2, 1, "No VISA CAT2 records found for unblock", " db_delete_merch_int_param_visa_cat2");
+		return PTEMSG_NOT_FOUND;
+	}
+	
+	return PTEMSG_OK;
+}
+
+BYTE db_delete_merch_int_param_visa_cat3(char *ErrMsg)
+{	
+	//remove category 3 blockage
+	EXEC SQL DELETE FROM merchant_integrity_param
+	WHERE c3_block_end_date <=  :visaEndDate   AND
+		  c3_block    = :enabled               AND
+		  card_nbr LIKE :visaCardNbrStartsWith AND
+		  category_cd = :visaCatCode;
+
+	if ( SQLCODE != 0 && SQLCODE != NO_DATA_FOUND )
+	{
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		mparam_log_message(2, 3, ErrorMsg, " db_delete_merch_int_param_visa_cat3");
+		return DB_rcode;
+	}
+	else if ( SQLCODE == NO_DATA_FOUND)
+	{
+		mparam_log_message(2, 1, "No VISA CAT3 records found for unblock", " db_delete_merch_int_param_visa_cat3");
+		return PTEMSG_NOT_FOUND;
+	}
+	
+	return PTEMSG_OK;
+}
+
+BYTE db_delete_merch_int_param_visa_cat4(char *ErrMsg)
+{
+	//remove category 4 blockage
+	EXEC SQL DELETE FROM merchant_integrity_param
+	WHERE c4_block_end_date <=  :visaEndDate   AND
+		  c4_block    = :enabled               AND
+		  card_nbr LIKE :visaCardNbrStartsWith AND
+		  category_cd = :visaCatCode;
+
+	if ( SQLCODE != 0 && SQLCODE != NO_DATA_FOUND )
+	{
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		mparam_log_message(2, 3, ErrorMsg, " db_delete_merch_int_param_visa_cat4");
+		return DB_rcode;
+	}
+	else if ( SQLCODE == NO_DATA_FOUND)
+	{
+		mparam_log_message(2, 1, "No VISA CAT4 records found for unblock", " db_delete_merch_int_param_visa_cat4");
+		return PTEMSG_NOT_FOUND;
+	}
+	
+	return PTEMSG_OK;
+}
+
+BYTE db_select_merchant_integrity_param_reattempts_visa ( pCHAR ErrMsg )
+{
+	INT  retval, index, mipcount=0;
+	static int counter = 0, delCounter = 0, updCounter = 0, errCounter = 0;
+	char buffer[256] = {0};
+	MERCH_INT_PARAMS mipData = {0};
+	  
+	memset( &db_merch_int_param, 0, sizeof( db_merch_int_param ) );
+	   
+	//get the exact count of records to run for loop
+	EXEC SQL SELECT COUNT(*) 
+	INTO :mipcount 
+	FROM merchant_integrity_param
+	WHERE
+	FIRST_REATTEMPT_DATE < :visaBeyondDate AND
+	CARD_NBR LIKE :visaCardNbrStartsWith   AND
+	CATEGORY_CD = :visaCatCode			   AND
+	((C2_BLOCK = :disabled AND (C3_BLOCK_START_DATE is null AND C4_BLOCK_START_DATE is null)) OR
+	 (C3_BLOCK = :disabled AND (C2_BLOCK_START_DATE is null AND C4_BLOCK_START_DATE is null)) OR
+	 (C4_BLOCK = :disabled AND (C2_BLOCK_START_DATE is null AND C3_BLOCK_START_DATE is null)) );
+
+	if(mipcount == 0)
+	{
+		mparam_log_message(2, 1, "No records found in MIP table for VISA Re-attempts Checks", 
+								 " db_select_merchant_integrity_param_reattempts_visa");
+	}
+	else if(mipcount > 0)
+	{
+		sprintf(buffer, "Total records in MIP table [%d] qualified for VISA re-attempts checks", mipcount);
+		mparam_log_message(2, 1, buffer, " db_select_merchant_integrity_param_reattempts_visa");
+		if(tf_debug == 1)
+			printf("%s\n", buffer);
+		
+		EXEC SQL DECLARE mip_visa_cursor CURSOR FOR
+		SELECT * FROM  merchant_integrity_param
+		WHERE
+		FIRST_REATTEMPT_DATE < :visaBeyondDate AND
+		CARD_NBR LIKE :visaCardNbrStartsWith   AND
+		CATEGORY_CD = :visaCatCode			   AND
+		((C2_BLOCK = :disabled AND (C3_BLOCK_START_DATE is null AND C4_BLOCK_START_DATE is null)) OR
+		 (C3_BLOCK = :disabled AND (C2_BLOCK_START_DATE is null AND C4_BLOCK_START_DATE is null)) OR
+		 (C4_BLOCK = :disabled AND (C2_BLOCK_START_DATE is null AND C3_BLOCK_START_DATE is null)) )
+		FOR UPDATE OF C2_BLOCK, C3_BLOCK, C4_BLOCK, C2_COUNT, C3_COUNT, C4_COUNT, FIRST_REATTEMPT_DATE, REATTEMPTS_DATE;
+	
+		EXEC SQL WHENEVER SQLERROR goto sql_error;
+		EXEC SQL OPEN mip_visa_cursor;
+	
+		EXEC SQL WHENEVER SQLERROR goto sql_error2;
+		EXEC SQL WHENEVER NOTFOUND DO break;
+	
+		for ( index = 0; index < mipcount; index++ )
+		{
+			EXEC SQL FETCH mip_visa_cursor
+			INTO :db_merch_int_param;
+	
+			sql_error2:
+			if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+			{
+				SQL_CODE = SQLCODE;
+				EXEC SQL CLOSE mip_visa_cursor;
+				DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+				strcpy(ErrMsg, ErrorMsg);
+				sprintf(buffer, "VISA RUNTIME STATUS: PROCESSED=[%d], UPDATED=[%d], DELETED=[%d], ERROR=[%d]", 
+								counter, updCounter, delCounter, errCounter);
+				mparam_log_message(2, 1, buffer, " db_select_merchant_integrity_param_reattempts_visa");
+				if(tf_debug == 1)
+					printf("%s\n", buffer);
+				
+				return DB_rcode;
+			}
+			db_to_merch_int_param(&mipData);
+			retval = verify_and_update_reattempt_date_visa(mipData);		
+			if(retval == VALIDATION_ERROR)
+			{
+				sprintf(buffer, "Validation Error in VISA reattempts date for [%s:%s] in MIP", 
+						mipData.primary_key.merchant_id,
+						mask_card_number(&mipData.primary_key.card_nbr));
+				mparam_log_message(2, 3, buffer, " db_select_merchant_integrity_param_reattempts_visa");
+			}
+			else
+			{
+				counter++;
+				if(retval == UPDATED)
+					updCounter++;
+				else if(retval == DELETED)
+					delCounter++;
+				else
+					errCounter++;
+			}
+			
+			if(counter % 2500 == 0)
+			{
+				sprintf(buffer, "VISA RUNTIME STATUS: PROCESSED=[%d], UPDATED=[%d], DELETED=[%d], ERROR=[%d]", 
+								counter, updCounter, delCounter, errCounter);
+				mparam_log_message(2, 1, buffer, " db_select_merchant_integrity_param_reattempts_visa");
+				if(tf_debug == 1)
+					printf("%s\n", buffer);
+			}
+		}
+		sprintf(buffer, "Cursor executed successfully, TOTAL VISA RECORDS PROCESSED=[%d], UPDATED=[%d], DELETED=[%d], ERROR=[%d]",
+						counter, updCounter, delCounter, errCounter);
+		mparam_log_message(2, 1, buffer, " db_select_merchant_integrity_param_reattempts_visa");
+		if(tf_debug == 1)
+			printf("%s\n", buffer);
+	
+		EXEC SQL CLOSE mip_visa_cursor;
+		return PTEMSG_OK;
+	}
+	
+	return PTEMSG_NOT_FOUND;
+
+	sql_error:
+   	EXEC SQL WHENEVER SQLERROR CONTINUE;
+   	EXEC SQL WHENEVER NOTFOUND CONTINUE;
+	DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+	strcpy(ErrMsg, ErrorMsg);
+	sprintf(buffer, "VISA RUNTIME STATUS: PROCESSED=[%d], UPDATED=[%d], DELETED=[%d], ERROR=[%d]", 
+					counter, updCounter, delCounter, errCounter);
+	mparam_log_message(2, 1, buffer, " db_select_merchant_integrity_param_reattempts_visa");
+	if(tf_debug == 1)
+		printf("%s\n", buffer);
+
+	return DB_rcode;
+}
+
+BYTE db_update_merchant_integrity_param_visa( pMERCH_INT_PARAMS merchant_integrity_param_ptr, pCHAR ErrorMsg )
+{
+	merchant_integrity_param_to_db( merchant_integrity_param_ptr );
+
+    EXEC SQL UPDATE MERCHANT_INTEGRITY_PARAM 
+    SET c2_block        	 = :pte_merch_int_param.c2_block,
+		c3_block        	 = :pte_merch_int_param.c3_block,
+		c4_block        	 = :pte_merch_int_param.c4_block,
+		c2_count        	 = :pte_merch_int_param.c2_count,
+		c3_count        	 = :pte_merch_int_param.c3_count,
+		c4_count        	 = :pte_merch_int_param.c4_count,
+		first_reattempt_date = :pte_merch_int_param.first_reattempt_date,
+		reattempts_date		 = :pte_merch_int_param.reattempts_date
+    WHERE merchant_id = :pte_merch_int_param.merchant_id AND  
+     	  card_nbr    = :pte_merch_int_param.card_nbr    AND  
+		  category_cd = :pte_merch_int_param.category_cd;
+    
+    if ( SQLCODE != 0 )
+    {
+ 	 	DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+ 		return DB_rcode;
+ 	}
+    
+    return PTEMSG_OK;
+}
+
+BYTE db_delete_merchant_integrity_param_visa( pMERCH_INT_PARAMS merchant_integrity_param_ptr, pCHAR ErrorMsg )
+{
+    merchant_integrity_param_to_db( merchant_integrity_param_ptr );
+
+	EXEC SQL DELETE
+  	FROM merchant_integrity_param
+    WHERE merchant_id = :pte_merch_int_param.merchant_id  AND  
+      	  card_nbr    = :pte_merch_int_param.card_nbr     AND  
+		  category_cd = :pte_merch_int_param.category_cd  AND
+		  c1_block   is null;
+	
+    if ( SQLCODE != 0 )
+    {
+ 	 	DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+ 		return DB_rcode;
+ 	}
+    
+    return PTEMSG_OK;
+}
+
+
+BYTE db_get_scheme_integrity_category_visa(char *ErrMsg)
+{
+	int index, temp = 0;
+	int result_code, updated = 0;
+	char cat[2];
+	Scheme_Integrity_Category sic;
+
+	EXEC SQL SELECT COUNT(*) 
+	INTO :temp 
+	FROM scheme_integrity_category
+	WHERE scheme = 'V';
+	
+	if(temp <= 0)
+		return PTEMSG_NOT_FOUND;
+	
+	for(index = 0; index < temp; index++)
+	{
+		sprintf(cat, "%d", (index+1));
+		EXEC SQL SELECT *
+		INTO :db_sic 
+		FROM scheme_integrity_category
+		WHERE scheme = 'V'
+		AND	  ctg    = :cat
+		AND   refresh_date = :sys_current_date;
+		
+		if (( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA))
+		{
+			sprintf(ErrMsg, "No update for SCHEME:V, CAT:%d", (index+1));
+			mparam_log_message(2, 1, ErrMsg, " db_get_scheme_integrity_category_visa");
+		}
+		else
+		{
+			db_to_struct(&sic);
+			result_code = update_merchant_integrity_config_file_for_visa(sic, (index+1));
+			if(result_code != PTEMSG_OK)
+			{
+				sprintf(ErrMsg, "Failed to write config file [merchant_integrity.ini] for VISA");
+				return -1;
+			}
+			else
+			{
+				updated++;
+				sprintf(ErrorMsg, "Updated [merchant_integrity.ini] for SCHEME:V, CAT:%d, STATUS:%s, RC's:[%s]",
+						(index+1), sic.enable, sic.response_codes);
+				mparam_log_message(2, 1, ErrorMsg, " db_get_scheme_integrity_category_visa");	
+			}
+		}
+	}
+	if(updated > 1)
+	{
+		sprintf(ErrorMsg, "Update completed for [merchant_integrity.ini] for VISA using SCHEME_INTEGRITY_CATEGORY table");
+		mparam_log_message(2, 1, ErrorMsg, " db_get_scheme_integrity_category_visa");
+		//printf("\n%s\n", ErrorMsg);
+	}
+	
+	return PTEMSG_OK;
+}
+
+BYTE update_merchant_integrity_config_file_for_visa(Scheme_Integrity_Category sic_struct, int category)
+{
+	int  retVal = 1, len, i;
+    CHAR filename   [80];
+    CHAR tmpstr     [80];
+    CHAR category_name[20] = {0};
+    CHAR category_rc  [20] = {0};
+    CHAR response_codes[100] = {0};
+	
+    memset( tmpstr, 0x00, sizeof(tmpstr) );
+    GetPinnacleConfigDirectory(tmpstr);
+    sprintf(filename, "%s%s", tmpstr, "merchant_integrity.ini" );
+	
+	if(category == 1)
+	{
+		strcpy(category_name, "CATEGORY1");
+		strcpy(category_rc,   "CATEGORY1_RC");
+	}
+	else if(category == 2)
+	{
+		strcpy(category_name, "CATEGORY2");
+		strcpy(category_rc,   "CATEGORY2_RC");
+	}
+	else if(category == 3)
+	{
+		strcpy(category_name, "CATEGORY3");
+		strcpy(category_rc,   "CATEGORY3_RC");
+	}
+	else if(category == 4)
+	{
+		strcpy(category_name, "CATEGORY4");
+		//strcpy(category_rc,   "CATEGORY4_RC");
+	}
+	
+	if(strlen(sic_struct.response_codes) > 0)
+	{
+		len = strlen(sic_struct.response_codes);
+		for(i=0; i<len; i++)
+		{
+			if(sic_struct.response_codes[i] == ':')
+				response_codes[i] = ',';
+			else
+				response_codes[i] = sic_struct.response_codes[i];
+		}
+		response_codes[i] = ';';
+	}
+	
+	if(category == 1)
+	{	
+		if(retVal != 0)
+			retVal =  WritePrivateProfileString( "MERCHANT_INTEGRITY_VISA",
+			                               	   	 "RESET_DAYS_CAT_1",
+												 (char *)sic_struct.reset_days,
+												 filename );
+	}
+	else
+	{
+		if(strlen(sic_struct.alw_reattempts) > 0)
+			retVal =  WritePrivateProfileString( "MERCHANT_INTEGRITY_VISA",
+		                               	   	     "ALLOWABLE_REATTEMPTS_CAT_2_3_4",
+												 (char *)sic_struct.alw_reattempts,
+												 filename );
+		
+		if(retVal != 0 && strlen(sic_struct.reset_days) > 0)
+			retVal =  WritePrivateProfileString( "MERCHANT_INTEGRITY_VISA",
+			                               	   	 "RESET_DAYS_CAT_2_3_4",
+												 (char *)sic_struct.reset_days,
+												 filename );
+	}
+	
+	if(retVal != 0 && strlen(sic_struct.enable) > 0)
+		retVal =  WritePrivateProfileString( "MERCHANT_INTEGRITY_VISA",
+											 category_name,
+										     (char *)sic_struct.enable,
+											 filename );
+				
+	if(retVal != 0 && category != 4)
+		retVal =  WritePrivateProfileString( "MERCHANT_INTEGRITY_VISA",
+											 category_rc,
+											 (char *)response_codes,
+											 filename );
+	
+	if(retVal != 0 && strlen(sic_struct.refresh_date) > 0)
+		retVal =  WritePrivateProfileString( "MERCHANT_INTEGRITY_VISA",
+											 "LAST_DATE",
+											 (char *)sys_current_date,
+											 filename );
+	
+	//WritePrivateProfileString returns '1' for success writing to config file
+	//'0' for error case				
+	if(retVal != 0)
+		return PTEMSG_OK;
+	
+	return PTEMSG_NOT_FOUND;
+}
+/*******************************VISA DB functions - END**************************************/
+
+
+/*******************************MC DB functions - START**************************************/
+BYTE db_reset_merch_int_param_mc_cat1(char *ErrMsg)
+{ 	
+	EXEC SQL UPDATE merchant_integrity_param
+	SET	  c1_block = null,
+		  c1_count = null
+	WHERE (card_nbr LIKE :mcCardNbrStartsWith OR card_nbr LIKE :mcCardNbrStartsWith2) AND
+		  category_cd = :mcCatCode           AND
+		  c1_block    = :disabled    		 AND
+		  c1_block_end_date is null;
+	
+	if ( SQLCODE != 0 && SQLCODE != NO_DATA_FOUND )
+	{
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		mparam_log_message(2, 3, ErrorMsg, " db_reset_merch_int_param_mc_cat1");
+		return DB_rcode;
+	}
+	else if ( SQLCODE == NO_DATA_FOUND)
+	{
+		mparam_log_message(2, 1, "No MC CAT1 records found for reset", " db_reset_merch_int_param_mc_cat1");
+		return PTEMSG_NOT_FOUND;
+	}
+	
+	return PTEMSG_OK;
+}
+
+BYTE db_update_merch_int_param_mc_cat1(char *ErrMsg)
+{ 	
+	EXEC SQL UPDATE merchant_integrity_param
+	SET	   c1_block    		   = null,
+		   c1_count            = null,
+		   c1_block_start_date = null,
+		   c1_block_end_date   = null,
+		   last_declined_rc    = null
+	WHERE  (card_nbr LIKE :mcCardNbrStartsWith OR card_nbr LIKE :mcCardNbrStartsWith2) AND
+	  	   category_cd = :mcCatCode           AND 
+		   c1_block    = :enabled			  AND
+		   c1_block_end_date <= :mcEndDate;
+	
+	if ( SQLCODE != 0 && SQLCODE != NO_DATA_FOUND )
+	{
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		mparam_log_message(2, 3, ErrorMsg, " db_update_merch_int_param_mc_cat1");
+		return DB_rcode;
+	}
+	else if ( SQLCODE == NO_DATA_FOUND)
+	{
+		mparam_log_message(2, 1, "No MC CAT1 records found for unblock", " db_update_merch_int_param_mc_cat1");
+		return PTEMSG_NOT_FOUND;
+	}
+	
+	return PTEMSG_OK;
+}
+
+BYTE db_delete_merch_int_param_mc_cat2(char *ErrMsg)
+{   
+	//remove category 2 blockage
+	EXEC SQL DELETE FROM merchant_integrity_param
+	WHERE (card_nbr LIKE :mcCardNbrStartsWith OR card_nbr LIKE :mcCardNbrStartsWith2) AND
+		  category_cd = :mcCatCode			 AND
+		  c2_block    = :enabled			 AND
+		  c2_block_end_date <= :mcEndDate;
+	
+	if ( SQLCODE != 0 && SQLCODE != NO_DATA_FOUND )
+	{
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		mparam_log_message(2, 3, ErrorMsg, " db_delete_merch_int_param_mc_cat2");
+		return DB_rcode;
+	}
+	else if ( SQLCODE == NO_DATA_FOUND)
+	{
+		mparam_log_message(2, 1, "No MC CAT2 records found for unblock", " db_delete_merch_int_param_mc_cat2");
+		return PTEMSG_NOT_FOUND;
+	}
+	
+	return PTEMSG_OK;
+}
+
+BYTE db_select_merchant_integrity_param_reattempts_mc ( pCHAR ErrMsg )
+{
+	INT  retval, index, mipcount=0;
+	static int counter = 0, delCounter = 0, updCounter = 0, errCounter = 0;
+	char buffer[256] = {0};
+	MERCH_INT_PARAMS mipData = {0};
+	  
+	memset( &db_merch_int_param, 0, sizeof( db_merch_int_param ) );
+	   
+	//get the exact count of records to run for loop
+	EXEC SQL SELECT COUNT(*) 
+	INTO :mipcount 
+	FROM merchant_integrity_param
+	WHERE
+	FIRST_REATTEMPT_DATE < :mcBeyondDate AND
+	(CARD_NBR LIKE :mcCardNbrStartsWith OR CARD_NBR LIKE :mcCardNbrStartsWith2) AND
+	CATEGORY_CD = :mcCatCode			 AND
+	C2_BLOCK    = :disabled;
+
+	if(mipcount == 0)
+	{
+		mparam_log_message(2, 1, "No records found in MIP table for MC Re-attempts Checks", 
+								 " db_select_merchant_integrity_param_reattempts_mc");
+	}
+	else if(mipcount > 0)
+	{
+		sprintf(buffer, "Total records in MIP table [%d] qualified for MC re-attempts checks", mipcount);
+		mparam_log_message(2, 1, buffer, " db_select_merchant_integrity_param_reattempts_mc");
+		if(tf_debug == 1)
+			printf("%s\n", buffer);
+		
+		EXEC SQL DECLARE mip_mc_cursor CURSOR FOR
+		SELECT * FROM  merchant_integrity_param
+		WHERE
+		FIRST_REATTEMPT_DATE < :mcBeyondDate AND
+		(CARD_NBR LIKE :mcCardNbrStartsWith OR CARD_NBR LIKE :mcCardNbrStartsWith2) AND
+		CATEGORY_CD = :mcCatCode			 AND
+		C2_BLOCK    = :disabled
+		FOR UPDATE OF C2_COUNT, FIRST_REATTEMPT_DATE, REATTEMPTS_DATE;
+	
+		EXEC SQL WHENEVER SQLERROR goto sql_error;
+		EXEC SQL OPEN mip_mc_cursor;
+	
+		EXEC SQL WHENEVER SQLERROR goto sql_error2;
+		EXEC SQL WHENEVER NOTFOUND DO break;
+	
+		for ( index = 0; index < mipcount; index++ )
+		{
+			EXEC SQL FETCH mip_mc_cursor
+			INTO :db_merch_int_param;
+	
+			sql_error2:
+			if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+			{
+				SQL_CODE = SQLCODE;
+				EXEC SQL CLOSE mip_mc_cursor;
+				DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+				strcpy(ErrMsg, ErrorMsg);
+				sprintf(buffer, "MC RUNTIME STATUS: PROCESSED=[%d], UPDATED=[%d], DELETED=[%d], ERROR=[%d]", 
+								counter, updCounter, delCounter, errCounter);
+				mparam_log_message(2, 1, buffer, " db_select_merchant_integrity_param_reattempts_mc");
+				if(tf_debug == 1)
+					printf("%s\n", buffer);
+				
+				return DB_rcode;
+			}
+			db_to_merch_int_param(&mipData);
+			retval = verify_and_update_reattempt_date_mc(mipData);		
+			if(retval == VALIDATION_ERROR)
+			{
+				sprintf(buffer, "Validation Error in MC reattempts date for [%s:%s] in MIP", 
+						mipData.primary_key.merchant_id,
+						mask_card_number(&mipData.primary_key.card_nbr));
+				mparam_log_message(2, 3, buffer, " db_select_merchant_integrity_param_reattempts_mc");
+			}
+			else
+			{
+				counter++;
+				if(retval == UPDATED)
+					updCounter++;
+				else if(retval == DELETED)
+					delCounter++;
+				else
+					errCounter++;
+			}
+			
+			if(counter % 2500 == 0)
+			{
+				sprintf(buffer, "MC RUNTIME STATUS: PROCESSED=[%d], UPDATED=[%d], DELETED=[%d], ERROR=[%d]", 
+								counter, updCounter, delCounter, errCounter);
+				mparam_log_message(2, 1, buffer, " db_select_merchant_integrity_param_reattempts_mc");
+				if(tf_debug == 1)
+					printf("%s\n", buffer);
+			}
+		}
+		sprintf(buffer, "Cursor executed successfully, TOTAL MC RECORDS PROCESSED=[%d], UPDATED=[%d], DELETED=[%d], ERROR=[%d]",
+						counter, updCounter, delCounter, errCounter);
+		mparam_log_message(2, 1, buffer, " db_select_merchant_integrity_param_reattempts_mc");
+		if(tf_debug == 1)
+			printf("%s\n", buffer);
+	
+		EXEC SQL CLOSE mip_mc_cursor;
+		return PTEMSG_OK;
+	}
+	
+	return PTEMSG_NOT_FOUND;
+
+	sql_error:
+   	EXEC SQL WHENEVER SQLERROR CONTINUE;
+   	EXEC SQL WHENEVER NOTFOUND CONTINUE;
+	DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+	strcpy(ErrMsg, ErrorMsg);
+	sprintf(buffer, "MC RUNTIME STATUS: PROCESSED=[%d], UPDATED=[%d], DELETED=[%d], ERROR=[%d]", 
+					counter, updCounter, delCounter, errCounter);
+	mparam_log_message(2, 1, buffer, " db_select_merchant_integrity_param_reattempts_mc");
+	if(tf_debug == 1)
+		printf("%s\n", buffer);
+
+	return DB_rcode;
+}
+
+BYTE db_update_merchant_integrity_param_mc( pMERCH_INT_PARAMS merchant_integrity_param_ptr, pCHAR ErrorMsg )
+{
+	merchant_integrity_param_to_db( merchant_integrity_param_ptr );
+
+    EXEC SQL UPDATE MERCHANT_INTEGRITY_PARAM 
+    SET c2_count        	 = :pte_merch_int_param.c2_count,
+		first_reattempt_date = :pte_merch_int_param.first_reattempt_date,
+		reattempts_date		 = :pte_merch_int_param.reattempts_date
+    WHERE merchant_id = :pte_merch_int_param.merchant_id AND  
+     	  card_nbr    = :pte_merch_int_param.card_nbr    AND  
+		  category_cd = :pte_merch_int_param.category_cd;
+    
+    if ( SQLCODE != 0 )
+    {
+ 	 	DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+ 		return DB_rcode;
+ 	}
+    
+    return PTEMSG_OK;
+}
+
+BYTE db_delete_merchant_integrity_param_mc( pMERCH_INT_PARAMS merchant_integrity_param_ptr, pCHAR ErrorMsg )
+{
+    merchant_integrity_param_to_db( merchant_integrity_param_ptr );
+
+	EXEC SQL DELETE
+  	FROM merchant_integrity_param
+    WHERE merchant_id = :pte_merch_int_param.merchant_id  AND  
+      	  card_nbr    = :pte_merch_int_param.card_nbr     AND  
+		  category_cd = :pte_merch_int_param.category_cd  AND
+		  c1_block   is null;
+	
+    if ( SQLCODE != 0 )
+    {
+ 	 	DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+ 		return DB_rcode;
+ 	}
+    
+    return PTEMSG_OK;
+}
+
+
+BYTE db_get_scheme_integrity_category_mc(char *ErrMsg)
+{
+	int index, temp = 0;
+	int result_code, updated = 0;
+	char cat[2];
+	Scheme_Integrity_Category sic;
+	
+	EXEC SQL SELECT COUNT(*) 
+	INTO :temp 
+	FROM scheme_integrity_category
+	WHERE scheme = 'M';
+	
+	if(temp <= 0)
+		return PTEMSG_NOT_FOUND;
+	
+	for(index = 0; index < temp; index++)
+	{
+		sprintf(cat, "%d", (index+1));
+		EXEC SQL SELECT *
+		INTO :db_sic 
+		FROM scheme_integrity_category
+		WHERE scheme = 'M'
+		AND	  ctg    = :cat
+		AND   refresh_date = :sys_current_date;
+		
+		if (( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA))
+		{
+			sprintf(ErrMsg, "No update for SCHEME:M, CAT:%d", (index+1));
+			mparam_log_message(2, 1, ErrMsg, " db_get_scheme_integrity_category_mc");
+		}
+		else
+		{
+			db_to_struct(&sic);
+			result_code = update_merchant_integrity_config_file_for_mc(sic, (index+1));
+			if(result_code != PTEMSG_OK)
+			{
+				sprintf(ErrMsg, "Failed to write config file [merchant_integrity.ini] for MC");
+				return -1;
+			}
+			else
+			{
+				updated++;
+				sprintf(ErrorMsg, "Updated [merchant_integrity.ini] for SCHEME:M, CAT:%d, STATUS:%s, RC's:[%s]",
+						(index+1), sic.enable, sic.response_codes);
+				mparam_log_message(2, 1, ErrorMsg, " db_get_scheme_integrity_category_mc");	
+			}
+		}
+	}
+	if(updated > 1)
+	{
+		sprintf(ErrorMsg, "Update completed for [merchant_integrity.ini] for MC using SCHEME_INTEGRITY_CATEGORY table");
+		mparam_log_message(2, 1, ErrorMsg, " db_get_scheme_integrity_category_mc");
+		//printf("\n%s\n", ErrorMsg);
+	}
+	
+	return PTEMSG_OK;
+}
+
+BYTE update_merchant_integrity_config_file_for_mc(Scheme_Integrity_Category sic_struct, int category)
+{
+	int  retVal = 1, len, i;
+    CHAR filename   [80];
+    CHAR tmpstr     [80];
+    CHAR category_name[20] = {0};
+    CHAR category_rc  [20] = {0};
+    CHAR response_codes[100] = {0};
+	
+    memset( tmpstr, 0x00, sizeof(tmpstr) );
+    GetPinnacleConfigDirectory(tmpstr);
+    sprintf(filename, "%s%s", tmpstr, "merchant_integrity.ini" );
+	
+	if(category == 1)
+	{
+		strcpy(category_name, "CATEGORY1");
+		strcpy(category_rc,   "CATEGORY1_RC");
+	}
+	else if(category == 2)
+	{
+		strcpy(category_name, "CATEGORY2");
+		strcpy(category_rc,   "CATEGORY2_RC");
+	}
+	
+	if(strlen(sic_struct.response_codes) > 0)
+	{
+		len = strlen(sic_struct.response_codes);
+		for(i=0; i<len; i++)
+		{
+			if(sic_struct.response_codes[i] == ':')
+				response_codes[i] = ',';
+			else
+				response_codes[i] = sic_struct.response_codes[i];
+		}
+		response_codes[i] = ';';
+	}
+	
+	if(category == 1)
+	{	
+		if(retVal != 0)
+			retVal =  WritePrivateProfileString( "MERCHANT_INTEGRITY_MC",
+		                               	   	     "ALLOWABLE_DECLINES_CAT_1",
+												 (char *)sic_struct.alw_reattempts,
+												 filename );
+		
+		if(retVal != 0)
+			retVal =  WritePrivateProfileString( "MERCHANT_INTEGRITY_MC",
+			                               	   	 "RESET_DAYS_CAT_1",
+												 (char *)sic_struct.reset_days,
+												 filename );
+	}
+	else if(category == 2)
+	{
+		if(retVal != 0)
+			retVal =  WritePrivateProfileString( "MERCHANT_INTEGRITY_MC",
+		                               	   	     "ALLOWABLE_DECLINES_CAT_2",
+												 (char *)sic_struct.alw_reattempts,
+												 filename );
+		
+		if(retVal != 0)
+			retVal =  WritePrivateProfileString( "MERCHANT_INTEGRITY_MC",
+			                               	   	 "RESET_DAYS_CAT_2",
+												 (char *)sic_struct.reset_days,
+												 filename );
+	}
+	
+	if(retVal != 0 && strlen(sic_struct.enable) > 0)
+		retVal =  WritePrivateProfileString( "MERCHANT_INTEGRITY_MC",
+											 category_name,
+										     (char *)sic_struct.enable,
+											 filename );
+				
+	if(retVal != 0)
+		retVal =  WritePrivateProfileString( "MERCHANT_INTEGRITY_MC",
+											 category_rc,
+											 (char *)response_codes,
+											 filename );
+	
+	if(retVal != 0 && strlen(sic_struct.refresh_date) > 0)
+		retVal =  WritePrivateProfileString( "MERCHANT_INTEGRITY_MC",
+											 "LAST_DATE",
+											 (char *)sys_current_date,
+											 filename );
+	
+	//WritePrivateProfileString returns '1' for success writing to config file
+	//'0' for error case				
+	if(retVal != 0)
+		return PTEMSG_OK;
+	
+	return PTEMSG_NOT_FOUND;
+}
+/*******************************MC DB functions - END**************************************/
+
+
+/*******************************MC MAC DB functions - START**************************************/
+BYTE db_delete_merchant_advice_code_records(char *ErrMsg)
+{   
+	EXEC SQL DELETE
+	FROM merchant_integrity_param
+	WHERE (card_nbr LIKE :macCardNbrStartsWith OR 
+		   card_nbr LIKE :macCardNbrStartsWith2) AND
+	  	  category_cd = :macCatCode			     AND
+		  ((c1_block_end_date <= :macEndDate AND c1_block = :enabled) OR
+		   (c2_block_end_date <= :macEndDate AND c2_block = :enabled));//discussion required
+
+	if ( SQLCODE != 0 && SQLCODE != NO_DATA_FOUND )
+	{
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		mparam_log_message(2, 3, ErrorMsg, " db_delete_merchant_advice_code_records");
+		return DB_rcode;
+	}
+	else if ( SQLCODE == NO_DATA_FOUND)
+	{
+		mparam_log_message(2, 1, "No MC MAC records found for unblock", " db_delete_merchant_advice_code_records");
+		return PTEMSG_NOT_FOUND;
+	}
+	
+	return PTEMSG_OK;
+	
+}
+
+/*******************************MC MAC DB functions - END**************************************/

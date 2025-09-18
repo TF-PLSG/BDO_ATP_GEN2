@@ -1,0 +1,1923 @@
+/******************************************************************************
+  
+   Module:           settledb.pc
+  
+   Title:            Settle_mp file DB Routines
+  
+   Description:
+   
+   Application:      Equitable Bank
+
+   Authour:          Emilia P.
+
+   Revision History: 1.0
+ 
+******************************************************************************/
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#ifdef WIN32
+#include <sqlproto.h>
+#endif
+
+#include <math.h>
+#include <time.h>
+#include <sys/timeb.h>
+
+#include "basictyp.h"
+#include "pte.h"
+#include "ptemsg.h"
+#include "app_info.h"
+#include "equitdb.h"
+#include "dc_dbstruct.h"
+#include "dc_database.h"
+#include "ptetimer.h"
+#include "dbcommon.h"
+#include "txutils.h"
+#include "ptetime.h"
+#include "ntutils.h"
+#include "settle.h"
+#include "timings.h"
+
+/* Oracle error codes */
+#define NULL_COLUMN_DATA -1405
+#define NO_DATA_FOUND    1403
+
+BCH01_MP  auth_tx_total;
+extern BCH10 auth_tx_detail;         
+
+/* Globals used in the Exception File processing = records over 45 days old */
+extern INT   TempExRecCnt;
+extern INT   ExceptRecCnt;
+extern INT   ExceptError;
+extern CHAR  ExceptDate[9];
+extern CHAR  CurrentDate[9];
+extern BYTE LocalCopy_Batch_status[2];
+
+/* Database Timing Measurements */
+extern TIMINGS_LIST  TimingStats;
+extern INT           DB_Timing_Flag;
+
+/* For DB statics added by raghu */
+extern BYTE DB_MsgSubtype2 ;
+extern BYTE DB_MsgSubtype1 ;
+char DB_Tmr_Lgng_Buf[512];
+double start_time;
+double end_time  ;
+double duration  ; 
+extern INT db_error_statics_flag;
+extern double db_error_statics_value;
+char er_buf[512];
+BYTE DB_rcode;
+extern CHAR  DB_Logging_Filename[256];
+extern CHAR  DB_module_file_name[256];
+extern CHAR  DB_file_path[256];
+/* End   */
+
+
+EXEC SQL INCLUDE sqlca;
+
+EXEC SQL BEGIN DECLARE SECTION;
+
+
+/* error code variable */
+long    SQLCODE;
+long    SQL_CODE;
+
+struct
+{
+   char  device_id                                 [9];
+   char  batch_nbr                                 [7];
+ 
+   char  merchant_id                               [16];
+   char  total_credit_cnt                          [5];
+   char  total_credit_amt                          [13];
+   char  total_credit_refund_cnt                   [5];
+   char  total_credit_refund_amt                   [13];
+   char  total_debit_cnt                           [5];
+   char  total_debit_amt                           [13];
+   char  total_debit_refund_cnt                    [5];
+   char  total_debit_refund_amt                    [13];
+   char  total_void_credit_cnt                     [5];
+   char  total_void_credit_amt                     [13];
+   char  total_void_credit_refund_cnt              [5];
+   char  total_void_credit_refund_amt              [13];
+   char  open_date                                 [9];
+   char  open_time                                 [7];
+   char  release_date                              [9];
+   char  release_time                              [7];
+   char  batch_status                              [2]; /*R-released;C-closed;A-active*/
+   char  visa_merchant_id                          [16];
+
+}pte_bch01_mp;
+
+struct
+{
+   varchar  device_id                              [9];
+   varchar  batch_nbr                              [7];
+
+   varchar  merchant_id                            [16];
+   varchar  total_credit_cnt                       [5];
+   varchar  total_credit_amt                       [13];
+   varchar  total_credit_refund_cnt                [5];
+   varchar  total_credit_refund_amt                [13];
+   varchar  total_debit_cnt                        [5];
+   varchar  total_debit_amt                        [13];
+   varchar  total_debit_refund_cnt                 [5];
+   varchar  total_debit_refund_amt                 [13];
+   varchar  total_void_credit_cnt                  [5];
+   varchar  total_void_credit_amt                  [13];
+   varchar  total_void_credit_refund_cnt           [5];
+   varchar  total_void_credit_refund_amt           [13];
+   varchar  open_date                              [9];
+   varchar  open_time                              [7];
+   varchar  release_date                           [9];
+   varchar  release_time                           [7];
+   varchar  batch_status                           [2]; /*R-released;C-closed;A-active*/
+   varchar  visa_merchant_id                       [16];
+
+}db_bch01_mp;
+
+struct
+{
+   varchar  device_id                              [9];
+   varchar  batch_nbr                              [7];
+   varchar  retrieval_ref_num                      [13];
+
+   varchar  merchant_id                            [16];
+   varchar  processing_code                        [7];
+   varchar  tran_amount                            [13];
+   varchar  response_code                          [3];
+   varchar  auth_number                            [7];
+   varchar  tran_date                              [9];
+   varchar  tran_time                              [7];
+   varchar  transaction_id                         [21];
+   varchar  message_type                           [5];
+   varchar  card_nbr                               [20];
+   varchar  invoice_nbr                            [9];
+   varchar  settle_file_prefix                     [7];
+   varchar  product_code                           [9];
+   varchar  odometer                               [7];
+   varchar  sys_trace_audit_num                    [7];
+   varchar  tx_key                                 [1];
+   varchar  bin_type                               [1];
+   varchar  type_of_data                           [3];
+   varchar  down_payment                           [13];
+   varchar  period                                 [3];
+   varchar  interest_rate                          [5];
+   varchar  total_interest                         [13];
+   varchar  redemption_amount                      [13];
+   varchar  vehicle_number                         [9];
+   varchar  pos_entry_mode                         [5];
+   varchar  profile                                [3];
+   varchar  nbr_of_prod_codes                      [3];
+   varchar  product1_code                          [7];
+   varchar  product1_quantity                      [3];
+   varchar  product1_amount                        [13];
+   varchar  product2_code                          [7];
+   varchar  product2_quantity                      [3];
+   varchar  product2_amount                        [13];
+   varchar  product3_code                          [7];
+   varchar  product3_quantity                      [3];
+   varchar  product3_amount                        [13];
+   varchar  product4_code                          [7];
+   varchar  product4_quantity                      [3];
+   varchar  product4_amount                        [13];
+   varchar  product5_code                          [7];
+   varchar  product5_quantity                      [3];
+   varchar  product5_amount                        [13];
+   varchar  product6_code                          [7];
+   varchar  product6_quantity                      [3];
+   varchar  product6_amount                        [13];
+   varchar  product7_code                          [7];
+   varchar  product7_quantity                      [3];
+   varchar  product7_amount                        [13];
+   varchar  product8_code                          [7];
+   varchar  product8_quantity                      [3];
+   varchar  product8_amount                        [13];
+   varchar  product9_code                          [7];
+   varchar  product9_quantity                      [3];
+   varchar  product9_amount                        [13];
+   varchar  product10_code                         [7];
+   varchar  product10_quantity                     [3];
+   varchar  product10_amount                       [13];
+   varchar  product11_code                         [7];
+   varchar  product11_quantity                     [3];
+   varchar  product11_amount                       [13];
+   varchar  product12_code                         [7];
+   varchar  product12_quantity                     [3];
+   varchar  product12_amount                       [13];
+   varchar  product13_code                         [7];
+   varchar  product13_quantity                     [3];
+   varchar  product13_amount                       [13];
+   varchar  product14_code                         [7];
+   varchar  product14_quantity                     [3];
+   varchar  product14_amount                       [13];
+   varchar  product15_code                         [7];
+   varchar  product15_quantity                     [3];
+   varchar  product15_amount                       [13];
+   varchar  product16_code                         [7];
+   varchar  product16_quantity                     [3];
+   varchar  product16_amount                       [13];
+   varchar  product17_code                         [7];
+   varchar  product17_quantity                     [3];
+   varchar  product17_amount                       [13];
+   varchar  product18_code                         [7];
+   varchar  product18_quantity                     [3];
+   varchar  product18_amount                       [13];
+   varchar  product19_code                         [7];
+   varchar  product19_quantity                     [3];
+   varchar  product19_amount                       [13];
+   varchar  product20_code                         [7];
+   varchar  product20_quantity                     [3];
+   varchar  product20_amount                       [13];
+   varchar  aportionment_flag                      [2];
+   varchar  exp_date                               [5];
+   varchar  open_date                              [9];
+   varchar  open_time                              [7];
+   varchar  cash_bonus                             [2];
+   varchar  transmission_timestamp                 [11];
+   varchar  mcard_banknet                          [51];
+   varchar  ticket_nbr                             [16];
+   varchar  def_gross_amt                          [13];
+   varchar  term                                   [4];
+
+}db_bch10;
+
+struct
+{
+   varchar  device_id                              [9];
+   varchar  batch_nbr                              [7];
+   varchar  retrieval_ref_num                      [13];
+
+   varchar  merchant_id                            [16];
+   varchar  processing_code                        [7];
+   varchar  tran_amount                            [13];
+   varchar  response_code                          [3];
+   varchar  auth_number                            [7];
+   varchar  tran_date                              [9];
+   varchar  tran_time                              [7];
+   varchar  transaction_id                         [21];
+   varchar  message_type                           [5];
+   varchar  card_nbr                               [20];
+   varchar  invoice_nbr                            [9];
+   varchar  settle_file_prefix                     [7];
+   varchar  product_code                           [9];
+   varchar  odometer                               [7];
+   varchar  sys_trace_audit_num                    [7];
+   varchar  tx_key                                 [1];
+   varchar  bin_type                               [1];
+   varchar  type_of_data                           [3];
+   varchar  down_payment                           [13];
+   varchar  period                                 [3];
+   varchar  interest_rate                          [5];
+   varchar  total_interest                         [13];
+   varchar  redemption_amount                      [13];
+   varchar  vehicle_number                         [9];
+   varchar  pos_entry_mode                         [5];
+   varchar  profile                                [3];
+   varchar  nbr_of_prod_codes                      [3];
+   varchar  product1_code                          [7];
+   varchar  product1_quantity                      [3];
+   varchar  product1_amount                        [13];
+   varchar  product2_code                          [7];
+   varchar  product2_quantity                      [3];
+   varchar  product2_amount                        [13];
+   varchar  product3_code                          [7];
+   varchar  product3_quantity                      [3];
+   varchar  product3_amount                        [13];
+   varchar  product4_code                          [7];
+   varchar  product4_quantity                      [3];
+   varchar  product4_amount                        [13];
+   varchar  product5_code                          [7];
+   varchar  product5_quantity                      [3];
+   varchar  product5_amount                        [13];
+   varchar  product6_code                          [7];
+   varchar  product6_quantity                      [3];
+   varchar  product6_amount                        [13];
+   varchar  product7_code                          [7];
+   varchar  product7_quantity                      [3];
+   varchar  product7_amount                        [13];
+   varchar  product8_code                          [7];
+   varchar  product8_quantity                      [3];
+   varchar  product8_amount                        [13];
+   varchar  product9_code                          [7];
+   varchar  product9_quantity                      [3];
+   varchar  product9_amount                        [13];
+   varchar  product10_code                         [7];
+   varchar  product10_quantity                     [3];
+   varchar  product10_amount                       [13];
+   varchar  product11_code                         [7];
+   varchar  product11_quantity                     [3];
+   varchar  product11_amount                       [13];
+   varchar  product12_code                         [7];
+   varchar  product12_quantity                     [3];
+   varchar  product12_amount                       [13];
+   varchar  product13_code                         [7];
+   varchar  product13_quantity                     [3];
+   varchar  product13_amount                       [13];
+   varchar  product14_code                         [7];
+   varchar  product14_quantity                     [3];
+   varchar  product14_amount                       [13];
+   varchar  product15_code                         [7];
+   varchar  product15_quantity                     [3];
+   varchar  product15_amount                       [13];
+   varchar  product16_code                         [7];
+   varchar  product16_quantity                     [3];
+   varchar  product16_amount                       [13];
+   varchar  product17_code                         [7];
+   varchar  product17_quantity                     [3];
+   varchar  product17_amount                       [13];
+   varchar  product18_code                         [7];
+   varchar  product18_quantity                     [3];
+   varchar  product18_amount                       [13];
+   varchar  product19_code                         [7];
+   varchar  product19_quantity                     [3];
+   varchar  product19_amount                       [13];
+   varchar  product20_code                         [7];
+   varchar  product20_quantity                     [3];
+   varchar  product20_amount                       [13];
+   varchar  aportionment_flag                      [2];
+   varchar  exp_date                               [5];
+   varchar  open_date                              [9];
+   varchar  open_time                              [7];
+   varchar  cash_bonus                             [2];
+   varchar  transmission_timestamp                 [11];
+   varchar  mcard_banknet                          [51];
+   varchar  ticket_nbr                             [16];  
+   varchar  def_gross_amt                          [13];
+   varchar  term                                   [4];
+
+}db_bch11;
+
+struct
+{
+   char  device_id                                 [9];
+   char  short_name                                [10];
+   char  phone                                     [18];
+   char  industry_code                             [4];
+   char  category_code                             [5];
+   char  contact                                   [21];
+   char  device_type                               [3];
+   char  date_added                                [9];
+   char  current_bus_date                          [9];
+   char  dept_nbr                                  [3];
+   char  organization_id                           [5];
+   char  merchant_id                               [16];
+   char  aba_nbr                                   [10];
+   char  status                                    [2];
+   char  totals_ind                                [2];
+   char  statistics_ind                            [2];
+   char  valid_transactions                        [41]; /* 8583 table 'Y' or 'N' */
+   char  draft_capture_type                        [2];
+   char  amex_charge_desc                          [24];
+   char  diners_charge_desc                        [24];
+   char  additional_pos_information                [7];
+   char  batch_nbr                                 [7];
+   char  rental_program                            [4];
+   char  nsp_process                               [16];
+   char  pin_type                                  [2];
+   char  kc                                        [17];
+   char  encr_type                                 [2];
+   char  pad_char                                  [2];
+   char  keyxchange_cnt                            [4];
+   char  txn_cnt                                   [4];
+   char  cwk                                       [49];
+   char  kek                                       [17];
+   char  retired_cwk                               [49];
+   char  icv                                       [17];
+
+   char  pin_block_format                          [2];
+   char  encryption_method                         [2];
+   char  pin_key                                   [17];
+   char  communication_key                         [17];
+
+   char  auto_init_activation                      [2];
+   char  auto_init_time                            [6];
+   char  auto_init_ref_number                      [7];
+   char  auto_program_load_activation              [2];
+   char  auto_program_load_time                    [6];
+   char  auto_program_load_ref_number              [7];
+   char  auto_icepac_activation                    [2];
+
+}pte_dcf01;
+
+struct 
+{
+   char  minimum_amount                            [13];
+   char  program_start_date                        [8];
+   char  program_end_date                          [8];
+   char  transaction_threshold                     [8];
+   char  transaction_counter                       [8];
+   char  maximum_reward                            [13];
+   char  response_message                          [41];
+
+}pte_bon01;
+
+
+struct
+{
+   char transaction_id       [21];
+   char cash_id              [21];
+   char tag_id               [2];
+   char program_start_date   [9];
+   char program_end_date     [9];
+   char card_nbr             [20];
+   char merchant_id          [16];
+   char terminal_id          [9];
+   char auth_number          [7];
+   char tran_date            [9];
+   char tran_time            [7];
+   char reward_amount        [13];
+   char tran_amount          [13];
+   char resp_text            [121];
+   char system_date          [9];
+   char invoice_number       [9];
+   char retrieval_ref_num    [13];
+   char card_holder_name     [31];
+
+}pte_bon03;
+
+struct
+{
+   varchar transaction_id       [21];
+   varchar cash_id              [21];
+   varchar tag_id               [2];
+   varchar program_start_date   [9];
+   varchar program_end_date     [9];
+   varchar card_nbr             [20];
+   varchar merchant_id          [16];
+   varchar terminal_id          [9];
+   varchar auth_number          [7];
+   varchar tran_date            [9];
+   varchar tran_time            [7];
+   varchar reward_amount        [13];
+   varchar tran_amount          [13];
+   varchar resp_text            [121];
+   varchar system_date          [9];
+   varchar invoice_number       [9];
+   varchar retrieval_ref_num    [13];
+   varchar card_holder_name     [31];
+
+}db_bon03;
+
+EXEC SQL END DECLARE SECTION;
+
+
+/*************************************************************************************/
+void bon03_to_db( pBON03 bon03_ptr )
+{
+   memcpy( &pte_bon03, bon03_ptr, sizeof(pte_bon03) );
+}
+
+/*************************************************************************************/
+/*************************************************************************************/
+void db_to_bon03( pBON03 bon03_ptr )
+{
+   memset( bon03_ptr, 0x00, sizeof(BON03) );
+   memcpy( bon03_ptr->transaction_id,     db_bon03.transaction_id.arr,     db_bon03.transaction_id.len    );
+   memcpy( bon03_ptr->cash_id,            db_bon03.cash_id.arr,            db_bon03.cash_id.len           );
+   memcpy( bon03_ptr->tag_id,             db_bon03.tag_id.arr,             db_bon03.tag_id.len            );
+   memcpy( bon03_ptr->program_start_date, db_bon03.program_start_date.arr, db_bon03.program_start_date.len);
+   memcpy( bon03_ptr->program_end_date,   db_bon03.program_end_date.arr,   db_bon03.program_end_date.len  );
+   memcpy( bon03_ptr->card_nbr,           db_bon03.card_nbr.arr,           db_bon03.card_nbr.len          );
+   memcpy( bon03_ptr->merchant_id,        db_bon03.merchant_id.arr,        db_bon03.merchant_id.len       );
+   memcpy( bon03_ptr->terminal_id,        db_bon03.terminal_id.arr,        db_bon03.terminal_id.len       );
+   memcpy( bon03_ptr->auth_number,        db_bon03.auth_number.arr,        db_bon03.auth_number.len       );
+   memcpy( bon03_ptr->tran_date,          db_bon03.tran_date.arr,          db_bon03.tran_date.len         );
+   memcpy( bon03_ptr->tran_time,          db_bon03.tran_time.arr,          db_bon03.tran_time.len         );
+   memcpy( bon03_ptr->reward_amount,      db_bon03.reward_amount.arr,      db_bon03.reward_amount.len     );
+   memcpy( bon03_ptr->tran_amount,        db_bon03.tran_amount.arr,        db_bon03.tran_amount.len       );
+   memcpy( bon03_ptr->resp_text,          db_bon03.resp_text.arr,          db_bon03.resp_text.len         );
+   memcpy( bon03_ptr->system_date,        db_bon03.system_date.arr,        db_bon03.system_date.len       );
+   memcpy( bon03_ptr->invoice_number,     db_bon03.invoice_number.arr,     db_bon03.invoice_number.len    );
+   memcpy( bon03_ptr->retrieval_ref_num,  db_bon03.retrieval_ref_num.arr,  db_bon03.retrieval_ref_num.len );
+   memcpy( bon03_ptr->card_holder_name,   db_bon03.card_holder_name.arr,   db_bon03.card_holder_name.len  );
+}
+
+
+/*************************************************************************************/
+void bch01_mp_to_db( pBCH01_MP bch01_mp_ptr )
+{
+   memcpy (&pte_bch01_mp, bch01_mp_ptr, sizeof(pte_bch01_mp));
+}
+
+/*************************************************************************************/
+/*************************************************************************************/
+void db_to_bch01_mp ( pBCH01_MP bch01_mp_ptr)
+{
+	memset(bch01_mp_ptr, 0, sizeof(BCH01_MP));
+	memcpy(bch01_mp_ptr->primary_key.device_id, db_bch01_mp.device_id.arr, db_bch01_mp.device_id.len);
+	memcpy(bch01_mp_ptr->primary_key.batch_nbr, db_bch01_mp.batch_nbr.arr, db_bch01_mp.batch_nbr.len);
+
+	memcpy(bch01_mp_ptr->merchant_id, db_bch01_mp.merchant_id.arr, db_bch01_mp.merchant_id.len);
+	memcpy(bch01_mp_ptr->batch_status, db_bch01_mp.batch_status.arr, db_bch01_mp.batch_status.len);
+	memcpy(bch01_mp_ptr->total_credit_cnt, db_bch01_mp.total_credit_cnt.arr, db_bch01_mp.total_credit_cnt.len);
+	memcpy(bch01_mp_ptr->total_credit_amt, db_bch01_mp.total_credit_amt.arr, db_bch01_mp.total_credit_amt.len);
+	memcpy(bch01_mp_ptr->total_credit_refund_cnt, db_bch01_mp.total_credit_refund_cnt.arr, db_bch01_mp.total_credit_refund_cnt.len);
+	memcpy(bch01_mp_ptr->total_credit_refund_amt, db_bch01_mp.total_credit_refund_amt.arr, db_bch01_mp.total_credit_refund_amt.len);
+	memcpy(bch01_mp_ptr->total_debit_cnt, db_bch01_mp.total_debit_cnt.arr, db_bch01_mp.total_debit_cnt.len);
+	memcpy(bch01_mp_ptr->total_debit_amt, db_bch01_mp.total_debit_amt.arr, db_bch01_mp.total_debit_amt.len);
+	memcpy(bch01_mp_ptr->total_debit_refund_cnt, db_bch01_mp.total_debit_refund_cnt.arr, db_bch01_mp.total_debit_refund_cnt.len);
+	memcpy(bch01_mp_ptr->total_debit_refund_amt, db_bch01_mp.total_debit_refund_amt.arr, db_bch01_mp.total_debit_refund_amt.len);
+	memcpy(bch01_mp_ptr->total_void_credit_cnt, db_bch01_mp.total_void_credit_cnt.arr, db_bch01_mp.total_void_credit_cnt.len);
+	memcpy(bch01_mp_ptr->total_void_credit_amt, db_bch01_mp.total_void_credit_amt.arr, db_bch01_mp.total_void_credit_amt.len);
+	memcpy(bch01_mp_ptr->total_void_credit_refund_cnt, db_bch01_mp.total_void_credit_refund_cnt.arr, db_bch01_mp.total_void_credit_refund_cnt.len);
+	memcpy(bch01_mp_ptr->total_void_credit_refund_amt, db_bch01_mp.total_void_credit_refund_amt.arr, db_bch01_mp.total_void_credit_refund_amt.len);
+	memcpy(bch01_mp_ptr->open_date, db_bch01_mp.open_date.arr, db_bch01_mp.open_date.len);
+	memcpy(bch01_mp_ptr->open_time, db_bch01_mp.open_time.arr, db_bch01_mp.open_time.len);
+	memcpy(bch01_mp_ptr->release_date, db_bch01_mp.release_date.arr, db_bch01_mp.release_date.len);
+	memcpy(bch01_mp_ptr->release_time, db_bch01_mp.release_time.arr, db_bch01_mp.release_time.len);
+	memcpy(bch01_mp_ptr->visa_merchant_id, db_bch01_mp.visa_merchant_id.arr, db_bch01_mp.visa_merchant_id.len);
+}
+
+/*************************************************************************************/
+/*************************************************************************************/
+void db_to_bch10 ( pBCH10 bch10_ptr)
+{
+   memset(bch10_ptr, 0, sizeof(BCH10));
+   memcpy(bch10_ptr->primary_key.device_id, db_bch10.device_id.arr, db_bch10.device_id.len);
+   memcpy(bch10_ptr->primary_key.batch_nbr, db_bch10.batch_nbr.arr, db_bch10.batch_nbr.len);
+   memcpy(bch10_ptr->primary_key.retrieval_ref_num, db_bch10.retrieval_ref_num.arr, db_bch10.retrieval_ref_num.len);
+   memcpy(bch10_ptr->merchant_id, db_bch10.merchant_id.arr, db_bch10.merchant_id.len);
+   memcpy(bch10_ptr->processing_code, db_bch10.processing_code.arr, db_bch10.processing_code.len);
+   memcpy(bch10_ptr->tran_amount, db_bch10.tran_amount.arr, db_bch10.tran_amount.len);
+   memcpy(bch10_ptr->response_code, db_bch10.response_code.arr, db_bch10.response_code.len);
+   memcpy(bch10_ptr->auth_number, db_bch10.auth_number.arr, db_bch10.auth_number.len);
+   memcpy(bch10_ptr->tran_date, db_bch10.tran_date.arr, db_bch10.tran_date.len);
+   memcpy(bch10_ptr->tran_time, db_bch10.tran_time.arr, db_bch10.tran_time.len);
+   memcpy(bch10_ptr->transaction_id, db_bch10.transaction_id.arr, db_bch10.transaction_id.len);
+   memcpy(bch10_ptr->message_type, db_bch10.message_type.arr, db_bch10.message_type.len);
+   memcpy(bch10_ptr->card_nbr, db_bch10.card_nbr.arr, db_bch10.card_nbr.len);
+   memcpy(bch10_ptr->invoice_nbr, db_bch10.invoice_nbr.arr, db_bch10.invoice_nbr.len);
+   memcpy(bch10_ptr->settle_file_prefix, db_bch10.settle_file_prefix.arr, db_bch10.settle_file_prefix.len);
+   memcpy(bch10_ptr->product_code, db_bch10.product_code.arr, db_bch10.product_code.len);
+   memcpy(bch10_ptr->odometer, db_bch10.odometer.arr, db_bch10.odometer.len);
+   memcpy(bch10_ptr->sys_trace_audit_num, db_bch10.sys_trace_audit_num.arr, db_bch10.sys_trace_audit_num.len);
+   bch10_ptr->tx_key = db_bch10.tx_key.arr[0];
+   bch10_ptr->bin_type = db_bch10.bin_type.arr[0];
+
+   memcpy(bch10_ptr->type_of_data, db_bch10.type_of_data.arr, db_bch10.type_of_data.len);
+   memcpy(bch10_ptr->down_payment, db_bch10.down_payment.arr, db_bch10.down_payment.len);
+   memcpy(bch10_ptr->period, db_bch10.period.arr, db_bch10.period.len);
+   memcpy(bch10_ptr->interest_rate, db_bch10.interest_rate.arr, db_bch10.interest_rate.len);
+   memcpy(bch10_ptr->total_interest, db_bch10.total_interest.arr, db_bch10.total_interest.len);
+   memcpy(bch10_ptr->redemption_amount, db_bch10.redemption_amount.arr, db_bch10.redemption_amount.len);
+   memcpy(bch10_ptr->vehicle_number, db_bch10.vehicle_number.arr, db_bch10.vehicle_number.len);
+   memcpy(bch10_ptr->pos_entry_mode, db_bch10.pos_entry_mode.arr, db_bch10.pos_entry_mode.len);
+   memcpy(bch10_ptr->profile, db_bch10.profile.arr, db_bch10.profile.len);
+   memcpy(bch10_ptr->nbr_of_prod_codes, db_bch10.nbr_of_prod_codes.arr, db_bch10.nbr_of_prod_codes.len);
+  
+   memcpy(bch10_ptr->product_codes[0].code, db_bch10.product1_code.arr, db_bch10.product1_code.len);
+   memcpy(bch10_ptr->product_codes[0].quantity, db_bch10.product1_quantity.arr, db_bch10.product1_quantity.len);
+   memcpy(bch10_ptr->product_codes[0].amount, db_bch10.product1_amount.arr, db_bch10.product1_amount.len);   
+   memcpy(bch10_ptr->product_codes[1].code, db_bch10.product2_code.arr, db_bch10.product2_code.len);
+   memcpy(bch10_ptr->product_codes[1].quantity, db_bch10.product2_quantity.arr, db_bch10.product2_quantity.len);
+   memcpy(bch10_ptr->product_codes[1].amount, db_bch10.product2_amount.arr, db_bch10.product2_amount.len);
+   memcpy(bch10_ptr->product_codes[2].code, db_bch10.product3_code.arr, db_bch10.product3_code.len);
+   memcpy(bch10_ptr->product_codes[2].quantity, db_bch10.product3_quantity.arr, db_bch10.product3_quantity.len);
+   memcpy(bch10_ptr->product_codes[2].amount, db_bch10.product3_amount.arr, db_bch10.product3_amount.len);
+   memcpy(bch10_ptr->product_codes[3].code, db_bch10.product4_code.arr, db_bch10.product4_code.len);
+   memcpy(bch10_ptr->product_codes[3].quantity, db_bch10.product4_quantity.arr, db_bch10.product4_quantity.len);
+   memcpy(bch10_ptr->product_codes[3].amount, db_bch10.product4_amount.arr, db_bch10.product4_amount.len);
+   memcpy(bch10_ptr->product_codes[4].code, db_bch10.product5_code.arr, db_bch10.product5_code.len);
+   memcpy(bch10_ptr->product_codes[4].quantity, db_bch10.product5_quantity.arr, db_bch10.product5_quantity.len);
+   memcpy(bch10_ptr->product_codes[4].amount, db_bch10.product5_amount.arr, db_bch10.product5_amount.len);
+   memcpy(bch10_ptr->product_codes[5].code, db_bch10.product6_code.arr, db_bch10.product6_code.len);
+   memcpy(bch10_ptr->product_codes[5].quantity, db_bch10.product6_quantity.arr, db_bch10.product6_quantity.len);
+   memcpy(bch10_ptr->product_codes[5].amount, db_bch10.product6_amount.arr, db_bch10.product6_amount.len);
+   memcpy(bch10_ptr->product_codes[6].code, db_bch10.product7_code.arr, db_bch10.product7_code.len);
+   memcpy(bch10_ptr->product_codes[6].quantity, db_bch10.product7_quantity.arr, db_bch10.product7_quantity.len);
+   memcpy(bch10_ptr->product_codes[6].amount, db_bch10.product7_amount.arr, db_bch10.product7_amount.len);
+   memcpy(bch10_ptr->product_codes[7].code, db_bch10.product8_code.arr, db_bch10.product8_code.len);
+   memcpy(bch10_ptr->product_codes[7].quantity, db_bch10.product8_quantity.arr, db_bch10.product8_quantity.len);
+   memcpy(bch10_ptr->product_codes[7].amount, db_bch10.product8_amount.arr, db_bch10.product8_amount.len);
+   memcpy(bch10_ptr->product_codes[8].code, db_bch10.product9_code.arr, db_bch10.product9_code.len);
+   memcpy(bch10_ptr->product_codes[8].quantity, db_bch10.product9_quantity.arr, db_bch10.product9_quantity.len);
+   memcpy(bch10_ptr->product_codes[8].amount, db_bch10.product9_amount.arr, db_bch10.product9_amount.len);
+   memcpy(bch10_ptr->product_codes[9].code, db_bch10.product10_code.arr, db_bch10.product10_code.len);
+   memcpy(bch10_ptr->product_codes[9].quantity, db_bch10.product10_quantity.arr, db_bch10.product10_quantity.len);
+   memcpy(bch10_ptr->product_codes[9].amount, db_bch10.product10_amount.arr, db_bch10.product10_amount.len);
+   memcpy(bch10_ptr->product_codes[10].code, db_bch10.product11_code.arr, db_bch10.product11_code.len);
+   memcpy(bch10_ptr->product_codes[10].quantity, db_bch10.product11_quantity.arr, db_bch10.product11_quantity.len);
+   memcpy(bch10_ptr->product_codes[10].amount, db_bch10.product11_amount.arr, db_bch10.product11_amount.len);
+   memcpy(bch10_ptr->product_codes[11].code, db_bch10.product12_code.arr, db_bch10.product12_code.len);
+   memcpy(bch10_ptr->product_codes[11].quantity, db_bch10.product12_quantity.arr, db_bch10.product12_quantity.len);
+   memcpy(bch10_ptr->product_codes[11].amount, db_bch10.product12_amount.arr, db_bch10.product12_amount.len);
+   memcpy(bch10_ptr->product_codes[12].code, db_bch10.product13_code.arr, db_bch10.product13_code.len);
+   memcpy(bch10_ptr->product_codes[12].quantity, db_bch10.product13_quantity.arr, db_bch10.product13_quantity.len);
+   memcpy(bch10_ptr->product_codes[12].amount, db_bch10.product13_amount.arr, db_bch10.product13_amount.len);
+   memcpy(bch10_ptr->product_codes[13].code, db_bch10.product14_code.arr, db_bch10.product14_code.len);
+   memcpy(bch10_ptr->product_codes[13].quantity, db_bch10.product14_quantity.arr, db_bch10.product14_quantity.len);
+   memcpy(bch10_ptr->product_codes[13].amount, db_bch10.product14_amount.arr, db_bch10.product14_amount.len);
+   memcpy(bch10_ptr->product_codes[14].code, db_bch10.product15_code.arr, db_bch10.product15_code.len);
+   memcpy(bch10_ptr->product_codes[14].quantity, db_bch10.product15_quantity.arr, db_bch10.product15_quantity.len);
+   memcpy(bch10_ptr->product_codes[14].amount, db_bch10.product15_amount.arr, db_bch10.product15_amount.len);
+   memcpy(bch10_ptr->product_codes[15].code, db_bch10.product16_code.arr, db_bch10.product16_code.len);
+   memcpy(bch10_ptr->product_codes[15].quantity, db_bch10.product16_quantity.arr, db_bch10.product16_quantity.len);
+   memcpy(bch10_ptr->product_codes[15].amount, db_bch10.product16_amount.arr, db_bch10.product16_amount.len);
+   memcpy(bch10_ptr->product_codes[16].code, db_bch10.product17_code.arr, db_bch10.product17_code.len);
+   memcpy(bch10_ptr->product_codes[16].quantity, db_bch10.product17_quantity.arr, db_bch10.product17_quantity.len);
+   memcpy(bch10_ptr->product_codes[16].amount, db_bch10.product17_amount.arr, db_bch10.product17_amount.len);
+   memcpy(bch10_ptr->product_codes[17].code, db_bch10.product18_code.arr, db_bch10.product18_code.len);
+   memcpy(bch10_ptr->product_codes[17].quantity, db_bch10.product18_quantity.arr, db_bch10.product18_quantity.len);
+   memcpy(bch10_ptr->product_codes[17].amount, db_bch10.product18_amount.arr, db_bch10.product18_amount.len);
+   memcpy(bch10_ptr->product_codes[18].code, db_bch10.product19_code.arr, db_bch10.product19_code.len);
+   memcpy(bch10_ptr->product_codes[18].quantity, db_bch10.product19_quantity.arr, db_bch10.product19_quantity.len);
+   memcpy(bch10_ptr->product_codes[18].amount, db_bch10.product19_amount.arr, db_bch10.product19_amount.len);
+   memcpy(bch10_ptr->product_codes[19].code, db_bch10.product20_code.arr, db_bch10.product20_code.len);
+   memcpy(bch10_ptr->product_codes[19].quantity, db_bch10.product20_quantity.arr, db_bch10.product20_quantity.len);
+   memcpy(bch10_ptr->product_codes[19].amount, db_bch10.product20_amount.arr, db_bch10.product20_amount.len);
+
+   memcpy(bch10_ptr->aportionment_flag, db_bch10.aportionment_flag.arr, db_bch10.aportionment_flag.len);
+   memcpy(bch10_ptr->exp_date, db_bch10.exp_date.arr, db_bch10.exp_date.len);
+   memcpy(bch10_ptr->open_date, db_bch10.open_date.arr, db_bch10.open_date.len);
+   memcpy(bch10_ptr->open_time, db_bch10.open_time.arr, db_bch10.open_time.len);
+   memcpy(bch10_ptr->cash_bonus, db_bch10.cash_bonus.arr, db_bch10.cash_bonus.len);
+   memcpy(bch10_ptr->transmission_timestamp,  db_bch10.transmission_timestamp.arr, db_bch10.transmission_timestamp.len);
+   memcpy(bch10_ptr->mcard_banknet, db_bch10.mcard_banknet.arr, db_bch10.mcard_banknet.len);
+   memcpy(bch10_ptr->ticket_nbr, db_bch10.ticket_nbr.arr, db_bch10.ticket_nbr.len);
+   memcpy(bch10_ptr->def_gross_amt, db_bch10.def_gross_amt.arr, db_bch10.def_gross_amt.len);
+   memcpy(bch10_ptr->term, db_bch10.term.arr, db_bch10.term.len);
+}
+
+/*************************************************************************************/
+void db_to_bch11 ( pBCH11 bch11_ptr)
+{
+   memset(bch11_ptr, 0, sizeof(BCH10));
+   memcpy(bch11_ptr->primary_key.device_id, db_bch11.device_id.arr, db_bch11.device_id.len);
+   memcpy(bch11_ptr->primary_key.batch_nbr, db_bch11.batch_nbr.arr, db_bch11.batch_nbr.len);
+   memcpy(bch11_ptr->primary_key.retrieval_ref_num, db_bch11.retrieval_ref_num.arr, db_bch11.retrieval_ref_num.len);
+   memcpy(bch11_ptr->merchant_id, db_bch11.merchant_id.arr, db_bch11.merchant_id.len);
+   memcpy(bch11_ptr->processing_code, db_bch11.processing_code.arr, db_bch11.processing_code.len);
+   memcpy(bch11_ptr->tran_amount, db_bch11.tran_amount.arr, db_bch11.tran_amount.len);
+   memcpy(bch11_ptr->response_code, db_bch11.response_code.arr, db_bch11.response_code.len);
+   memcpy(bch11_ptr->auth_number, db_bch11.auth_number.arr, db_bch11.auth_number.len);
+   memcpy(bch11_ptr->tran_date, db_bch11.tran_date.arr, db_bch11.tran_date.len);
+   memcpy(bch11_ptr->tran_time, db_bch11.tran_time.arr, db_bch11.tran_time.len);
+   memcpy(bch11_ptr->transaction_id, db_bch11.transaction_id.arr, db_bch11.transaction_id.len);
+   memcpy(bch11_ptr->message_type, db_bch11.message_type.arr, db_bch11.message_type.len);
+   memcpy(bch11_ptr->card_nbr, db_bch11.card_nbr.arr, db_bch11.card_nbr.len);
+   memcpy(bch11_ptr->invoice_nbr, db_bch11.invoice_nbr.arr, db_bch11.invoice_nbr.len);
+   memcpy(bch11_ptr->settle_file_prefix, db_bch11.settle_file_prefix.arr, db_bch11.settle_file_prefix.len);
+   memcpy(bch11_ptr->product_code, db_bch11.product_code.arr, db_bch11.product_code.len);
+   memcpy(bch11_ptr->odometer, db_bch11.odometer.arr, db_bch11.odometer.len);
+   memcpy(bch11_ptr->sys_trace_audit_num, db_bch11.sys_trace_audit_num.arr, db_bch11.sys_trace_audit_num.len);
+   bch11_ptr->tx_key = db_bch11.tx_key.arr[0];
+   bch11_ptr->bin_type = db_bch11.bin_type.arr[0];
+
+   memcpy(bch11_ptr->type_of_data, db_bch11.type_of_data.arr, db_bch11.type_of_data.len);
+   memcpy(bch11_ptr->down_payment, db_bch11.down_payment.arr, db_bch11.down_payment.len);
+   memcpy(bch11_ptr->period, db_bch11.period.arr, db_bch11.period.len);
+   memcpy(bch11_ptr->interest_rate, db_bch11.interest_rate.arr, db_bch11.interest_rate.len);
+   memcpy(bch11_ptr->total_interest, db_bch11.total_interest.arr, db_bch11.total_interest.len);
+   memcpy(bch11_ptr->redemption_amount, db_bch11.redemption_amount.arr, db_bch11.redemption_amount.len);
+   memcpy(bch11_ptr->vehicle_number, db_bch11.vehicle_number.arr, db_bch11.vehicle_number.len);
+   memcpy(bch11_ptr->pos_entry_mode, db_bch11.pos_entry_mode.arr, db_bch11.pos_entry_mode.len);
+   memcpy(bch11_ptr->profile, db_bch11.profile.arr, db_bch11.profile.len);
+   memcpy(bch11_ptr->nbr_of_prod_codes, db_bch11.nbr_of_prod_codes.arr, db_bch11.nbr_of_prod_codes.len);
+  
+   memcpy(bch11_ptr->product_codes[0].code, db_bch11.product1_code.arr, db_bch11.product1_code.len);
+   memcpy(bch11_ptr->product_codes[0].quantity, db_bch11.product1_quantity.arr, db_bch11.product1_quantity.len);
+   memcpy(bch11_ptr->product_codes[0].amount, db_bch11.product1_amount.arr, db_bch11.product1_amount.len);   
+   memcpy(bch11_ptr->product_codes[1].code, db_bch11.product2_code.arr, db_bch11.product2_code.len);
+   memcpy(bch11_ptr->product_codes[1].quantity, db_bch11.product2_quantity.arr, db_bch11.product2_quantity.len);
+   memcpy(bch11_ptr->product_codes[1].amount, db_bch11.product2_amount.arr, db_bch11.product2_amount.len);
+   memcpy(bch11_ptr->product_codes[2].code, db_bch11.product3_code.arr, db_bch11.product3_code.len);
+   memcpy(bch11_ptr->product_codes[2].quantity, db_bch11.product3_quantity.arr, db_bch11.product3_quantity.len);
+   memcpy(bch11_ptr->product_codes[2].amount, db_bch11.product3_amount.arr, db_bch11.product3_amount.len);
+   memcpy(bch11_ptr->product_codes[3].code, db_bch11.product4_code.arr, db_bch11.product4_code.len);
+   memcpy(bch11_ptr->product_codes[3].quantity, db_bch11.product4_quantity.arr, db_bch11.product4_quantity.len);
+   memcpy(bch11_ptr->product_codes[3].amount, db_bch11.product4_amount.arr, db_bch11.product4_amount.len);
+   memcpy(bch11_ptr->product_codes[4].code, db_bch11.product5_code.arr, db_bch11.product5_code.len);
+   memcpy(bch11_ptr->product_codes[4].quantity, db_bch11.product5_quantity.arr, db_bch11.product5_quantity.len);
+   memcpy(bch11_ptr->product_codes[4].amount, db_bch11.product5_amount.arr, db_bch11.product5_amount.len);
+   memcpy(bch11_ptr->product_codes[5].code, db_bch11.product6_code.arr, db_bch11.product6_code.len);
+   memcpy(bch11_ptr->product_codes[5].quantity, db_bch11.product6_quantity.arr, db_bch11.product6_quantity.len);
+   memcpy(bch11_ptr->product_codes[5].amount, db_bch11.product6_amount.arr, db_bch11.product6_amount.len);
+   memcpy(bch11_ptr->product_codes[6].code, db_bch11.product7_code.arr, db_bch11.product7_code.len);
+   memcpy(bch11_ptr->product_codes[6].quantity, db_bch11.product7_quantity.arr, db_bch11.product7_quantity.len);
+   memcpy(bch11_ptr->product_codes[6].amount, db_bch11.product7_amount.arr, db_bch11.product7_amount.len);
+   memcpy(bch11_ptr->product_codes[7].code, db_bch11.product8_code.arr, db_bch11.product8_code.len);
+   memcpy(bch11_ptr->product_codes[7].quantity, db_bch11.product8_quantity.arr, db_bch11.product8_quantity.len);
+   memcpy(bch11_ptr->product_codes[7].amount, db_bch11.product8_amount.arr, db_bch11.product8_amount.len);
+   memcpy(bch11_ptr->product_codes[8].code, db_bch11.product9_code.arr, db_bch11.product9_code.len);
+   memcpy(bch11_ptr->product_codes[8].quantity, db_bch11.product9_quantity.arr, db_bch11.product9_quantity.len);
+   memcpy(bch11_ptr->product_codes[8].amount, db_bch11.product9_amount.arr, db_bch11.product9_amount.len);
+   memcpy(bch11_ptr->product_codes[9].code, db_bch11.product10_code.arr, db_bch11.product10_code.len);
+   memcpy(bch11_ptr->product_codes[9].quantity, db_bch11.product10_quantity.arr, db_bch11.product10_quantity.len);
+   memcpy(bch11_ptr->product_codes[9].amount, db_bch11.product10_amount.arr, db_bch11.product10_amount.len);
+   memcpy(bch11_ptr->product_codes[10].code, db_bch11.product11_code.arr, db_bch11.product11_code.len);
+   memcpy(bch11_ptr->product_codes[10].quantity, db_bch11.product11_quantity.arr, db_bch11.product11_quantity.len);
+   memcpy(bch11_ptr->product_codes[10].amount, db_bch11.product11_amount.arr, db_bch11.product11_amount.len);
+   memcpy(bch11_ptr->product_codes[11].code, db_bch11.product12_code.arr, db_bch11.product12_code.len);
+   memcpy(bch11_ptr->product_codes[11].quantity, db_bch11.product12_quantity.arr, db_bch11.product12_quantity.len);
+   memcpy(bch11_ptr->product_codes[11].amount, db_bch11.product12_amount.arr, db_bch11.product12_amount.len);
+   memcpy(bch11_ptr->product_codes[12].code, db_bch11.product13_code.arr, db_bch11.product13_code.len);
+   memcpy(bch11_ptr->product_codes[12].quantity, db_bch11.product13_quantity.arr, db_bch11.product13_quantity.len);
+   memcpy(bch11_ptr->product_codes[12].amount, db_bch11.product13_amount.arr, db_bch11.product13_amount.len);
+   memcpy(bch11_ptr->product_codes[13].code, db_bch11.product14_code.arr, db_bch11.product14_code.len);
+   memcpy(bch11_ptr->product_codes[13].quantity, db_bch11.product14_quantity.arr, db_bch11.product14_quantity.len);
+   memcpy(bch11_ptr->product_codes[13].amount, db_bch11.product14_amount.arr, db_bch11.product14_amount.len);
+   memcpy(bch11_ptr->product_codes[14].code, db_bch11.product15_code.arr, db_bch11.product15_code.len);
+   memcpy(bch11_ptr->product_codes[14].quantity, db_bch11.product15_quantity.arr, db_bch11.product15_quantity.len);
+   memcpy(bch11_ptr->product_codes[14].amount, db_bch11.product15_amount.arr, db_bch11.product15_amount.len);
+   memcpy(bch11_ptr->product_codes[15].code, db_bch11.product16_code.arr, db_bch11.product16_code.len);
+   memcpy(bch11_ptr->product_codes[15].quantity, db_bch11.product16_quantity.arr, db_bch11.product16_quantity.len);
+   memcpy(bch11_ptr->product_codes[15].amount, db_bch11.product16_amount.arr, db_bch11.product16_amount.len);
+   memcpy(bch11_ptr->product_codes[16].code, db_bch11.product17_code.arr, db_bch11.product17_code.len);
+   memcpy(bch11_ptr->product_codes[16].quantity, db_bch11.product17_quantity.arr, db_bch11.product17_quantity.len);
+   memcpy(bch11_ptr->product_codes[16].amount, db_bch11.product17_amount.arr, db_bch11.product17_amount.len);
+   memcpy(bch11_ptr->product_codes[17].code, db_bch11.product18_code.arr, db_bch11.product18_code.len);
+   memcpy(bch11_ptr->product_codes[17].quantity, db_bch11.product18_quantity.arr, db_bch11.product18_quantity.len);
+   memcpy(bch11_ptr->product_codes[17].amount, db_bch11.product18_amount.arr, db_bch11.product18_amount.len);
+   memcpy(bch11_ptr->product_codes[18].code, db_bch11.product19_code.arr, db_bch11.product19_code.len);
+   memcpy(bch11_ptr->product_codes[18].quantity, db_bch11.product19_quantity.arr, db_bch11.product19_quantity.len);
+   memcpy(bch11_ptr->product_codes[18].amount, db_bch11.product19_amount.arr, db_bch11.product19_amount.len);
+   memcpy(bch11_ptr->product_codes[19].code, db_bch11.product20_code.arr, db_bch11.product20_code.len);
+   memcpy(bch11_ptr->product_codes[19].quantity, db_bch11.product20_quantity.arr, db_bch11.product20_quantity.len);
+   memcpy(bch11_ptr->product_codes[19].amount, db_bch11.product20_amount.arr, db_bch11.product20_amount.len);
+
+   memcpy(bch11_ptr->aportionment_flag, db_bch11.aportionment_flag.arr, db_bch11.aportionment_flag.len);
+   memcpy(bch11_ptr->exp_date, db_bch11.exp_date.arr, db_bch11.exp_date.len);
+   memcpy(bch11_ptr->open_date, db_bch11.open_date.arr, db_bch11.open_date.len);
+   memcpy(bch11_ptr->open_time, db_bch11.open_time.arr, db_bch11.open_time.len);
+   memcpy(bch11_ptr->cash_bonus, db_bch11.cash_bonus.arr, db_bch11.cash_bonus.len);
+   memcpy(bch11_ptr->transmission_timestamp,  db_bch11.transmission_timestamp.arr, db_bch11.transmission_timestamp.len);
+   memcpy(bch11_ptr->mcard_banknet, db_bch11.mcard_banknet.arr, db_bch11.mcard_banknet.len);
+   memcpy(bch11_ptr->ticket_nbr, db_bch11.ticket_nbr.arr, db_bch11.ticket_nbr.len);
+   memcpy(bch11_ptr->def_gross_amt, db_bch11.def_gross_amt.arr, db_bch11.def_gross_amt.len);
+   memcpy(bch11_ptr->term, db_bch11.term.arr, db_bch11.term.len);
+}
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_get_bch01_mp_service_list( pBCH01_MP bch01_mp_ptr,
+                                pBCH01_MP_LIST Bch01_List,
+                                pCHAR ErrorMsg )
+{
+
+   EXEC SQL BEGIN DECLARE SECTION;
+
+   char batch_nbr[7];
+   char device_id[9];
+   char open_date[9];
+   char open_time[7];
+   char release_date[9];
+   char release_time[7];
+ 
+   EXEC SQL END DECLARE SECTION;
+
+   strcpy( batch_nbr, bch01_mp_ptr->primary_key.batch_nbr);
+   strcpy( device_id, bch01_mp_ptr->primary_key.device_id);
+   strcpy( open_date, bch01_mp_ptr->open_date);
+   strcpy( open_time, bch01_mp_ptr->open_time);
+   strcpy( release_date, bch01_mp_ptr->release_date);
+   strcpy( release_time, bch01_mp_ptr->release_time);
+
+   if ( db_error_statics_flag == true )
+   {
+		start_time = ptetime_get_time();
+   }
+   
+   EXEC SQL DECLARE bch01_mp_cursor2 CURSOR FOR
+      SELECT *
+      FROM bch01_mp
+	  WHERE (( batch_status <> 'A') AND 
+	        (( release_date  = :open_date AND 
+			   release_time >= :open_time ) OR
+			 ( release_date  = :release_date AND
+			   release_time <  :release_time ) OR
+			 ( release_date >  :open_date AND
+			   release_date <  :release_date )))
+      ORDER BY  device_id, batch_nbr;
+
+	if ( db_error_statics_flag == true )
+	{
+		end_time = ptetime_get_time();
+		duration = end_time - start_time;
+		if(duration >= db_error_statics_value)
+		{
+			memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+			sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Settle_mp, ST1:%d,ST2:%d,Data_Type : BCH01_MP ,Fun_Name : db_get_bch01_mp_service_list_CURSOR , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+			Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+		}
+	}
+
+   EXEC SQL WHENEVER SQLERROR goto sql_error;
+
+   EXEC SQL OPEN  bch01_mp_cursor2;
+
+
+   EXEC SQL WHENEVER SQLERROR goto sql_error2;
+   EXEC SQL WHENEVER NOTFOUND DO break;
+
+
+   while(1)
+   {
+      memset(&db_bch01_mp, 0x00, sizeof(db_bch01_mp));
+
+	   if ( db_error_statics_flag == true )
+	   {
+			start_time = ptetime_get_time();
+	   }
+
+      EXEC SQL FETCH bch01_mp_cursor2
+      INTO :db_bch01_mp;
+      
+      if ( db_error_statics_flag == true )
+	  {
+			end_time = ptetime_get_time();
+			duration = end_time - start_time;
+			if(duration >= db_error_statics_value)
+			{
+				memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+				sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Settle_mp, ST1:%d,ST2:%d,Data_Type : BCH01_MP ,Fun_Name : db_get_bch01_mp_service_list_FETCH , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+				Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+			}
+	  }
+
+      sql_error2:
+      if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+      {
+         SQL_CODE = SQLCODE;
+         EXEC SQL CLOSE bch01_mp_cursor2;      
+		memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_get_bch01_mp_service_list,ST1:%d,ST2:%d_1",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+      }
+      db_to_bch01_mp(&auth_tx_total);
+      if (!bch01_mp_handler())
+		return PTEMSG_DATABASE_ERROR;
+   }
+  
+   EXEC SQL CLOSE bch01_mp_cursor2;
+
+
+   sql_error:
+   if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+   {
+      	memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_get_bch01_mp_service_list,ST1:%d,ST2:%d_2",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+   }
+   return PTEMSG_OK;
+}
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_select_curr_code( pCHAR   curr_code, pCHAR  device_type, 
+                          pDCF01  dcf01_ptr, pCHAR  ErrorMsg )
+{
+   EXEC SQL BEGIN DECLARE SECTION;
+      char currency_code[4];
+      char terminal_type[3];
+   EXEC SQL END DECLARE SECTION;
+
+   EXEC SQL WHENEVER SQLERROR CONTINUE;
+   EXEC SQL WHENEVER NOTFOUND CONTINUE;
+
+   memset( currency_code, 0x00, sizeof(currency_code) );
+   memset( terminal_type, 0x00, sizeof(terminal_type) );
+
+   memset( &pte_dcf01, 0x00, sizeof(pte_dcf01) );
+   memcpy( pte_dcf01.device_id,
+           dcf01_ptr->primary_key.device_id,
+           sizeof(pte_dcf01.device_id) );
+   memcpy( pte_dcf01.merchant_id,
+			  dcf01_ptr->merchant_id,
+			  sizeof(pte_dcf01.merchant_id) );
+
+
+   /* Get Merchant ID, Org ID and Device Type from device record.
+    * Use the Merchant ID and Org ID to get currency code from
+    * merchant record.
+    */
+
+   if ( db_error_statics_flag == true )
+   {
+		start_time = ptetime_get_time();
+   }
+   EXEC SQL SELECT mcf01.currency_code, dcf01.device_type
+   INTO :currency_code, :terminal_type
+   FROM dcf01, mcf01
+   WHERE dcf01.device_id       = :pte_dcf01.device_id 
+     AND dcf01.merchant_id     = :pte_dcf01.merchant_id
+     AND dcf01.merchant_id     = mcf01.merchant_id
+     AND dcf01.organization_id = mcf01.organization_id;
+     
+   if ( db_error_statics_flag == true )
+   {
+		end_time = ptetime_get_time();
+		duration = end_time - start_time;
+		if(duration >= db_error_statics_value)
+		{
+			memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+			sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Settle_mp, ST1:%d,ST2:%d,Data_Type : DCF01_MCF01 ,Fun_Name : db_select_curr_code , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+			Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+		}
+   }  
+
+   if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+   {
+		memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_select_curr_code,ST1:%d,ST2:%d",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+	}
+
+   memcpy( curr_code,   currency_code, 4 );
+   memcpy( device_type, terminal_type, 2 );
+
+   return PTEMSG_OK;
+}
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_select_bon01 (  pCHAR          max_reward, 
+                        pCHAR          ErrorMsg )
+{
+   EXEC SQL BEGIN DECLARE SECTION;
+   char maximum_reward[13];
+   EXEC SQL END DECLARE SECTION;
+
+   EXEC SQL WHENEVER SQLERROR CONTINUE;
+   EXEC SQL WHENEVER NOTFOUND CONTINUE;
+
+   memset( &pte_bon01, 0, sizeof( pte_bon01 ) );
+   
+   if ( db_error_statics_flag == true )
+   {
+		start_time = ptetime_get_time();
+   }
+   
+   EXEC SQL SELECT bon01.maximum_reward
+   INTO :maximum_reward
+   FROM bon01
+   WHERE rownum = 1;
+
+   if ( db_error_statics_flag == true )
+   {
+		end_time = ptetime_get_time();
+		duration = end_time - start_time;
+		if(duration >= db_error_statics_value)
+		{
+			memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+			sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Settle_mp, ST1:%d,ST2:%d,Data_Type : BON01 ,Fun_Name : db_select_bon01 , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+			Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+		}
+   }
+
+  	if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+  	{
+		memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_select_bon01,ST1:%d,ST2:%d",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+	}
+
+   memcpy (max_reward, maximum_reward, 13);
+
+   return PTEMSG_OK;
+}
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_get_bch10_service_list( pBCH10 bch10_ptr,
+                                pBCH10_LIST Bch10_List,
+                                pCHAR ErrorMsg )
+{
+
+   EXEC SQL BEGIN DECLARE SECTION;
+   char device_id[9];
+   char merchant_id[16];
+   char batch_nbr[7];
+   char retrieval_ref_num[13];
+   char open_date[9];
+   char open_time[7];
+   int temp;
+   int number1;
+   int number2;
+   int number3;
+   int number4;
+   int number5;
+   int number6;
+   int number7;
+   int number8;
+   int number9;
+   int number10;
+   int number11;
+   int number12;
+   long tran_amount = 0; 
+   EXEC SQL END DECLARE SECTION;
+
+   number1  = AUTH_VOID_SALE_RESPONSE;
+   number2  = AUTH_VOID_CASH_ADVANCE_RESPONSE;
+   number3  = AUTH_OFFLINE_VOID_SALE_RESPONSE;
+   number4  = AUTH_VOID_SALE;
+   number5  = AUTH_VOID_CASH_ADVANCE;
+   number6  = AUTH_OFFLINE_VOID_SALE;
+   number7  = AUTH_VOID_REFUND;
+   number8  = AUTH_OFFLINE_VOID_REFUND;
+   number9  = AUTH_VOID_REFUND_RESPONSE;
+   number10 = AUTH_OFFLINE_VOID_REFUND_RESPONSE;
+   number11 = AUTH_VOID_RELOAD;
+   number12 = AUTH_VOID_RELOAD_RESPONSE;
+
+
+   memset( Bch10_List, 0, sizeof(BCH10_LIST) );
+   strcpy(Bch10_List->num_returned,"0");
+   strncpy( device_id, bch10_ptr->primary_key.device_id, sizeof(device_id) );
+   strncpy( merchant_id, bch10_ptr->merchant_id, sizeof(merchant_id) );
+   strncpy( batch_nbr, bch10_ptr->primary_key.batch_nbr, sizeof(batch_nbr) );
+   strncpy( retrieval_ref_num, bch10_ptr->primary_key.retrieval_ref_num, sizeof(retrieval_ref_num) );
+   strncpy( open_date, bch10_ptr->open_date, sizeof(open_date) );
+   strncpy( open_time, bch10_ptr->open_time, sizeof(open_time) );
+   /* nirbhay, fix for crash */
+	if(bch10_ptr != NULL && bch10_ptr->tran_amount[0] != '\0')
+   tran_amount = atol(bch10_ptr->tran_amount);
+
+   if ( db_error_statics_flag == true )
+   {
+		start_time = ptetime_get_time();
+   }
+   EXEC SQL DECLARE bch10_cursor2 CURSOR FOR
+      SELECT * from bch10
+      WHERE retrieval_ref_num > :retrieval_ref_num AND batch_nbr = :batch_nbr AND device_id = :device_id AND merchant_id = :merchant_id 
+         AND open_date = :open_date AND open_time = :open_time
+		 AND tx_key <> chr(:number1) AND tx_key <> chr(:number2) AND tx_key <> chr(:number3)
+         AND tx_key <> chr(:number4) AND tx_key <> chr(:number5) AND tx_key <> chr(:number6)
+         AND tx_key <> chr(:number7) AND tx_key <> chr(:number8) AND tx_key <> chr(:number9)
+		 AND tx_key <> chr(:number10) AND tx_key <> chr(:number11) AND tx_key <> chr(:number12)
+		 AND tran_amount <> 0
+      ORDER BY retrieval_ref_num;
+      
+   	if ( db_error_statics_flag == true )
+	{
+		end_time = ptetime_get_time();
+		duration = end_time - start_time;
+		if(duration >= db_error_statics_value)
+		{
+			memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+			sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Settle_mp, ST1:%d,ST2:%d,Data_Type : BCH10 ,Fun_Name : db_get_bch10_service_list_CURSOR , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+			Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+		}
+	}   
+
+   EXEC SQL WHENEVER SQLERROR goto sql_error;
+   EXEC SQL OPEN bch10_cursor2;
+
+   EXEC SQL WHENEVER SQLERROR goto sql_error2;
+   EXEC SQL WHENEVER NOTFOUND DO break;
+
+   for ( temp = 0; temp < BATCH_SERVICE_LIST_SIZE; temp++ )
+   {
+      memset(&db_bch10, 0x00, sizeof(db_bch10));
+
+	   if ( db_error_statics_flag == true )
+	   {
+			start_time = ptetime_get_time();
+	   }
+
+      EXEC SQL FETCH bch10_cursor2
+      INTO :db_bch10;
+
+	   	if ( db_error_statics_flag == true )
+		{
+			end_time = ptetime_get_time();
+			duration = end_time - start_time;
+			if(duration >= db_error_statics_value)
+			{
+				memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+				sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Settle_mp, ST1:%d,ST2:%d,Data_Type : BCH10 ,Fun_Name : db_get_bch10_service_list_FETCH , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+				Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+			}
+		}
+		
+      sql_error2:
+      if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+      {
+         SQL_CODE = SQLCODE;
+         EXEC SQL CLOSE bch10_cursor2;
+         memset(er_buf,0x00,sizeof(er_buf));
+		 DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		 sprintf(er_buf,"In  db_get_bch10_service_list,ST1:%d,ST2:%d_1",DB_MsgSubtype1,DB_MsgSubtype2);
+		 strcat(er_buf,ErrorMsg);
+		 Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		 return DB_rcode;
+      }
+	  db_to_bch10(&Bch10_List->batch_list[temp]);
+      itoa(temp + 1, Bch10_List->num_returned, 10);
+   }
+
+   EXEC SQL CLOSE bch10_cursor2;
+
+   return PTEMSG_OK;
+
+   sql_error:
+   EXEC SQL WHENEVER SQLERROR CONTINUE;
+   EXEC SQL WHENEVER NOTFOUND CONTINUE;
+
+	 memset(er_buf,0x00,sizeof(er_buf));
+	 DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+	 sprintf(er_buf,"In  db_get_bch10_service_list,ST1:%d,ST2:%d_2",DB_MsgSubtype1,DB_MsgSubtype2);
+	 strcat(er_buf,ErrorMsg);
+	 Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+	 return DB_rcode;
+}
+
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_get_bch11_service_list( pBCH11 bch11_ptr,
+                                pBCH11_LIST Bch11_List,
+                                pCHAR ErrorMsg )
+{
+
+   EXEC SQL BEGIN DECLARE SECTION;
+   char device_id[9];
+   char merchant_id[16];
+   char batch_nbr[7];
+   char retrieval_ref_num[13];
+   char open_date[9];
+   char open_time[7];
+   int temp;
+   int number1;
+   int number2;
+   int number3;
+   int number4;
+   int number5;
+   int number6;
+   int number7;
+   int number8;
+   int number9;
+   int number10;
+   int number11;
+   int number12;
+   long tran_amount = 0;
+   EXEC SQL END DECLARE SECTION;
+
+   number1 = AUTH_VOID_SALE_RESPONSE;
+   number2 = AUTH_VOID_CASH_ADVANCE_RESPONSE;
+   number3 = AUTH_OFFLINE_VOID_SALE_RESPONSE;
+   number4 = AUTH_VOID_SALE;
+   number5 = AUTH_VOID_CASH_ADVANCE;
+   number6 = AUTH_OFFLINE_VOID_SALE;
+   number7  = AUTH_VOID_REFUND;
+   number8  = AUTH_OFFLINE_VOID_REFUND;
+   number9  = AUTH_VOID_REFUND_RESPONSE;
+   number10 = AUTH_OFFLINE_VOID_REFUND_RESPONSE;
+   number11 = AUTH_VOID_RELOAD;
+   number12 = AUTH_VOID_RELOAD_RESPONSE;
+
+
+   memset( Bch11_List, 0, sizeof(BCH11_LIST) );
+   strcpy(Bch11_List->num_returned,"0");
+   strncpy( device_id, bch11_ptr->primary_key.device_id, sizeof(device_id) );
+   strncpy( merchant_id, bch11_ptr->merchant_id, sizeof(merchant_id) );
+   strncpy( batch_nbr, bch11_ptr->primary_key.batch_nbr, sizeof(batch_nbr) );
+   strncpy( retrieval_ref_num, bch11_ptr->primary_key.retrieval_ref_num, sizeof(retrieval_ref_num) );
+   strncpy( open_date, bch11_ptr->open_date, sizeof(open_date) );
+   strncpy( open_time, bch11_ptr->open_time, sizeof(open_time) );
+   tran_amount = atol(bch11_ptr->tran_amount);
+   
+   if ( db_error_statics_flag == true )
+   {
+		start_time = ptetime_get_time();
+   }
+
+   EXEC SQL DECLARE bch11_cursor2 CURSOR FOR
+      SELECT * from bch11
+      WHERE retrieval_ref_num > :retrieval_ref_num AND batch_nbr = :batch_nbr AND device_id = :device_id AND merchant_id =:merchant_id
+         AND open_date = :open_date AND open_time = :open_time 
+		 AND tx_key <> chr(:number1) AND tx_key <> chr(:number2) AND tx_key <> chr(:number3)
+         AND tx_key <> chr(:number4) AND tx_key <> chr(:number5) AND tx_key <> chr(:number6)
+         AND tx_key <> chr(:number7) AND tx_key <> chr(:number8) AND tx_key <> chr(:number9)
+		 AND tx_key <> chr(:number10) AND tx_key <> chr(:number11) AND tx_key <> chr(:number12) 
+		 AND tran_amount <> 0
+      ORDER BY retrieval_ref_num;
+
+	if ( db_error_statics_flag == true )
+	{
+		end_time = ptetime_get_time();
+		duration = end_time - start_time;
+		if(duration >= db_error_statics_value)
+		{
+			memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+			sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Settle_mp, ST1:%d,ST2:%d,Data_Type : BCH11 ,Fun_Name : db_get_bch11_service_list_CURSOR , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+			Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+		}
+	}
+   EXEC SQL WHENEVER SQLERROR goto sql_error;
+   EXEC SQL OPEN bch11_cursor2;
+
+   EXEC SQL WHENEVER SQLERROR goto sql_error2;
+   EXEC SQL WHENEVER NOTFOUND DO break;
+
+   for ( temp = 0; temp < BATCH_SERVICE_LIST_SIZE; temp++ )
+   {
+      memset(&db_bch11, 0x00, sizeof(db_bch11));
+
+	   if ( db_error_statics_flag == true )
+	   {
+			start_time = ptetime_get_time();
+	   }
+
+      EXEC SQL FETCH bch11_cursor2
+      INTO :db_bch11;
+
+	  if ( db_error_statics_flag == true )
+	  {
+		 end_time = ptetime_get_time();
+		 duration = end_time - start_time;
+		 if(duration >= db_error_statics_value)
+		 {
+			memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+			sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Settle_mp, ST1:%d,ST2:%d,Data_Type : BCH11 ,Fun_Name : db_get_bch11_service_list_FETCH , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+			Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+		 }
+	  }
+      sql_error2:
+      if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+      {
+         SQL_CODE = SQLCODE;
+         EXEC SQL CLOSE bch11_cursor2;
+         memset(er_buf,0x00,sizeof(er_buf));
+		 DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		 sprintf(er_buf,"In  db_get_bch11_service_list,ST1:%d,ST2:%d_1",DB_MsgSubtype1,DB_MsgSubtype2);
+		 strcat(er_buf,ErrorMsg);
+		 Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		 return DB_rcode;
+      }
+
+      db_to_bch11(&Bch11_List->batch_list[temp]);
+      itoa(temp + 1, Bch11_List->num_returned, 10);
+   }
+
+   EXEC SQL CLOSE bch11_cursor2;
+
+   return PTEMSG_OK;
+
+   sql_error:
+   EXEC SQL WHENEVER SQLERROR CONTINUE;
+   EXEC SQL WHENEVER NOTFOUND CONTINUE;
+	 memset(er_buf,0x00,sizeof(er_buf));
+	 DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+	 sprintf(er_buf,"In  db_get_bch11_service_list,ST1:%d,ST2:%d_2",DB_MsgSubtype1,DB_MsgSubtype2);
+	 strcat(er_buf,ErrorMsg);
+	 Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+	 return DB_rcode;
+}
+
+/*************************************************************************************/
+/*********************************************************************************/
+BYTE db_update_bch01_mp_move_bch10tobch11_delete_bch10(pBCH01_MP bch01_mp_ptr, pCHAR ErrorMsg)
+{
+   bch01_mp_to_db( bch01_mp_ptr );
+
+   if ( db_error_statics_flag == true )
+   {
+		start_time = ptetime_get_time();
+   }
+
+   EXEC SQL UPDATE bch01_mp 
+   SET  batch_status              = :pte_bch01_mp.batch_status          
+   WHERE device_id   = :pte_bch01_mp.device_id   AND 
+         merchant_id = :pte_bch01_mp.merchant_id AND 
+         batch_nbr   = :pte_bch01_mp.batch_nbr   AND 
+         open_date   = :pte_bch01_mp.open_date   AND 
+         open_time   = :pte_bch01_mp.open_time;  
+  
+  if ( db_error_statics_flag == true )
+  {
+	 end_time = ptetime_get_time();
+	 duration = end_time - start_time;
+	 if(duration >= db_error_statics_value)
+	 {
+		memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+		sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Settle_mp, ST1:%d,ST2:%d,Data_Type : BCH01_MP ,Fun_Name : db_update_bch01_mp_move_bch10tobch11_delete_bch10_U , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+	 }
+  }
+  
+  if ( SQLCODE != 0 )
+  {
+		memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_update_bch01_mp_move_bch10tobch11_delete_bch10,ST1:%d,ST2:%d_1",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+  }
+
+   if ( db_error_statics_flag == true )
+   {
+		start_time = ptetime_get_time();
+   }
+   EXEC SQL INSERT INTO BCH11
+      SELECT * from BCH10
+      WHERE device_id   = :pte_bch01_mp.device_id 	   AND  
+            merchant_id = :pte_bch01_mp.merchant_id    AND 
+            batch_nbr   = :pte_bch01_mp.batch_nbr      AND 
+            open_date   = :pte_bch01_mp.open_date 	   AND 
+            open_time   = :pte_bch01_mp.open_time;  ;
+
+  if ( db_error_statics_flag == true )
+  {
+	 end_time = ptetime_get_time();
+	 duration = end_time - start_time;
+	 if(duration >= db_error_statics_value)
+	 {
+		memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+		sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Settle_mp, ST1:%d,ST2:%d,Data_Type : BCH011 ,Fun_Name : db_update_bch01_mp_move_bch10tobch11_delete_bch10_I , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+	 }
+  }
+
+   if ( SQLCODE != 0 )
+  {
+		memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_update_bch01_mp_move_bch10tobch11_delete_bch10,ST1:%d,ST2:%d_2",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+  }
+  
+   if ( db_error_statics_flag == true )
+   {
+		start_time = ptetime_get_time();
+   }
+
+   /* Delete records from EMV tables
+	transaction IDs will be BCH10 tables
+    */
+	EXEC SQL delete from emv_raw where transaction_id in 
+		(select transaction_id from bch10 where device_id = :pte_bch01_mp.device_id and Merchant_id = :pte_bch01_mp.merchant_id and batch_nbr=:pte_bch01_mp.batch_nbr);
+ 
+   if ( db_error_statics_flag == true )
+   {
+	 end_time = ptetime_get_time();
+	 duration = end_time - start_time;
+	 if(duration >= db_error_statics_value)
+	 {
+		memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+		sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Settle_mp, ST1:%d,ST2:%d,Data_Type : EMV_RAW ,Fun_Name : db_update_bch01_mp_move_bch10tobch11_delete_bch10_D , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+	 }
+   }
+   if ( SQLCODE != 0 && SQLCODE != NO_DATA_FOUND )
+   {
+		memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_update_bch01_mp_move_bch10tobch11_delete_bch10,ST1:%d,ST2:%d_3",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+   }
+
+   if ( db_error_statics_flag == true )
+   {
+		start_time = ptetime_get_time();
+   }
+   EXEC SQL DELETE FROM bch10 
+   where device_id   = :pte_bch01_mp.device_id   AND 
+   		 merchant_id = :pte_bch01_mp.merchant_id AND 
+   		 batch_nbr   = :pte_bch01_mp.batch_nbr   AND 
+   		 open_date   = :pte_bch01_mp.open_date   AND 
+   		 open_time   = :pte_bch01_mp.open_time;
+            
+   if ( db_error_statics_flag == true )
+   {
+	 end_time = ptetime_get_time();
+	 duration = end_time - start_time;
+	 if(duration >= db_error_statics_value)
+	 {
+		memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+		sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Settle_mp, ST1:%d,ST2:%d,Data_Type : BCH10 ,Fun_Name : db_update_bch01_mp_move_bch10tobch11_delete_bch10_D , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+	 }
+   }         
+
+   if ( SQLCODE != 0  && SQLCODE != NO_DATA_FOUND)
+   {
+		memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_update_bch01_mp_move_bch10tobch11_delete_bch10,ST1:%d,ST2:%d_4",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+   }
+ 
+   return PTEMSG_OK;
+}
+
+/*************************************************************************************/
+
+/*db_set_import_rollback_segment_online - SCR1212  LM 10/03/03*/
+BYTE db_set_rollback_segment_online(pCHAR ErrorMsg)
+{
+	EXEC SQL	COMMIT WORK;
+	EXEC SQL	ALTER ROLLBACK SEGMENT "RBS37" ONLINE;
+	if (SQLCODE < 0)
+   {
+		memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_set_rollback_segment_online,ST1:%d,ST2:%d_1",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+   }
+
+	EXEC SQL	SET TRANSACTION USE ROLLBACK SEGMENT RBS37;
+	if (SQLCODE < 0)
+   {
+		memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_set_rollback_segment_online,ST1:%d,ST2:%d_2",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+   }
+
+	return PTEMSG_OK;
+}
+
+/*************************************************************************************/
+
+/*db_set_import_rollback_segment_offline - SCR1212  LM 10/03/03*/
+BYTE db_set_rollback_segment_offline( pCHAR ErrorMsg)
+{
+	EXEC SQL	ALTER ROLLBACK SEGMENT "RBS37" OFFLINE;
+
+	if (SQLCODE < 0)
+   {
+		memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_set_rollback_segment_offline,ST1:%d,ST2:%d",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+   }
+
+	return PTEMSG_OK;
+}
+
+/*************************************************************************************/
+
+/*************************************************************************************/
+/*************************************************************************************/
+void get_reload_confirm( pBCH10 bch10_ptr )
+{
+
+   EXEC SQL BEGIN DECLARE SECTION;
+      char tran_id[21];
+      char amount[13];
+      char auth_number[7];
+      char rrn[13];
+      char ticket[16];
+   EXEC SQL END DECLARE SECTION;
+
+   memcpy( tran_id, bch10_ptr->mcard_banknet, sizeof(tran_id) );
+
+   if ( db_error_statics_flag == true )
+   {
+		start_time = ptetime_get_time();
+   }
+   
+   EXEC SQL SELECT  total_amount, auth_number, retrieval_ref_num, ticket_nbr
+            INTO   :amount,      :auth_number, :rrn,             :ticket
+            FROM    TLF01
+            WHERE   transaction_id = :tran_id;
+
+	if ( db_error_statics_flag == true )
+	{
+		end_time = ptetime_get_time();
+		duration = end_time - start_time;
+		if(duration >= db_error_statics_value)
+		{
+			memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+			sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Settle_mp, ST1:%d,ST2:%d,Data_Type : TLF01 ,Fun_Name : get_reload_confirm , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+			Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+		}
+	}
+
+   if ( (SQLCODE == 0) || (SQLCODE == NULL_COLUMN_DATA) )
+   {
+      /* Copy data from TLF01 Reload Confirm into BCH10 Reload txn. */
+      memcpy( bch10_ptr->tran_amount, amount,      sizeof(amount)      );
+      memcpy( bch10_ptr->auth_number, auth_number, sizeof(auth_number) );
+      memcpy( bch10_ptr->ticket_nbr,  ticket,      sizeof(ticket)      );
+
+      memcpy( bch10_ptr->primary_key.retrieval_ref_num, rrn, sizeof(rrn) );
+   }
+
+   /* Ignore errors. */
+   return;
+}
+
+/******************************************************************************/
+/******************************************************************************/
+INT db_get_except_record_cnt( pCHAR ErrorMsg )
+{
+   INT     num_recs = 0;
+
+   EXEC SQL BEGIN DECLARE SECTION;
+      int  NumRowsReturned = 0;
+      char eDate[9];
+   EXEC SQL END DECLARE SECTION;
+
+
+   memset( eDate, 0x00, sizeof(eDate) );
+   memcpy( eDate, ExceptDate, 8 );
+
+   if ( db_error_statics_flag == true )
+   {
+		start_time = ptetime_get_time();
+   }
+
+   EXEC SQL SELECT COUNT(*)
+            INTO  :NumRowsReturned
+            FROM   BCH10
+            WHERE  tran_date <= :eDate
+              AND  ascii(tx_key) != '13'   /* VOID SALE            */
+              AND  ascii(tx_key) != '113'  /* VOID SALE RESPONSE   */
+              AND  ascii(tx_key) != '14'   /* VOID REFUND          */
+              AND  ascii(tx_key) != '114'; /* VOID REFUND RESPONSE */
+
+	if ( db_error_statics_flag == true )
+	{
+		end_time = ptetime_get_time();
+		duration = end_time - start_time;
+		if(duration >= db_error_statics_value)
+		{
+			memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+			sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Settle_mp, ST1:%d,ST2:%d,Data_Type : BCH10 ,Fun_Name : db_get_except_record_cnt , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+			Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+		}
+	}
+
+   if ( SQLCODE != 0 )
+   {
+		memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_get_except_record_cnt,ST1:%d,ST2:%d",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+      num_recs = -1;
+   }
+   else
+   {
+      num_recs = NumRowsReturned;
+   }
+   return( num_recs );
+}
+
+/******************************************************************************/
+/******************************************************************************/
+INT db_process_bch10_records( pCHAR ErrorMsg )
+{
+   INT     retval             = false;
+   INT     more_bch10_records = true;
+
+   EXEC SQL BEGIN DECLARE SECTION;
+      char eDate[9];
+   EXEC SQL END DECLARE SECTION;
+
+   TempExRecCnt   = 0;
+   memset( eDate, 0x00, sizeof(eDate) );
+   memcpy( eDate, ExceptDate, 8 );
+
+   if ( db_error_statics_flag == true )
+   {
+		start_time = ptetime_get_time();
+   }
+
+   EXEC SQL DECLARE bch10_ecursor1 CURSOR FOR
+      SELECT    *
+      FROM      bch10
+      WHERE     tran_date <= :eDate
+        AND     ascii(tx_key) != '13'  /* VOID SALE            */
+        AND     ascii(tx_key) != '113' /* VOID SALE RESPONSE   */
+        AND     ascii(tx_key) != '14'  /* VOID REFUND          */
+        AND     ascii(tx_key) != '114' /* VOID REFUND RESPONSE */
+      ORDER BY  device_id, batch_nbr, tran_date, tran_time;
+
+	if ( db_error_statics_flag == true )
+	{
+		end_time = ptetime_get_time();
+		duration = end_time - start_time;
+		if(duration >= db_error_statics_value)
+		{
+			memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+			sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Settle_mp, ST1:%d,ST2:%d,Data_Type : BCH10 ,Fun_Name : db_process_bch10_records_CURSOR , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+			Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+		}
+	}
+   EXEC SQL OPEN  bch10_ecursor1;
+
+   if ( SQLCODE != 0 )
+   {
+		memset(er_buf,0x00,sizeof(er_buf));
+		dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_process_bch10_records,ST1:%d,ST2:%d_1",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+      retval = true;
+   }
+   else
+   {
+      while( more_bch10_records )
+      {
+         memset( &db_bch10,  0x00, sizeof(db_bch10)   );
+
+		   if ( db_error_statics_flag == true )
+		   {
+				start_time = ptetime_get_time();
+		   }
+
+         EXEC SQL FETCH bch10_ecursor1
+         INTO :db_bch10;
+         
+        if ( db_error_statics_flag == true )
+		{
+			end_time = ptetime_get_time();
+			duration = end_time - start_time;
+			if(duration >= db_error_statics_value)
+			{
+				memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+				sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Settle_mp, ST1:%d,ST2:%d,Data_Type : BCH10 ,Fun_Name : db_process_bch10_records_FETCH	, Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+				Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+			}
+		}
+
+         if ( SQLCODE == NO_DATA_FOUND )
+         {
+            more_bch10_records = false;
+         }
+         else if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+         {
+            memset(er_buf,0x00,sizeof(er_buf));
+			dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+			sprintf(er_buf,"In  db_process_bch10_records,ST1:%d,ST2:%d_2",DB_MsgSubtype1,DB_MsgSubtype2);
+			strcat(er_buf,ErrorMsg);
+			Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+            more_bch10_records = false;
+            write_to_dump_file( ErrorMsg );
+            settle_mp_log_message( 2, 2, ErrorMsg, "db_process_bch10_records" ,0 );
+         }
+         else
+         {
+            db_to_bch10( &auth_tx_detail );
+
+            if ( retval == true )
+            {
+               more_bch10_records = false;
+            }
+            else
+            {
+               /* We have a Detail Record from the batch. Get it into the file. */
+               retval = store_detail_except_record( &auth_tx_detail );
+               if ( retval == true )
+               {
+                  more_bch10_records = false;
+                  strcpy( ErrorMsg, "Unable to store detail record in exception file." );
+               }
+               else
+               {
+                  retval = db_insert_bch11_delete_bch10(&auth_tx_detail,ErrorMsg);
+                  if ( retval == false )
+                  {
+                     TempExRecCnt++;
+                  }
+                  else
+                  {
+                     write_to_dump_file( ErrorMsg );
+					 settle_mp_log_message( 2, 2, ErrorMsg, "db_process_bch10_records" ,0 );
+					 
+                     sprintf( ErrorMsg,
+                             "Exception processing - Cannot copy BCH10 to BCH11. TID: %s MID %s, Batch: %s",
+                              auth_tx_detail.primary_key.device_id,auth_tx_detail.merchant_id,
+                              auth_tx_detail.primary_key.batch_nbr );
+                     write_to_dump_file( ErrorMsg );
+                     settle_mp_log_message( 2, 2, ErrorMsg, "db_process_bch10_records" ,0 );
+                  }
+               }
+            }
+         }
+      }
+      EXEC SQL CLOSE bch10_ecursor1;
+   }
+   return( retval );
+}
+
+
+/******************************************************************************/
+/******************************************************************************/
+INT db_insert_bch11_delete_bch10( pBCH10 bch10_ptr, pCHAR ErrorMsg )
+{
+   INT     retval        = true;
+   CHAR    sql_type[100] = "";
+   CHAR    tempbuf [100] = "";
+   
+   EXEC SQL BEGIN DECLARE SECTION;
+      char tid  [9];
+	  char mid  [16];
+      char batch[7];
+      char rrn [13];
+   EXEC SQL END DECLARE SECTION;
+
+   memset( tid,   0x00, sizeof(tid)   );
+   memset( mid,   0x00, sizeof(mid)   );
+   memset( batch, 0x00, sizeof(batch) );
+   memset( rrn,   0x00, sizeof(rrn)   );
+
+   memcpy( tid,   bch10_ptr->primary_key.device_id,          8 );
+   memcpy( mid,   bch10_ptr->merchant_id,          			 20 );
+   memcpy( batch, bch10_ptr->primary_key.batch_nbr,          6 );
+   memcpy( rrn,   bch10_ptr->primary_key.retrieval_ref_num, 12 );
+
+   strcpy( sql_type, "Move BCH10 to BCH11" );
+
+   if ( db_error_statics_flag == true )
+   {
+		start_time = ptetime_get_time();
+   }
+   EXEC SQL INSERT INTO BCH11
+            SELECT * 
+            FROM   BCH10
+            WHERE  device_id         = :tid   AND  
+            	   merchant_id       = :mid   AND  
+            	   batch_nbr         = :batch AND  
+            	   retrieval_ref_num = :rrn;
+              
+    if ( db_error_statics_flag == true )
+	{
+		end_time = ptetime_get_time();
+		duration = end_time - start_time;
+		if(duration >= db_error_statics_value)
+		{
+			memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+			sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Settle_mp, ST1:%d,ST2:%d,Data_Type : BCH10 ,Fun_Name : db_insert_bch11_delete_bch10_I	, Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+			Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+		}
+	}           
+
+   if ( SQLCODE == 0 )
+   {
+       strcpy( sql_type, "Delete BCH10" );
+
+	   if ( db_error_statics_flag == true )
+	   {
+			start_time = ptetime_get_time();
+	   }
+
+       EXEC SQL DELETE
+               FROM   BCH10
+               WHERE  device_id         = :tid   AND  
+               		  merchant_id       = :mid   AND  
+               		  batch_nbr         = :batch AND  
+               		  retrieval_ref_num = :rrn;
+
+	    if ( db_error_statics_flag == true )
+		{
+			end_time = ptetime_get_time();
+			duration = end_time - start_time;
+			if(duration >= db_error_statics_value)
+			{
+				memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+				sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Settle_mp, ST1:%d,ST2:%d,Data_Type : BCH10 ,Fun_Name : db_insert_bch11_delete_bch10_D	, Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+				Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+			}
+		}   
+		
+      	if ( (SQLCODE == 0) || (SQLCODE == NO_DATA_FOUND) )
+         	retval = false;
+   }
+
+   if ( retval == true )
+   {
+      	memset(er_buf,0x00,sizeof(er_buf));
+		dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_insert_bch11_delete_bch10,ST1:%d,ST2:%d_1",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+      	sprintf( tempbuf, "Unable to %s", sql_type );
+      	settle_mp_log_message( 2, 2, tempbuf, "db_insert_bch11_delete_bch10" ,0 );
+     	write_to_dump_file( tempbuf );
+   }
+   return( retval );
+}
+
+
+/******************************************************************************/
+/******************************************************************************/
+BYTE db_get_bon03_service_list( pCHAR       tran_id,
+                                pBON03_LIST bon03_list,
+                                pCHAR       ErrorMsg )
+{
+   EXEC SQL BEGIN DECLARE SECTION;
+      char transaction_id[21];
+      int  temp;
+   EXEC SQL END DECLARE SECTION;
+
+   memset( bon03_list, 0x00, sizeof(BON03_LIST) );
+   strcpy( bon03_list->num_returned,"0" );
+   memcpy( transaction_id, tran_id, sizeof(transaction_id) );
+
+   if ( db_error_statics_flag == true )
+   {
+		start_time = ptetime_get_time();
+   }
+   EXEC SQL DECLARE bon03_cursor CURSOR FOR
+      SELECT * from bon03
+      WHERE  transaction_id = :transaction_id;
+      
+    if ( db_error_statics_flag == true )
+	{
+		end_time = ptetime_get_time();
+		duration = end_time - start_time;
+		if(duration >= db_error_statics_value)
+		{
+			memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+			sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Settle_mp, ST1:%d,ST2:%d,Data_Type : BON03 ,Fun_Name : db_get_bon03_service_list_CURSOR	, Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+			Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+		}
+	}   
+    
+   EXEC SQL WHENEVER SQLERROR goto sql_error;
+   EXEC SQL OPEN bon03_cursor;
+
+   EXEC SQL WHENEVER SQLERROR goto sql_error2;
+   EXEC SQL WHENEVER NOTFOUND DO break;
+   for ( temp = 0; temp < SERVICE_LIST_SIZE; temp++ )
+   {
+      memset( &db_bon03, 0x00, sizeof(db_bon03) );
+      
+       if ( db_error_statics_flag == true )
+	   {
+			start_time = ptetime_get_time();
+	   }
+      
+      EXEC SQL FETCH bon03_cursor
+      INTO :db_bon03;
+      
+        if ( db_error_statics_flag == true )
+		{
+			end_time = ptetime_get_time();
+			duration = end_time - start_time;
+			if(duration >= db_error_statics_value)
+			{
+				memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+				sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Settle_mp, ST1:%d,ST2:%d,Data_Type : BON03 ,Fun_Name : db_get_bon03_service_list_FETCH	, Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+				Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+			}
+		}  
+
+      sql_error2:
+      if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA  )
+      {
+         SQL_CODE = SQLCODE;
+         EXEC SQL CLOSE bon03_cursor;
+         memset(er_buf,0x00,sizeof(er_buf));
+		 DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		 sprintf(er_buf,"In  db_get_bon03_service_list,ST1:%d,ST2:%d_1",DB_MsgSubtype1,DB_MsgSubtype2);
+		 strcat(er_buf,ErrorMsg);
+		 Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		 return DB_rcode;
+      }
+      db_to_bon03(&bon03_list->bon_list[temp]);
+      itoa(temp + 1, bon03_list->num_returned, 10);
+   }
+
+   EXEC SQL CLOSE bon03_cursor;
+
+   return PTEMSG_OK;
+
+sql_error:
+   EXEC SQL WHENEVER SQLERROR CONTINUE;
+   EXEC SQL WHENEVER NOTFOUND CONTINUE;
+   memset(er_buf,0x00,sizeof(er_buf));
+   DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+   sprintf(er_buf,"In  db_get_bon03_service_list,ST1:%d,ST2:%d_2",DB_MsgSubtype1,DB_MsgSubtype2);
+   strcat(er_buf,ErrorMsg);
+   Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+   return DB_rcode;
+}
+
+

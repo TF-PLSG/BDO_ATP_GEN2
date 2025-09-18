@@ -1,0 +1,1170 @@
+/******************************************************************************
+  
+   Module:           POS_ds.pc
+  
+   Title:            DCPOS BIN Routing DB Routines
+  
+   Description:
+   
+   Application:      ATP
+
+   Authour:          Abhishek
+
+******************************************************************************/
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#ifdef WIN32
+#include <sqlproto.h>
+#endif
+
+#include <math.h>
+#include <time.h>
+#include <sys/timeb.h>
+
+#include "basictyp.h"
+#include "pte.h"
+#include "pteipc.h"
+#include "ptemsg.h"
+#include "ptetimer.h"
+#include "ntutils.h"
+#include "app_info.h"
+#include "dc_dbstruct.h"
+#include "equitdb.h"
+#include "dc_database.h"
+#include "dbcommon.h"
+#include "txutils.h"
+#include "ptetime.h"
+#include "memmnger.h"
+
+/* Function prototypes */
+extern void genutil_format_date(pCHAR temp);
+
+/* Oracle error codes */
+#define NULL_COLUMN_DATA -1405
+#define NO_DATA_FOUND    1403
+
+
+#ifdef _DEBUG
+   #define PRINT( X ) printf( X )
+#else
+   #define PRINT( X )
+#endif
+
+extern CHAR AppName[];
+SQL01 Sql01;
+INT    rtnval;
+
+/* For DB statics added by raghu */
+extern BYTE DB_MsgSubtype2 ;
+extern BYTE DB_MsgSubtype1 ;
+char DB_Tmr_Lgng_Buf[512];
+double start_time;
+double end_time  ;
+double duration  ; 
+extern INT db_error_statics_flag;
+extern double db_error_statics_value;
+char er_buf[512];
+BYTE DB_rcode;
+extern CHAR DB_Logging_Filename[256];
+extern CHAR  DB_module_file_name[256];
+extern CHAR  DB_file_path[256];
+/* End   */
+
+/* Dynamic sql IA */
+typedef char dynsql[100]; 
+EXEC SQL TYPE dynsql IS STRING(80) REFERENCE;
+
+EXEC SQL INCLUDE sqlca;
+
+typedef struct
+{
+   WORD len;
+   BYTE pin_data[100];
+}RAWPINDATA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+
+   /* error code variable */
+   long    SQLCODE;
+   long    SQL_CODE;
+
+/**/
+EXEC SQL TYPE RAWPINDATA is VARRAW(5000);
+
+
+struct
+{
+    char transaction_id                     	[21]; 
+	char system_date                        	[9];
+	char tx_key									;
+	char message_type                       	[5];
+	char card_num                           	[20];
+	char processing_code                   		[7];
+	char sys_trace_audit_num                	[7];
+	char time_HHMMSS                        	[7];
+	char date_YYYYMMDD                      	[9];
+	char pos_entry_mode                    	    [5]; 
+    char card_sequence_number               	[4];
+    char nii                                	[5];
+    char pos_condition_code                 	[3];
+    char retrieval_ref_num                  	[13];
+    char response_code							[3];
+    char terminal_id							[9];
+    char merchant_id							[16];
+    char bin_low								[20];
+    char bin_high								[20];
+    char bin_type								[2];
+    char card_family							[4];
+    char bin_description						[31];
+    char response_text							[101];
+    char future_use_1							[101];
+    char future_use_2							[101];
+    
+}pte_tpos01;
+
+struct
+{
+	varchar transaction_id                     	[20]; 
+	varchar system_date                        	[8];
+	varchar tx_key								[1];
+	varchar message_type                       	[4];
+	varchar card_num                           	[19];
+	varchar processing_code                   	[6];
+	varchar sys_trace_audit_num                	[6];
+	varchar time_HHMMSS                        	[6];
+	varchar date_YYYYMMDD                      	[8];
+	varchar pos_entry_mode                    	[4]; 
+    varchar card_sequence_number               	[3];
+    varchar nii                                	[4];
+    varchar pos_condition_code                 	[2];
+    varchar retrieval_ref_num                  	[12];
+    varchar response_code						[2];
+    varchar terminal_id							[8];
+    varchar merchant_id							[15];
+    varchar bin_low								[19];
+    varchar bin_high							[19];
+    varchar bin_type							[1];
+    varchar card_family							[3];
+    varchar bin_description						[30];
+    varchar response_text						[100];
+    varchar future_use_1						[100];
+    varchar future_use_2						[100];
+    
+}db_tpos01;
+
+EXEC SQL TYPE RAWPINDATA is VARRAW(5000);
+
+EXEC SQL END DECLARE SECTION;
+
+/*************************************************************************************/
+void LeftFill_String_With_Character (unsigned int destination_array_size,
+                                     char* strAmount,
+                                     unsigned char fill_character) 
+{
+   unsigned char strTemp[256] = {0} ;
+   int len = 0 ;
+   memset (strTemp, fill_character, sizeof strTemp) ;
+   
+   len = strlen (strAmount) ;
+   strTemp [destination_array_size - len] = 0 ;
+   strcat (strTemp, strAmount) ;
+   strcpy (strAmount, strTemp) ;
+}
+
+/*************************************************************************************/
+void tpos01_to_db( pTPOS01 tpos01_ptr )
+{
+  memcpy (&pte_tpos01, tpos01_ptr, sizeof(pte_tpos01));
+}
+
+/*************************************************************************************/
+
+/*************************************************************************************/
+void db_to_tpos01 ( pTPOS01 tpos01_ptr )
+{
+   
+   memset(tpos01_ptr, 0, sizeof(TPOS01));
+   memcpy(tpos01_ptr->primary_key.transaction_id, db_tpos01.transaction_id.arr, db_tpos01.transaction_id.len);
+   memcpy(tpos01_ptr->primary_key.system_date, db_tpos01.system_date.arr, db_tpos01.system_date.len);
+   tpos01_ptr->tx_key = db_tpos01.tx_key.arr[0];
+   memcpy(tpos01_ptr->message_type, db_tpos01.message_type.arr, db_tpos01.message_type.len);
+   memcpy(tpos01_ptr->card_num, db_tpos01.card_num.arr, db_tpos01.card_num.len);
+   memcpy(tpos01_ptr->processing_code, db_tpos01.processing_code.arr, db_tpos01.processing_code.len);
+   memcpy(tpos01_ptr->sys_trace_audit_num, db_tpos01.sys_trace_audit_num.arr, db_tpos01.sys_trace_audit_num.len);
+   memcpy(tpos01_ptr->time_HHMMSS, db_tpos01.time_HHMMSS.arr, db_tpos01.time_HHMMSS.len);
+   memcpy(tpos01_ptr->date_YYYYMMDD, db_tpos01.date_YYYYMMDD.arr, db_tpos01.date_YYYYMMDD.len);
+   memcpy(tpos01_ptr->pos_entry_mode, db_tpos01.pos_entry_mode.arr, db_tpos01.pos_entry_mode.len);
+   memcpy(tpos01_ptr->card_sequence_number, db_tpos01.card_sequence_number.arr, db_tpos01.card_sequence_number.len);
+   memcpy(tpos01_ptr->nii, db_tpos01.nii.arr, db_tpos01.nii.len);
+   memcpy(tpos01_ptr->pos_condition_code, db_tpos01.pos_condition_code.arr, db_tpos01.pos_condition_code.len);
+   memcpy(tpos01_ptr->retrieval_ref_num, db_tpos01.retrieval_ref_num.arr, db_tpos01.retrieval_ref_num.len);
+   memcpy(tpos01_ptr->response_code, db_tpos01.response_code.arr, db_tpos01.response_code.len);
+   memcpy(tpos01_ptr->terminal_id, db_tpos01.terminal_id.arr, db_tpos01.terminal_id.len);
+   memcpy(tpos01_ptr->merchant_id, db_tpos01.merchant_id.arr, db_tpos01.merchant_id.len);
+   memcpy(tpos01_ptr->bin_low, db_tpos01.bin_low.arr, db_tpos01.bin_low.len);
+   memcpy(tpos01_ptr->bin_high, db_tpos01.bin_high.arr, db_tpos01.bin_high.len);
+   memcpy(tpos01_ptr->bin_type, db_tpos01.bin_type.arr, db_tpos01.bin_type.len);
+   memcpy(tpos01_ptr->card_family, db_tpos01.card_family.arr, db_tpos01.card_family.len);
+   memcpy(tpos01_ptr->bin_description, db_tpos01.bin_description.arr, db_tpos01.bin_description.len);
+   memcpy(tpos01_ptr->response_text, db_tpos01.response_text.arr, db_tpos01.response_text.len);
+   memcpy(tpos01_ptr->future_use_1, db_tpos01.future_use_1.arr, db_tpos01.future_use_1.len);
+   memcpy(tpos01_ptr->future_use_2, db_tpos01.future_use_2.arr, db_tpos01.future_use_2.len);
+  }
+/*************************************************************************************/
+
+/*************************************************************************************/
+BYTE db_select_tpos01 (  pCHAR          Primary_key, 
+                        pTPOS01         tpos01_ptr, 
+                        pCHAR          ErrorMsg )
+{
+   INT  retval;
+   char tempdateyyyyddmm[9]={0};
+
+   memset( &db_tpos01, 0, sizeof( db_tpos01 ) );
+   memset( &pte_tpos01.transaction_id,0,sizeof(pte_tpos01.transaction_id));
+   memset( &pte_tpos01.system_date,0,sizeof(pte_tpos01.system_date));
+   strncpy( pte_tpos01.transaction_id, Primary_key, sizeof(pte_tpos01.transaction_id) );
+   strncpy( pte_tpos01.system_date, Primary_key+21, sizeof(pte_tpos01.system_date) );
+   
+   /*Check if the date is valid else convert it in YYYYMMDD*/
+   if(false == validate_date_yyyymmdd(pte_tpos01.system_date))
+   {
+   	 strncpy(tempdateyyyyddmm,pte_tpos01.system_date+4,4);//YYYY
+   	 strncat(tempdateyyyyddmm,pte_tpos01.system_date+2,2);//MM
+   	 strncat(tempdateyyyyddmm,pte_tpos01.system_date,2);//MM
+   	 strncpy(pte_tpos01.system_date,tempdateyyyyddmm,strlen(tempdateyyyyddmm));
+   }
+    
+   if ( db_error_statics_flag == true )
+   {
+   		start_time = ptetime_get_time();
+   }
+   EXEC SQL SELECT *
+   INTO :db_tpos01
+   FROM tpos01
+    WHERE transaction_id = :pte_tpos01.transaction_id AND
+          system_date    = :pte_tpos01.system_date; 
+          
+	if ( db_error_statics_flag == true )
+	{
+   		end_time = ptetime_get_time();
+   		duration = end_time - start_time;
+   		if(duration >= (double)db_error_statics_value)
+  		{
+  			memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+			sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Posds, ST1 :%d,ST2 : %d,Data_Type : TPOS01 ,Fun_Name : db_select_tpos01 , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+			Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+  		}
+	}          
+      
+   	if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+	{
+		memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In db_select_tpos01 ,ST1 :%d,ST2 : %d",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+	}
+   db_to_tpos01 (tpos01_ptr);
+
+   return PTEMSG_OK;
+}
+/*************************************************************************************/
+
+/*************************************************************************************/
+BYTE db_update_tpos01( pTPOS01 tpos01_ptr, pCHAR ErrorMsg )
+{
+   INT  retval;
+
+   tpos01_to_db( tpos01_ptr );
+
+   if ( db_error_statics_flag == true )
+   {
+   		start_time = ptetime_get_time();
+   }
+   /* Make sure we can access the record before attempting to update it. */
+   EXEC SQL
+      SELECT *
+      INTO  :db_tpos01
+      FROM   tpos01
+       WHERE transaction_id = :pte_tpos01.transaction_id AND
+          	 system_date    = :pte_tpos01.system_date    AND
+          	 rownum         = 1
+      For Update NOWAIT;
+      
+	if ( db_error_statics_flag == true )
+	{
+   		end_time = ptetime_get_time();
+   		duration = end_time - start_time;
+   		if(duration >= (double)db_error_statics_value)
+  		{
+  			memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+			sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Posds, ST1 :%d,ST2 : %d,Data_Type : TPOS01 ,Fun_Name : db_update_tpos01_S , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+			Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+  		}
+	}  
+   if (SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+   {
+		memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_update_tpos01 ,ST1 :%d,ST2 : %d_1",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+   }
+   
+   if ( db_error_statics_flag == true )
+   {
+   		start_time = ptetime_get_time();
+   }	
+   /* Record is accessible. Lets update it. */
+   EXEC SQL UPDATE tpos01
+   SET   transaction_id                      = :pte_tpos01.transaction_id,
+         system_date                         = :pte_tpos01.system_date,
+         tx_key								 = :pte_tpos01.tx_key,
+         message_type                        = :pte_tpos01.message_type,
+         card_num                            = :pte_tpos01.card_num,
+         processing_code                     = :pte_tpos01.processing_code,
+         sys_trace_audit_num                 = :pte_tpos01.sys_trace_audit_num,
+         time_HHMMSS                         = :pte_tpos01.time_HHMMSS,
+         date_YYYYMMDD                       = :pte_tpos01.date_YYYYMMDD,
+         pos_entry_mode                      = :pte_tpos01.pos_entry_mode,
+         card_sequence_number                = :pte_tpos01.card_sequence_number,
+         nii                                 = :pte_tpos01.nii,
+         pos_condition_code                  = :pte_tpos01.pos_condition_code,
+         retrieval_ref_num                   = :pte_tpos01.retrieval_ref_num,
+         response_code                       = :pte_tpos01.response_code,
+         terminal_id                         = :pte_tpos01.terminal_id,
+         merchant_id                         = :pte_tpos01.merchant_id,
+         bin_low                             = :pte_tpos01.bin_low,
+         bin_high                            = :pte_tpos01.bin_high,
+         bin_type                            = :pte_tpos01.bin_type,
+         card_family                         = :pte_tpos01.card_family,
+         bin_description                     = :pte_tpos01.bin_description,
+         response_text                       = :pte_tpos01.response_text,
+         future_use_1                        = :pte_tpos01.future_use_1,
+         future_use_2                        = :pte_tpos01.future_use_2
+          WHERE transaction_id = :pte_tpos01.transaction_id AND
+          		system_date    = :pte_tpos01.system_date; 
+          		
+    if ( db_error_statics_flag == true )
+	{
+   		end_time = ptetime_get_time();
+   		duration = end_time - start_time;
+   		if(duration >= (double)db_error_statics_value)
+  		{
+  			memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+			sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Posds, ST1 :%d,ST2 : %d,Data_Type : TPOS01 ,Fun_Name : db_update_tpos01_U , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+			Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+  		}
+	}  
+   if ( SQLCODE != 0 )
+   {
+		memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_update_tpos01 ,ST1 :%d,ST2 : %d_2",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+   }
+
+   return PTEMSG_OK;
+}
+
+/*************************************************************************************/
+/*************************************************************************************/
+
+/*************************************************************************************/
+BYTE db_delete_tpos01( pTPOS01 tpos01_ptr, pCHAR ErrorMsg)
+{
+   INT  retval;
+
+   tpos01_to_db( tpos01_ptr );
+   
+   if ( db_error_statics_flag == true )
+   {
+   		start_time = ptetime_get_time();
+   }
+   /* Make sure we can access the record before attempting to delete it. */
+   EXEC SQL
+      SELECT *
+      INTO  :db_tpos01
+      FROM   tpos01
+      WHERE  transaction_id = :pte_tpos01.transaction_id AND
+     		 system_date    = :pte_tpos01.system_date AND
+     		 rownum         = 1;
+     		 
+   	if ( db_error_statics_flag == true )
+	{
+   		end_time = ptetime_get_time();
+   		duration = end_time - start_time;
+   		if(duration >= (double)db_error_statics_value)
+  		{
+  			memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+			sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Posds, ST1 :%d,ST2 : %d,Data_Type : TPOS01 ,Fun_Name : db_delete_tpos01_S , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+			Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+  		}
+	}  
+
+   if (SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+   {
+		memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_delete_tpos01 ,ST1 :%d,ST2 : %d_1",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+   }
+   if ( db_error_statics_flag == true )
+   {
+   		start_time = ptetime_get_time();
+   }
+   
+   /* Record is accessible. Lets delete it. */
+   EXEC SQL DELETE FROM tpos01
+   WHERE transaction_id = :pte_tpos01.transaction_id AND
+         system_date    = :pte_tpos01.system_date; 
+         
+	if ( db_error_statics_flag == true )
+	{
+   		end_time = ptetime_get_time();
+   		duration = end_time - start_time;
+   		if(duration >= (double)db_error_statics_value)
+  		{
+  			memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+			sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Posds, ST1 :%d,ST2 : %d,Data_Type : TPOS01 ,Fun_Name : db_delete_tpos01_D , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+			Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+  		}
+	}  
+   if (( SQLCODE != 0 ) /*&& ( SQLCODE != NO_DATA_FOUND)*/)
+   {
+		memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_delete_tpos01 ,ST1 :%d,ST2 : %d_2",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+   }
+
+   return PTEMSG_OK;
+}
+
+/*************************************************************************************/
+
+/*************************************************************************************/
+INT isnum(pCHAR string)
+{
+   INT i;
+   INT length;
+
+   length = (INT)strlen(string);
+   for (i = 0; i < length; i++)
+   {
+      if (!isdigit(string[i]))
+        return(false);
+   }
+   return(true);
+}
+
+
+INT validate_date_yyyymmdd( pBYTE date_str)
+{
+   INT  ret_val = false;
+   INT  imonth, iday, iyear;
+   CHAR temp_month[3]="";
+   CHAR temp_day[3]  ="";
+   CHAR temp_year[5] ="";
+
+   /* Validate date is numeric. */
+   if ( (true == isnum(date_str)) && (8 == strlen(date_str)) )
+   {
+      /* Validate month */
+      memcpy( temp_month, date_str+4, 2 );
+      imonth = atoi(temp_month);
+      if ( (1 <= imonth) && (imonth <= 12) )
+      {
+         /* Month is valid; check the day. */
+         memcpy( temp_day, date_str+6, 2 );
+         iday = atoi(temp_day);
+         if ( (1 <= iday) && (iday <= 31) )
+         {
+            if ( iday == 31 )
+            {
+               if ( (imonth == 1) || (imonth == 3) || (imonth == 5) ||
+                    (imonth == 7) || (imonth == 8) || (imonth == 10)||
+                    (imonth == 12) )
+               {
+                  ret_val = true;
+               }
+            }
+            else if ( (iday == 30) && (imonth != 2) )
+            {
+               ret_val = true;
+            }
+            else if ( (iday == 29) && (imonth == 2) )
+            {
+               /* This must be a leap year to be valid. */
+               memcpy( temp_year, date_str, 4 );
+               iyear = atoi(temp_year);
+               if ( (iyear%4) == 0 )
+                  ret_val = true;
+               //else
+               //   sprintf( err_buf, "Too many days for February (%s)",date_str);
+            }
+            else
+               ret_val = true;
+
+            /* Validate the year. */
+            memcpy( temp_year, date_str, 4 );
+            iyear = atoi(temp_year);
+            if ( (iyear < 2000) || (iyear > 2200) )
+            {
+               ret_val = false;
+              // sprintf( err_buf, "ERROR: Invalid date (%s). Bad Year",date_str);
+            }
+         }
+         else
+         {
+            //sprintf( err_buf, "ERROR: Invalid date (%s). Bad Day.", date_str );
+         }
+      }
+      else
+      {
+         //sprintf( err_buf, "ERROR: Invalid date (%s). Bad Month.", date_str );
+      }
+   }
+   else
+   {
+     // sprintf( err_buf, "ERROR: Invalid date (%s).", date_str );
+   }
+   if ( true != ret_val )
+      //strcat(  err_buf, " Must be in format YYYYMMDD." );
+
+   return( ret_val );
+}
+
+
+/*************************************************************************************/
+
+/*************************************************************************************/
+BYTE db_insert_tpos01( pTPOS01 tpos01_ptr, pCHAR ErrorMsg )
+{
+   INT  retval;
+
+   EXEC SQL BEGIN DECLARE SECTION;
+      char date[9];
+       char yyyymmdd[25];
+   EXEC SQL END DECLARE SECTION;
+   
+   tpos01_to_db( tpos01_ptr );
+
+   if (strlen(pte_tpos01.date_YYYYMMDD) < 8 || (validate_date_yyyymmdd(pte_tpos01.date_YYYYMMDD) == false) )
+   {
+      printf("Entered datecheck loop\n");
+      /*pintime_get_gmt ( yymmdd );*/
+      memset( date,   0x00, sizeof(date)   );
+      memset( yyyymmdd, 0x00, sizeof(yyyymmdd) );
+      genutil_format_date(yyyymmdd);
+      strncpy(pte_tpos01.date_YYYYMMDD, yyyymmdd, sizeof(pte_tpos01.date_YYYYMMDD)-1);
+   }
+   
+   if ( db_error_statics_flag == true )
+   {
+   		start_time = ptetime_get_time();
+   }
+   EXEC SQL INSERT INTO tpos01
+     (  transaction_id,       
+		system_date,
+		tx_key,          
+		message_type,         
+		card_num,            
+		processing_code,      
+		sys_trace_audit_num,  
+		time_HHMMSS,          
+		date_YYYYMMDD,        
+		pos_entry_mode,      
+		card_sequence_number, 
+		nii,                  
+		pos_condition_code,   
+		retrieval_ref_num,    
+		response_code,        
+		terminal_id,          
+		merchant_id,          
+		bin_low,              
+		bin_high,             
+		bin_type,             
+		card_family,          
+		bin_description,      
+		response_text,        	
+		future_use_1,         
+		future_use_2         
+
+     )               
+   VALUES(  :pte_tpos01.transaction_id,
+			:pte_tpos01.system_date,
+			:pte_tpos01.tx_key,
+			:pte_tpos01.message_type,
+			:pte_tpos01.card_num,
+			:pte_tpos01.processing_code,
+			:pte_tpos01.sys_trace_audit_num,
+			:pte_tpos01.time_HHMMSS,
+			:pte_tpos01.date_YYYYMMDD,
+			:pte_tpos01.pos_entry_mode,
+			:pte_tpos01.card_sequence_number,
+			:pte_tpos01.nii,
+			:pte_tpos01.pos_condition_code,
+			:pte_tpos01.retrieval_ref_num,
+			:pte_tpos01.response_code,
+			:pte_tpos01.terminal_id,
+			:pte_tpos01.merchant_id,
+			:pte_tpos01.bin_low,
+			:pte_tpos01.bin_high,
+			:pte_tpos01.bin_type,
+			:pte_tpos01.card_family,
+			:pte_tpos01.bin_description,
+			:pte_tpos01.response_text,
+			:pte_tpos01.future_use_1,
+			:pte_tpos01.future_use_2
+   
+      );
+	if ( db_error_statics_flag == true )
+	{
+   		end_time = ptetime_get_time();
+   		duration = end_time - start_time;
+   		if(duration >= (double)db_error_statics_value)
+  		{
+  			memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+			sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Posds, ST1 :%d,ST2 : %d,Data_Type : TPOS01 ,Fun_Name : db_insert_tpos01 , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+			Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+  		}
+	}  
+   if ( SQLCODE != 0 )
+   {
+		memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_insert_tpos01 ,ST1 :%d,ST2 : %d",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+   }
+
+   return PTEMSG_OK;
+
+}
+
+
+/*************************************************************************************/
+BYTE db_get_tpos01_gui_list( pTPOS01 tpos01_ptr, 
+                            pTLF01_GUI_LIST tpos01_Gui_List,
+                            pCHAR ErrorMsg )
+{
+   INT  retval;
+
+    EXEC SQL BEGIN DECLARE SECTION;
+    char transaction_id [21];
+	char card_num [21];
+	char date_yyyymmdd[9];
+	char time_hhmmss[7];
+	char acquirer_id[21];
+	char issuer_id[21];
+	char merchant_id[16];
+	char terminal_id[9];
+	char response_code[3];
+	char sys_trace_audit_num[9];
+	char sales_amount[13];
+	char refund_amount[13];
+	char auth_number[7];
+
+    int temp;
+    EXEC SQL END DECLARE SECTION;
+
+   memset( tpos01_Gui_List, 0, sizeof(TLF01_GUI_LIST) );
+   strcpy( tpos01_Gui_List->num_returned,"0");
+   strncpy( transaction_id,		 tpos01_ptr->primary_key.transaction_id, sizeof(transaction_id) );
+   strncpy( card_num,			 tpos01_ptr->card_num,	sizeof(card_num) );
+   strncpy( date_yyyymmdd,		 tpos01_ptr->date_YYYYMMDD,	sizeof(date_yyyymmdd) );
+   strncpy( time_hhmmss,		 tpos01_ptr->time_HHMMSS,	sizeof(time_hhmmss) );
+   strncpy( merchant_id,		 tpos01_ptr->merchant_id,	sizeof(merchant_id) );
+   strncpy( terminal_id,		 tpos01_ptr->terminal_id,		sizeof(terminal_id) );
+   strncpy( response_code,		 tpos01_ptr->response_code,	sizeof(response_code) );
+   strncpy( sys_trace_audit_num, tpos01_ptr->sys_trace_audit_num, sizeof(sys_trace_audit_num) );
+   
+   if ( db_error_statics_flag == true )
+   {
+   		start_time = ptetime_get_time();
+   }
+   EXEC SQL DECLARE tpos01_cursor10 CURSOR FOR
+         SELECT * from tpos01
+         WHERE  transaction_id >= :transaction_id AND
+				card_num >= :card_num AND
+				date_yyyymmdd >= :date_yyyymmdd AND
+				time_hhmmss >= :time_hhmmss AND
+				acquirer_id >= :acquirer_id AND
+				issuer_id >= :issuer_id AND
+				merchant_id >= :merchant_id AND
+				terminal_id >= :terminal_id AND
+				response_code >= :response_code AND
+				sys_trace_audit_num >= :sys_trace_audit_num AND
+				sales_amount >= :sales_amount AND
+				refund_amount >= :refund_amount AND
+				auth_number >= :auth_number
+				ORDER BY transaction_id;
+
+	if ( db_error_statics_flag == true )
+	{
+   		end_time = ptetime_get_time();
+   		duration = end_time - start_time;
+   		if(duration >= (double)db_error_statics_value)
+  		{
+  			memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+			sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Posds, ST1 :%d,ST2 : %d,Data_Type : TPOS01 ,Fun_Name : db_get_tpos01_gui_list_Cursor , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+			Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+  		}
+	}  
+   
+   EXEC SQL WHENEVER SQLERROR goto sql_error;
+      EXEC SQL OPEN tpos01_cursor10;
+
+   EXEC SQL WHENEVER SQLERROR goto sql_error2;
+   EXEC SQL WHENEVER NOTFOUND DO break;
+   for ( temp = 0; temp < GUI_MAX_LIST_SIZE ; temp++ )
+   {
+      memset(&db_tpos01, 0x00, sizeof(db_tpos01));
+      if ( db_error_statics_flag == true )
+      {
+   		start_time = ptetime_get_time();
+      }
+      EXEC SQL FETCH tpos01_cursor10
+      INTO :db_tpos01;
+      
+	  if ( db_error_statics_flag == true )
+	  {
+   		end_time = ptetime_get_time();
+   		duration = end_time - start_time;
+   		if(duration >= (double)db_error_statics_value)
+  		{
+  			memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+			sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Posds, ST1 :%d,ST2 : %d,Data_Type : TPOS01 ,Fun_Name : db_get_tpos01_gui_list_F , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+			Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+  		}
+	  }  
+      sql_error2:
+      if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+      {
+         SQL_CODE = SQLCODE;
+         EXEC SQL CLOSE tpos01_cursor10;
+		 memset(er_buf,0x00,sizeof(er_buf));
+		 DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		 sprintf(er_buf,"In  db_get_tpos01_gui_list ,ST1 :%d,ST2 : %d_1",DB_MsgSubtype1,DB_MsgSubtype2);
+		 strcat(er_buf,ErrorMsg);
+		 Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		 return DB_rcode;
+      }
+      memcpy( tpos01_Gui_List->tlf01_structure[temp].primary_key.transaction_id, 
+			  db_tpos01.transaction_id.arr, 
+			  db_tpos01.transaction_id.len );
+      itoa(temp + 1, tpos01_Gui_List->num_returned, 10);
+   }
+
+   EXEC SQL CLOSE tpos01_cursor10;
+
+   return PTEMSG_OK;
+
+sql_error:
+   EXEC SQL WHENEVER SQLERROR CONTINUE;
+   EXEC SQL WHENEVER NOTFOUND CONTINUE;
+   SQL_CODE = SQLCODE;
+   EXEC SQL CLOSE tpos01_cursor10;
+   memset(er_buf,0x00,sizeof(er_buf));
+   DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+   sprintf(er_buf,"In  db_get_tpos01_gui_list ,ST1 :%d,ST2 : %d_2",DB_MsgSubtype1,DB_MsgSubtype2);
+   strcat(er_buf,ErrorMsg);
+   Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+   return DB_rcode;
+
+}
+/***********************************************************************************/
+
+
+
+
+
+BYTE db_get_tpos01_gui_list_dynamic (pTPOS01_LIMITS    Tpos01_ptr, 
+                                        pTPOS01_GUI_LIST  tpos01_Gui_List, 
+                                        pCHAR            ErrorMsg )
+{
+   EXEC SQL BEGIN DECLARE SECTION;
+      char transaction_id    [21];
+      char card_num          [21];
+      char date_yyyymmdd_start[9];
+      char date_yyyymmdd_end  [9];
+      char time_hhmmss_start  [9];
+      char time_hhmmss_end    [9];
+      char merchant_id       [16];
+      char terminal_id        [9];
+      char card_num_query      [7]={0};
+
+      varchar db_transaction_id     [21];
+      varchar db_terminal_id         [9];
+      varchar db_merchant_id        [16];
+      varchar db_card_num           [20];
+      varchar db_response_code       [3];
+      varchar db_retrieval_ref_num  [13];
+      varchar db_time_hhmmss         [7];
+      varchar db_date_yyyymmdd       [9];
+      varchar db_sys_trace_audit_num [7];
+      varchar db_system_date         [9];
+
+      varchar sqltextvar[1000];
+
+      int  len;
+      int  temp;
+
+      unsigned char gui_wildcard    = '*';
+      unsigned char oracle_wildcard = '%';
+
+   EXEC SQL END DECLARE SECTION;
+
+   memset(  tpos01_Gui_List, 0, sizeof(TPOS01_GUI_LIST) );
+   strcpy(  tpos01_Gui_List->num_returned,"0");
+   strncpy( transaction_id,      Tpos01_ptr->transaction_id,     sizeof(transaction_id)      );
+   strncpy( card_num,            Tpos01_ptr->card_num_min,       sizeof(card_num)            );
+   strncpy( date_yyyymmdd_start, Tpos01_ptr->date_yyyymmdd_start,sizeof(date_yyyymmdd_start) );
+   strncpy( date_yyyymmdd_end,   Tpos01_ptr->date_yyyymmdd_end,  sizeof(date_yyyymmdd_end)   );
+   strncpy( time_hhmmss_start, Tpos01_ptr->time_hhmmss_start,sizeof(time_hhmmss_start) );
+   strncpy( time_hhmmss_end,   Tpos01_ptr->time_hhmmss_end,  sizeof(time_hhmmss_end)   );
+   strncpy( merchant_id,         Tpos01_ptr->merchant_id_min,    sizeof(merchant_id)         );
+   strncpy( terminal_id,         Tpos01_ptr->terminal_id_min,    sizeof(terminal_id)         );
+
+   /* -------------------------------------------------------------- */
+   /* Dynamically build select based on presence or absence of data. */
+   /* -------------------------------------------------------------- */
+
+   temp = 0;
+   strcpy( sqltextvar.arr, "(SELECT ");
+	
+   /* Complete the SELECT clause, with FROM, and start the WHERE clause */
+     strcat( sqltextvar.arr,
+          "transaction_id, terminal_id, merchant_id, card_num, "
+          "date_yyyymmdd, time_hhmmss, response_code, "
+          "retrieval_ref_num, "
+          "sys_trace_audit_num, system_date FROM TPOS01 WHERE " );
+
+
+   /* ----------- */
+   /* CARD NUMBER */
+   /* ----------- */
+
+   len = strlen( card_num );
+   if ( len > 0 )
+   {
+      /* Used a wild card on card number.  Need to use a 'like'. */
+     	strncpy(card_num_query,card_num ,len);
+     	card_num_query[6]=oracle_wildcard;
+     	sprintf( sqltextvar.arr,
+             "%s card_num like '%s'",
+              sqltextvar.arr, card_num_query );
+      	temp = 1;
+   }
+
+   /* ---------- */
+   /* DATE RANGE */
+   /* ---------- */
+
+   if ( date_yyyymmdd_start[0] != '\0' )
+   {
+      if ( 0 == strcmp(date_yyyymmdd_start, date_yyyymmdd_end) )
+      {
+         /* Start date and End date are the same. */
+         /* ------------------------------------- */
+         if ( temp == 1 )
+         {
+            sprintf( sqltextvar.arr,
+                    "%s and system_date = '%s'",
+                     sqltextvar.arr, date_yyyymmdd_start );
+         }
+         else
+         {
+            temp = 1;
+            sprintf( sqltextvar.arr,
+                    "%s system_date = '%s'",
+                     sqltextvar.arr, date_yyyymmdd_start );
+         }
+      }
+      else
+      {
+         /* Start date and End date are different. */
+         /* -------------------------------------- */
+         if ( temp == 1 )
+         {
+            sprintf( sqltextvar.arr,
+                    "%s and system_date >= '%s' and system_date <= '%s'",
+                     sqltextvar.arr, date_yyyymmdd_start, date_yyyymmdd_end );
+         }
+         else
+         {
+            temp = 1;
+            sprintf( sqltextvar.arr,
+                    "%s system_date >= '%s' and system_date <= '%s'",
+                     sqltextvar.arr, date_yyyymmdd_start, date_yyyymmdd_end );
+         }
+      }
+   }
+
+
+   /* -------------- */
+   /* TRANSACTION ID */
+   /* -------------- */
+
+   if(transaction_id[0] != '\0')
+   {
+      if ( temp == 1 )
+      {
+         sprintf( sqltextvar.arr,
+                 "%s and transaction_id >= '%s'",
+                  sqltextvar.arr, transaction_id );
+      }
+      else
+      {
+         temp = 1;
+         sprintf( sqltextvar.arr,
+                 "%s transaction_id >= '%s'",
+                  sqltextvar.arr, transaction_id );
+      }
+   }
+
+
+   /* ----------- */
+   /* MERCHANT ID */
+   /* ----------- */
+
+   len = strlen( merchant_id );
+   if ( len > 0 )
+   {
+      if ( temp == 1 )
+      {
+         if ( merchant_id[len-1] == gui_wildcard )
+         {
+            /* Operator used wild card on merchant.  Need to use 'like' cmd. */
+            merchant_id[len-1] = oracle_wildcard;
+            sprintf( sqltextvar.arr,
+                    "%s and merchant_id like '%s'",
+                     sqltextvar.arr, merchant_id );
+         }
+         else
+         {
+            sprintf( sqltextvar.arr,
+                    "%s and merchant_id = '%s'",
+                     sqltextvar.arr, merchant_id );
+         }
+      }
+      else
+      {
+         temp = 1;
+         if ( merchant_id[len-1] == gui_wildcard )
+         {
+            /* Operator used wild card on merchant.  Need to use 'like' cmd. */
+            merchant_id[len-1] = oracle_wildcard;
+            sprintf( sqltextvar.arr,
+                    "%s merchant_id like '%s'",
+                     sqltextvar.arr, merchant_id );
+         }
+         else
+         {
+            sprintf( sqltextvar.arr,
+                    "%s merchant_id = '%s'",
+                     sqltextvar.arr, merchant_id );
+         }
+      }
+   }
+
+
+   /* ----------- */
+   /* TERMINAL ID */
+   /* ----------- */
+
+   len = strlen( terminal_id );
+   if ( len > 0 )
+   {
+      if ( temp == 1 )
+      {
+         if ( terminal_id[len-1] == gui_wildcard )
+         {
+            /* Operator used wild card on terminal.  Need to use 'like' cmd. */
+            terminal_id[len-1] = oracle_wildcard;
+            sprintf( sqltextvar.arr,
+                    "%s and terminal_id like '%s'",
+                     sqltextvar.arr, terminal_id );
+         }
+         else
+         {
+            sprintf( sqltextvar.arr,
+                    "%s and terminal_id = '%s'",
+                     sqltextvar.arr, terminal_id );
+         }
+      }
+      else
+      {
+         temp = 1;
+         if ( terminal_id[len-1] == gui_wildcard )
+         {
+            /* Operator used wild card on terminal.  Need to use 'like' cmd. */
+            terminal_id[len-1] = oracle_wildcard;
+            sprintf( sqltextvar.arr,
+                    "%s terminal_id like '%s'",
+                     sqltextvar.arr, terminal_id );
+         }
+         else
+         {
+            sprintf( sqltextvar.arr,
+                    "%s terminal_id = '%s'",
+                     sqltextvar.arr, terminal_id );
+         }
+      }
+   }
+   
+   /* ---------- */
+   /* TIME RANGE */
+   /* ---------- */
+
+   if(time_hhmmss_start[0] != '\0')
+   {
+      if ( temp == 1 )
+      {
+         sprintf( sqltextvar.arr,
+                 "%s and time_hhmmss >= '%s' and time_hhmmss <= '%s'",
+                  sqltextvar.arr, time_hhmmss_start, time_hhmmss_end );
+      }
+      else
+      {
+         temp = 1;
+         sprintf( sqltextvar.arr,
+                 "%s time_hhmmss >= '%s' and time_hhmmss <= '%s'",
+                  sqltextvar.arr, time_hhmmss_start, time_hhmmss_end );
+      }
+   }
+
+   /* -------- */
+   /* ORDER BY */
+   /* -------- */
+
+   sprintf( sqltextvar.arr,
+           "%s) ORDER BY transaction_id",
+            sqltextvar.arr );
+
+   sqltextvar.len = strlen(sqltextvar.arr);
+
+   EXEC SQL PREPARE S FROM :sqltextvar;
+
+    if ( db_error_statics_flag == true )
+    {
+   		start_time = ptetime_get_time();
+    }
+   EXEC SQL DECLARE tlf01_cursor_lookup CURSOR FOR S;
+
+
+    EXEC SQL WHENEVER SQLERROR goto sql_error;
+    EXEC SQL OPEN tlf01_cursor_lookup;
+	if ( db_error_statics_flag == true )
+	{
+   		end_time = ptetime_get_time();
+   		duration = end_time - start_time;
+   		if(duration >= (double)db_error_statics_value)
+  		{
+  			memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+			sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Posds, ST1 :%d,ST2 : %d,Data_Type : TPOS01 ,Fun_Name : db_get_tpos01_gui_list_dynamic_Cursor , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+			Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+  		}
+	}  
+	
+   EXEC SQL WHENEVER SQLERROR goto sql_error2;
+   EXEC SQL WHENEVER NOTFOUND DO break;
+   for ( temp = 0; temp < GUI_MAX_LIST_SIZE1 ; temp++ )
+   {
+      if ( db_error_statics_flag == true )
+      {
+   		start_time = ptetime_get_time();
+      }
+      EXEC SQL FETCH tlf01_cursor_lookup
+      INTO :db_transaction_id, db_terminal_id, db_merchant_id, db_card_num,
+            db_date_yyyymmdd, db_time_hhmmss,db_response_code,
+            db_retrieval_ref_num, db_sys_trace_audit_num, db_system_date;
+
+	  if ( db_error_statics_flag == true )
+	  {
+   		 end_time = ptetime_get_time();
+
+   		 duration = end_time - start_time;
+
+   		 if(duration >= (double)db_error_statics_value)
+  		 {
+  			memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+			sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Posds, ST1 :%d,ST2 : %d,Data_Type : TPOS01 ,Fun_Name : db_get_tpos01_gui_list_dynamic_F , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+			Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+  		 }
+	  }  
+      sql_error2:
+      if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+      {
+         SQL_CODE = SQLCODE;
+         EXEC SQL CLOSE tlf01_cursor_lookup;
+		 memset(er_buf,0x00,sizeof(er_buf));
+		 DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		 sprintf(er_buf,"In  db_get_tpos01_gui_list_dynamic ,ST1 :%d,ST2 : %d_1",DB_MsgSubtype1,DB_MsgSubtype2);
+		 strcat(er_buf,ErrorMsg);
+		 Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		 return DB_rcode;
+      }
+      memcpy( tpos01_Gui_List->tpos01_structure[temp].primary_key.transaction_id,
+              db_transaction_id.arr, db_transaction_id.len );
+
+      memcpy( tpos01_Gui_List->tpos01_structure[temp].terminal_id,
+              db_terminal_id.arr, db_terminal_id.len );
+
+      memcpy( tpos01_Gui_List->tpos01_structure[temp].merchant_id,
+              db_merchant_id.arr, db_merchant_id.len );
+
+      memcpy( tpos01_Gui_List->tpos01_structure[temp].card_num,
+              db_card_num.arr, db_card_num.len );
+
+  
+      memcpy( tpos01_Gui_List->tpos01_structure[temp].response_code,
+              db_response_code.arr, db_response_code.len );
+
+      memcpy( tpos01_Gui_List->tpos01_structure[temp].retrieval_ref_num,
+              db_retrieval_ref_num.arr, db_retrieval_ref_num.len );
+
+      memcpy( tpos01_Gui_List->tpos01_structure[temp].time_HHMMSS,
+              db_time_hhmmss.arr, db_time_hhmmss.len );
+
+      memcpy( tpos01_Gui_List->tpos01_structure[temp].date_YYYYMMDD,
+              db_date_yyyymmdd.arr, db_date_yyyymmdd.len );
+
+      memcpy( tpos01_Gui_List->tpos01_structure[temp].sys_trace_audit_num,
+              db_sys_trace_audit_num.arr, db_sys_trace_audit_num.len );
+
+      memcpy( tpos01_Gui_List->tpos01_structure[temp].primary_key.system_date,
+              db_system_date.arr, db_system_date.len );
+
+      itoa(temp + 1, tpos01_Gui_List->num_returned, 10);
+   }
+
+   EXEC SQL CLOSE tlf01_cursor_lookup;
+
+   return PTEMSG_OK;
+
+sql_error:
+   EXEC SQL WHENEVER SQLERROR CONTINUE;
+   EXEC SQL WHENEVER NOTFOUND CONTINUE;
+   memset(er_buf,0x00,sizeof(er_buf));
+   DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+   sprintf(er_buf,"In  db_get_tpos01_gui_list_dynamic ,ST1 :%d,ST2 : %d_2",DB_MsgSubtype1,DB_MsgSubtype2);
+   strcat(er_buf,ErrorMsg);
+   Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+   return DB_rcode;
+
+}

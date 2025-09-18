@@ -1,0 +1,1570 @@
+/*******************************************************************************
+*  
+* MODULE:           log_file.c
+*
+* Copyright (c) 2006, Hypercom, Inc. All Rights Reserved.   
+*  
+* TITLE:             
+*  
+* DESCRIPTION:        
+*
+* APPLICATION:      log_file.exe
+*
+* AUTHOR:           Irene Goldfild
+*
+* REVISION HISTORY:
+*
+* $Log:   N:\POS\PVCS6.6\EPICPORTZ\PTE\Equitable\tran_log_file\log_file.c  $
+   
+      Rev 1.53   Jul 12 2006 17:19:32   dirby
+   Implemented functionality to gather statistics on database SQL calls.
+   SCR 12299
+   
+      Rev 1.52   Feb 17 2006 14:02:06   dirby
+   Added device_type to the authlog record, using up one space of filler.
+   SCR 19844
+   
+      Rev 1.51   Dec 20 2005 16:07:10   dirby
+   Added service code to the end of the log file.  Instead of 7 filler,
+   now there is just 4 filler at the end.
+   SCR 19010
+   
+      Rev 1.50   Jul 01 2005 10:28:56   dirby
+   Changed to store Reload Confirms in the Auth Log instead of Reloads.
+   SCR 16303
+   
+      Rev 1.49   Jun 09 2005 11:09:38   dirby
+   Modified to log reload transactions only if they have been confirmed.
+   SCR 15748
+   
+      Rev 1.48   May 18 2005 15:36:52   dirby
+   Modified to not process batch upload transactions.
+   SCR 15661
+   
+      Rev 1.47   Apr 05 2005 14:21:12   dirby
+   Updated version to 4.4.1.1
+   SCR 12785
+   
+      Rev 1.46   Sep 21 2004 13:31:42   lmitchel
+   Ver:4.4.0.2 - Corrections in create_detail_structure per EB confirmation: reload confirm transactions not to be included in auth log.  Reload transactions should be in the auth log.
+   
+      Rev 1.45   Jul 29 2004 11:05:14   lmitchel
+   SCR1433 - Corrected population of end time in detail record if 
+   tlf01 tran_finish_time is null.  Corrected garbage in file due to uninitialized local time variables: hh_finish, mm_finish, ss_finish.
+   
+      Rev 1.44   Jul 20 2004 15:47:44   lmitchel
+   Support new reload_confirm and reload void transaction types : SCR1287
+   
+      Rev 1.43   Jul 08 2004 17:58:26   dirby
+   Updated to 4.4.0.1
+   SCRs 1287 & 1388
+   
+      Rev 1.42   May 28 2004 07:29:46   dirby
+   Updated version to 4.3.0.1
+   SCR 1380
+   
+      Rev 1.41   Feb 05 2004 13:50:20   dirby
+   Modified to write transactions with processing code nn4nnn into
+   the credit file instead of the debit file.
+   SCR 1306
+   
+      Rev 1.40   Oct 16 2003 11:19:04   dirby
+   Added refunds.  They have tran type of 'R'.
+   SCR 1247
+   
+      Rev 1.39   Jun 27 2003 06:04:26   dirby
+   Added transaction type Card Verify as a type E log file entry.
+   SCR 1172
+   
+      Rev 1.38   Feb 19 2003 17:38:06   dirby
+   Updated version to 4.2.0.1
+   SCR 955
+   
+      Rev 1.37   Aug 21 2002 16:15:42   dirby
+   Updated project settings to 4.1.1.1
+   Removed code that recalculated deferred gross amount for
+   deferred transactions.  It already exists in TLF01.
+   SCR 255
+   
+      Rev 1.36   Jul 03 2002 14:23:24   dirby
+   Updated version to 4.0.3
+   SCR 803
+   
+      Rev 1.35   Jul 02 2002 13:17:04   dirby
+   1.  Updated version to 4.0.2.1
+   2.  Removed database hit to MCF01 by getting TCC from TLF01.
+   3.  Renamed tlf01_list_structure to tlf01_auth_list_structure to
+   avoid confusion with tlf01_list_structure in equitdb.h.
+   SCR 800
+   
+      Rev 1.34   Nov 30 2001 07:51:26   dirby
+   Added 2 lines to set CVC to a space if it is null.  Because a null
+   was resulting in no new-line being placed at the end of the record.     SCR 256
+   
+      Rev 1.33   Nov 08 2001 15:43:36   dirby
+   Corrected a bug introduced in the previous revision.  The
+   outstanding balance was losing its cents.     SCR 256
+   
+      Rev 1.32   Nov 08 2001 14:19:12   dirby
+   1.  Added code to handle RSB deferred transactions.
+   2.  Reworked the way deferred amount and outstanding amounts were being converted to strings.
+   SCR 256
+   
+      Rev 1.31   Aug 06 2001 09:07:04   dirby
+   Updated version to 3.2.3.2  This is for changes made in
+   revisions 1.29 and 1.30
+   
+      Rev 1.30   Jul 23 2001 11:01:16   SYARLAGA
+   Modified ProcessTransactions function.
+   
+      Rev 1.29   Jul 13 2001 11:49:58   lmitchel
+   modifications to add tlf01.cvc to output files
+   
+      Rev 1.28   Jun 27 2001 12:43:20   SYARLAGA
+   Added  0120 and 0121 messages to authlog.with transaction type E.
+   
+      Rev 1.27   Feb 28 2001 13:34:06   dirby
+   1.  Updated version to 3.2.2.3
+   2.  Commented out any ties to XIPC.  It now runs independently of XIPC.
+   
+   
+      Rev 1.26   Jan 09 2001 13:46:02   dirby
+    
+   
+      Rev 1.25   Aug 09 2000 18:29:38   lmitchel
+   Correct available amount field(tlf01.outstanding) =  available amount prior to transaction
+   
+      Rev 1.24   Aug 03 2000 17:27:48   lmitchel
+   If currency code = dollars(840), currency_type = U
+   if currency code = peso(608), currency_type = P
+   
+      Rev 1.23   Aug 01 2000 16:01:10   lmitchel
+   Added odometer and currency code
+   
+      Rev 1.22   Jul 31 2000 09:52:44   dirby
+   Modified to display version number at startup and shutdown.
+   
+   
+      Rev 1.21   Jul 18 2000 12:42:12   dirby
+   Most of this change is correcting the indentation.  But also
+   added code in case OFFLINE_SALE to check the pos_condition_code.
+   If it is '06', then the txn is really a SALES_COMPLETION.
+   
+      Rev 1.20   Apr 17 2000 15:09:00   svelaga
+   removed file card_holder_name from tlf01_list_struct 
+   and added ticket_nbr.
+   
+      Rev 1.19   Mar 14 2000 16:20:28   ddabberu
+   changed invoice number with card_holder_name
+   (stores the content of field 63) scr 485
+   
+      Rev 1.18   Mar 02 2000 11:02:42   ddabberu
+   fix for scr#191 
+   
+      Rev 1.17   Jan 25 2000 13:40:20   farad
+   Modified the code to fix Bug #192, #193.  
+   
+      Rev 1.16   Jan 24 2000 11:56:48   farad
+   Re-fixed bug #191.
+   
+      Rev 1.15   Jan 24 2000 11:52:10   farad
+   Fixed bug #191 (farad 1-24-2000).  Modified the code such 
+   that it only would take 2 digits from the 3 digit field and write
+    it to the file.
+   
+      Rev 1.14   Dec 27 1999 14:46:14   dperson
+   Changed case of include file log_FILE.h to log_file.h for Unix system
+   
+      Rev 1.13   Dec 17 1999 15:33:26   dperson
+   Added code to populate retrieval_ref_num from TLF01
+   
+      Rev 1.12   Oct 05 1999 15:09:10   egable
+   RRN was being calculated by log_file.  Equitable
+   requests that we use the RRN from the 
+   transaction.  ER #1077.
+   
+      Rev 1.11   Jul 30 1999 14:33:26   apinto
+   Transaction Category Code is tlf01.vs_tcc_code
+   or tlf01.mc_fcc_code : Logic Verified-OK!
+   
+      Rev 1.10   Jun 24 1999 14:30:44   dperson
+   Merchant id no longer contains TID as in spec
+   (it is put in the log file as it is in the database)
+   
+   Added code to populate and output descriptor 
+   code from first 2 characters of product code.
+   
+      Rev 1.9   Jun 15 1999 10:18:52   dperson
+   Fixed logic to handle blank LastDate and Directory in tranlog.ini.
+   Updated information given when a "?" is given as an argument.
+   Added/modified code to insure stop and start messages display correctly.
+   Modularized code and made cosmetic changes.
+
+      Rev 1.8   Jun 07 1999 16:45:28   epriyev
+   added code to support unix version.
+   
+      Rev 1.7   May 25 1999 15:37:02   dperson
+   Changes to date:
+     Added code to generate Unix DEFAULT_DIRECTORY
+     Added code to compute deferred amount
+     Added code to handle blank start and end times
+     Added code to handle execution of code with no arguments
+   
+      Rev 1.6   May 24 1999 13:21:26   dperson
+      
+      Rev 1.5   May 24 1999 06:58:22   dperson
+    
+      Rev 1.4   May 18 1999 13:34:26   dperson
+    
+      Rev 1.3   13 May 1999 10:39:24   epriyev
+   Added code for unix compilation, edited 
+   output record format.
+   
+      Rev 1.2   04 May 1999 10:21:00   epriyev
+   Added code to maintain last date processed and path for log FILEs in ini FILE.
+   Added code to create the log FILEs per eash day.
+   Fixed output record format.
+   Added code to accept date parameter to process one certain date's transactions.
+   
+      Rev 1.1   Feb 25 1999 14:34:18   IGOLDFIE
+   Made some changed to comments
+   
+      Rev 1.0   Feb 15 1999 13:34:44   IGOLDFIE
+   initial release
+*
+*******************************************************************************/
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <time.h>
+#include <memory.h>
+#include <math.h>
+#include "basictyp.h"
+#include "pte.h"
+#include "ptemsg.h"
+#include "pteipc.h"
+#include "ptestats.h"
+#include "ptesystm.h"
+#include "ptetime.h"
+#include "ntutils.h"
+#include "app_info.h"
+#include "equitdb.h"
+#include "dc_dbstruct.h"
+#include "log_file.h"
+#include "txutils.h"
+#include "dc_database.h"
+#include "memmnger.h"
+#include "ptetimer.h"
+#include "dbcommon.h"
+#include "timings.h"
+
+/***** External variables */
+extern volatile int  EndProcessSignalled;
+extern volatile int  MainProcessDone;
+extern int           Start();
+extern void          Stop ();
+
+/***** Global variables *****/
+static char          cfilename[256]; 
+static char          date_requested[9];
+static char          day_m[3];
+static char          dfilename[256]; 
+static char          dir_str[128];
+extern char          ExeName[100];
+static char	         ini_path [256];
+static char          month[3];
+static char          record[256];
+static char          yyyymmdd_start[9];
+static char          yyyymmdd_yesterday[9];
+
+static FILE          *cfile_write; 
+static FILE          *dfile_write; 
+
+static int           max_tran = 0;
+static long          julian_start;
+static long          julian_yesterday;
+
+static TLF01           auth_tx_detail;
+static TLF01_LOG_LIST  tlf01_log_list;
+
+#ifdef WIN32
+   #define DEFAULT_DIRECTORY  "\\ascendent\\tranlog"
+#else
+   #define DEFAULT_DIRECTORY "/ascendent/tranlog"
+#endif
+
+BYTE db_get_tlf01_log_list( TLF01 *, TLF01_LOG_LIST *, char *);
+
+CHAR  Version[] = "ATP_11.1.0";
+
+/* Database Timing Measurements */
+TIMINGS_LIST  TimingStats;
+INT           DB_Timing_Flag; /* True = Do DB Timing Stats, False = don't do */
+INT           ForceReport;
+CHAR          ReportTime[5];
+
+
+/****************************************************************************
+*
+*  NAME:             main
+*
+*  DESCRIPTION:      This function gets optional initial parameter
+*                    date_requested.
+*
+*  INPUTS:           int argc - number of parameters
+*                    pchar argv[1] - date_requested 
+*                  
+*  OUTPUTS:          None
+*
+*  RETURNS:          None
+*
+*  AUTHOR:           Irene Goldfild
+*   
+*  MODIFIED BY:      Emilia P.	4/27/99
+*
+****************************************************************************/
+void main(int argc, char *argv[])
+{
+   #ifndef WIN32
+		strcpy(ExeName, argv[0]);
+	#endif
+
+   memset(date_requested, 0, sizeof(date_requested));
+
+	if (argc > 1)
+	{
+      if (strcmp(argv[1], "?") == 0)
+		{
+         display_log_info();
+         return;
+		}
+		else
+      	strncpy(date_requested, argv[1], sizeof(date_requested));
+   }
+	else
+		strcpy(date_requested, "");
+
+   if (!Start())
+	   printf("Error starting Transaction Log File program \n\n");
+	
+	Stop();
+
+} /* main */
+
+
+/****************************************************************************
+*
+*  NAME:             MainProcessor
+*
+*  DESCRIPTION:      This function handles high-level application logic.
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          None
+*
+*  RETURNS:          None
+*
+*  AUTHOR:           Irene Goldfild
+*   
+*  MODIFIED BY:      Emilia P.  4/28/99
+*
+****************************************************************************/
+void MainProcessor(void)
+{
+   char              AppName[8];
+   char              current_day[9];
+   char              msg[100];
+   char              Buffer[256];
+
+   INT               num_sql;
+   INT               ret_code;
+   int               count_days;
+   int               max_days;
+   long              julian_current_day;
+
+   /* Register the app with XIPC before writing to the System Monitor */
+   memset(AppName, 0, sizeof(AppName));
+   GetAppName(AppName);
+
+   /* Write to System Monitor -  code moved to fix Equitable ER #852 */
+   sprintf( Buffer,
+           "Starting Transaction Log File program, version %s", Version );
+   display_info_message(Buffer, "MainProcessor");
+
+   /* Check that date_requested is a valid date in YYYYMMDD format */
+   if (strcmp(date_requested, "") != 0)
+      if (date_format_ok(date_requested) == false)
+      {
+         strcpy(msg, "Please enter a valid date in YYYYMMDD format ");
+         display_error_message(msg, "MainProcessor");
+         shut_down();
+         return;
+      }
+   
+  	/* Try to connect to the database */
+   if (dbcommon_connect("equitable", "equitable", "equitable", "ORCL", msg) != PTEMSG_OK)
+   {
+      display_error_message(msg, "MainProcessor");
+      shut_down();
+      return;
+   }
+
+   strcpy(msg, "Connected to ORACLE ");
+   display_info_message(msg, "MainProcessor");
+     
+   /* Get directory (changed from GetPinnacleConfigDirectory by D. Person) */
+   GetAscendentConfigDirectory(ini_path);
+   strcat(ini_path, "tranlog.ini");
+
+   /* Set directory where log files will be stored */
+   GetPrivateProfileString ("CONFIG",              /* section name         */
+                            "Directory",           /* key name             */
+                            DEFAULT_DIRECTORY,     /* default value        */
+                            dir_str,               /* destination buffer   */
+                            sizeof(dir_str),			/* size of dest buffer  */
+                            ini_path);             /* .ini file name       */
+
+   if (strcmp(dir_str, "") == 0)
+      strcpy(dir_str, DEFAULT_DIRECTORY);
+
+   /* Get Database Timing Parameters to gather statistics about each query. */
+   memset( ReportTime, 0x00, sizeof(ReportTime) );
+   memset( Buffer,     0x00, sizeof(Buffer)     );
+   ret_code = get_timing_parameters( &DB_Timing_Flag, ReportTime, &ForceReport, Buffer );
+   LogEvent( Buffer, INFO_MSG );
+
+   /* Initialize the DB Timing Statistics Data Structure. */
+   if ( DB_Timing_Flag == true )
+      reset_timing_stats( &TimingStats );
+
+   /* Initialize structure used to build log detail */
+   memset(&auth_tx_detail, 0, sizeof(auth_tx_detail)); 
+   strcpy(auth_tx_detail.primary_key.transaction_id, " ");
+
+   /* Initialize current_day */
+   memset(current_day, 0, sizeof(current_day));
+
+	if (strcmp(date_requested, "") == 0)
+	{
+      /* date_requested was not provided on the command line */
+      if (set_start_date() == false)
+      {
+         shut_down();
+         return;
+      }
+
+      /* Potentially process transactions for multiple dates */
+		max_days = julian_yesterday - julian_start + 1;
+
+		for (count_days = 0; count_days < max_days; count_days++)
+		{
+			julian_current_day = julian_start + count_days;
+			Txutils_Calculate_Gregorian_Date(julian_current_day, current_day);
+			strncpy(month, current_day + 4, 2);
+			strncpy(day_m, current_day + 6, 2);
+
+			if (open_log_files() == false)
+			{
+            shut_down();
+				return;
+			}
+    
+         strcpy(msg, "Processing log files for ");
+         strcat(msg, current_day);
+         display_info_message(msg,"MainProcessor");
+			ProcessTransactions(current_day);
+
+	      fclose (cfile_write);
+   	   fclose (dfile_write);
+
+      } /* end of for */
+   
+   } /* end of if */
+	else
+	{
+      /* date_requested was provided on the command line */
+		strncpy(month, date_requested + 4, 2);
+		strncpy(day_m, date_requested + 6, 2);
+
+		if (open_log_files() == false)
+		{
+         shut_down();
+			return;
+		}
+
+      strcpy(msg, "Processing log files for ");
+      strcat(msg, date_requested);
+      display_info_message(msg,"MainProcessor");
+		ProcessTransactions(date_requested);
+
+      fclose (cfile_write);
+	  fclose (dfile_write);
+     
+	} /* end of else */
+
+   /* Update .ini file with last day processed */
+   if (strcmp(current_day, "") == 0)
+      strcpy(current_day, date_requested);
+        
+   WritePrivateProfileString("CONFIG",			/* section name            */
+	      						  "LastDate",		/* key name                */
+			         			  current_day,	   /* string to add           */
+							        ini_path);   	/* .ini file name          */
+
+   /* Report the DB timing measurement statistics before exiting. */
+   num_sql = log_timing_statistics_report( &TimingStats );
+
+   memset( Buffer, 0x00, sizeof(Buffer) );
+   sprintf( Buffer,
+           "%s logged stats for %d SQLs",
+            AppName, num_sql );
+   LogEvent( Buffer, INFO_MSG );
+
+   shut_down();
+          
+} /* MainProcessor */
+
+
+/****************************************************************************
+*
+*  With the exception of main and MainProcessor, functions are alphabetical
+*
+****************************************************************************/
+
+/****************************************************************************
+*
+*  NAME:             create_detail_structure
+*
+*  DESCRIPTION:      This function creates detail structure for log files.
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          pchar record -  detail structure 
+*
+*  RETURNS:          None
+*
+*  AUTHOR:           Irene Goldfild
+*   
+*  MODIFIED BY:    
+*
+****************************************************************************/
+BOOLEAN create_detail_structure(void)
+{
+   char              tcc[2]      = "";
+   char              exp_date[5] = ""; 
+   char              tran_code;
+   char              currency_type;
+   char              device_type;
+
+   int               hh_start  = 0;
+   int               mm_start  = 0;
+   int               ss_start  = 0;
+   int               hh_finish = 0;
+   int               mm_finish = 0;
+   int               ss_finish = 0;
+
+   double			 prior_available_amt = 0.0;
+   double			 current_available_amt = 0.0;
+   double			 transaction_amt = 0.0;
+
+   struct            tm *ptr_local;
+   time_t            seconds;
+
+   /* Added by D. Person for deferred_amount calculation */
+   char              buffer[13] = "";
+   char              deferred_amount[13] = "";
+   char              prior_available[13] = "";
+   double            nAmount = 0.0;
+   double            nDeferredAmount = 0.0;
+   double            nDeferredFactor = 0.0;
+   int               nDeferredMonths = 0;
+   int               buf_len = 0;
+   int               i = 0;
+   int               j = 0;
+
+   /* Added by D. Person to capture first 2 characters of product code */
+   char              descriptor_code[3]="";
+
+   /* Avoid Batch Upload txns. Use Msg Type, not tx_key, to check.
+    * EB has a problem where some terminal(s) is sending
+    * strange batch upload info where tx_key could be a sale.
+    */
+   if ( 0 == strcmp("0320", auth_tx_detail.message_type) )
+      return( false );
+
+   /* Check for blank start and finish times added by D. Person */
+   if (strcmp(auth_tx_detail.tran_start_time, "") == 0)
+   {
+      hh_start = 0;
+      mm_start = 0;
+      ss_start = 0;
+   }
+   else
+   {
+      seconds = atoi(auth_tx_detail.tran_start_time);
+      ptr_local = localtime(&seconds);
+      hh_start = ptr_local->tm_hour;
+      mm_start = ptr_local->tm_min;
+      ss_start = ptr_local->tm_sec;
+   }
+
+   if (strcmp(auth_tx_detail.tran_finish_time, "") == 0)
+   {
+      hh_finish = 0;
+      mm_finish = 0;
+      ss_finish = 0;
+   }
+   else
+   {
+      seconds = atoi(auth_tx_detail.tran_finish_time);
+      ptr_local = localtime(&seconds);
+      hh_finish = ptr_local->tm_hour;
+      mm_finish = ptr_local->tm_min;
+      ss_finish = ptr_local->tm_sec;
+   }
+
+   /* 08/08/00 lm-calculate prior available balance
+    * The available amount is stored in tlf01.outstanding field
+    *   credit_limit_amt = atoi(auth_tx_detail.credit_limit)/100;
+    *   current_available_amt = (credit_limit_amt - outstanding_amt);
+    */
+   if (strcmp(auth_tx_detail.outstanding_balance, "") == 0)
+   {
+      prior_available_amt = 0.00;
+      transaction_amt = 0.00;
+   }
+   else if (strcmp(auth_tx_detail.response_code, "00") != 0)
+      prior_available_amt = atoi(auth_tx_detail.outstanding_balance);
+   else
+   {
+      current_available_amt  = atoi(auth_tx_detail.outstanding_balance);
+      transaction_amt = atoi(auth_tx_detail.total_amount);
+
+      switch (auth_tx_detail.tx_key)/*reversal, voids, refund*/
+      {
+         case AUTH_VOID_SALE_RESPONSE:
+         case AUTH_VOID_SALE:
+         case AUTH_OFFLINE_VOID_SALE:
+         case AUTH_OFFLINE_VOID_SALE_RESPONSE:
+         case AUTH_REVERSAL:
+         case AUTH_REVERSAL_ADVICE:
+         case AUTH_REVERSAL_RESPONSE:
+         case AUTH_REVERSAL_ADVICE_RESPONSE:
+         case AUTH_REFUND:
+         case AUTH_REFUND_RESPONSE:
+         case AUTH_VOID_RELOAD_RESPONSE:
+         case AUTH_VOID_RELOAD:
+                  prior_available_amt = (current_available_amt - transaction_amt);
+         break;
+
+         default:  /*sale, cash advance, . .*/
+                  prior_available_amt = (current_available_amt + transaction_amt);
+      }
+   }
+
+
+   memset(record, 0, sizeof(record));
+
+   switch (auth_tx_detail.tx_key)
+   {
+      case AUTH_SALE_ADJUSTMENT_RESPONSE:
+      case AUTH_SALE_ADJUSTMENT:
+         tran_code = 'A';
+      break;
+
+      case AUTH_CASH_ADVANCE_RESPONSE:
+      case AUTH_CASH_ADVANCE:
+      case AUTH_CASH_ADVANCE_AUTHORIZATION_RESPONSE:
+      case AUTH_CASH_ADVANCE_AUTHORIZATION:
+      case AUTH_CASH_ADVANCE_AUTHORIZATION_OVERRIDE_RESPONSE:
+      case AUTH_CASH_ADVANCE_AUTHORIZATION_OVERRIDE:
+         tran_code = 'D';
+      break;
+
+      case AUTH_AUTHORIZATION_RESPONSE:
+      case AUTH_AUTHORIZATION:
+      case AUTH_AUTHORIZATION_OVERRIDE_RESPONSE:
+      case AUTH_AUTHORIZATION_OVERRIDE:
+      case AUTH_QUASI_CASH:
+      case AUTH_QUASI_CASH_RESPONSE:
+      case AUTH_ADVICE:
+      case AUTH_ADVICE_RESPONSE:
+      case AUTH_ADVICE_REPEAT:
+      case AUTH_ADVICE_REPEAT_RESPONSE:
+      case AUTH_CARD_VERIFICATION:
+      case AUTH_CARD_VERIFICATION_RESPONSE:
+            tran_code = 'E';
+      break;
+
+      case AUTH_SALES_COMPLETION_RESPONSE:
+      case AUTH_SALES_COMPLETION:
+            tran_code = 'F';
+      break;
+
+      case AUTH_DEFERRED_PURCHASE_AUTHORIZATION_RESPONSE:
+      case AUTH_DEFERRED_PURCHASE_AUTHORIZATION:
+      case AUTH_DEFERRED_PURCHASE_AUTHORIZATION_OVERRIDE_RESPONSE:
+      case AUTH_DEFERRED_PURCHASE_AUTHORIZATION_OVERRIDE:
+            tran_code = 'I';
+      break;
+
+      case AUTH_OFFLINE_SALE_RESPONSE:
+      case AUTH_OFFLINE_SALE:
+         if ( 0 == strcmp( "06", auth_tx_detail.pos_condition_code ) )
+            tran_code = 'F';  /* Sales Completion has pos_cc of '06' */
+         else
+            tran_code = 'O';
+      break;
+
+      case AUTH_SALE_RESPONSE:
+      case AUTH_SALE:
+         tran_code = 'S';
+      break;
+
+      case AUTH_VOID_SALE_RESPONSE:
+      case AUTH_VOID_SALE:
+      case AUTH_OFFLINE_VOID_SALE:
+      case AUTH_OFFLINE_VOID_SALE_RESPONSE:
+      case AUTH_VOID_RELOAD_RESPONSE:
+      case AUTH_VOID_RELOAD:
+         tran_code = 'V';
+      break;
+
+      case AUTH_REVERSAL:
+      case AUTH_REVERSAL_ADVICE:
+      case AUTH_REVERSAL_RESPONSE:
+      case AUTH_REVERSAL_ADVICE_RESPONSE:
+         tran_code = 'U';
+      break;
+
+      case AUTH_REFUND_RESPONSE:
+      case AUTH_REFUND:
+         tran_code = 'R';
+      break;
+
+      case AUTH_RELOAD_CONFIRM_RESPONSE:
+      case AUTH_RELOAD_CONFIRM:
+         /* 09/21/04 lm: EB confirmed only auth reload & void reload
+          * in auth log. For reloads, only do confirmed reloads.
+          * 07/01/05 DI: EB changed their minds - only confirms
+          * and void reloads in auth log.
+          * case AUTH_RELOAD_REPEAT_RESPONSE:
+          * case AUTH_RELOAD_RESPONSE:
+          * case AUTH_RELOAD_REPEAT:
+          * case AUTH_RELOAD:
+          */
+         tran_code = 'L';
+         break;
+
+      default:
+         return(false);
+   }
+
+   /* Added by D. Person to capture first 2 characters of product code */
+   strncpy(descriptor_code, auth_tx_detail.product_code, 2);
+
+   strncpy(exp_date,auth_tx_detail.exp_date + 2, 2);
+   strncpy(exp_date + 2,auth_tx_detail.exp_date , 2);
+
+   if ( 0 == strcmp(auth_tx_detail.type_of_data,RSB_CARD) )
+   {
+      /* Calculations for RSB deferred transactions
+       * are different than that for normal deferred.
+       * It is already calculated.
+       */
+      memcpy( deferred_amount, auth_tx_detail.def_gross_amt, 12 );
+   }
+   else if (atoi(auth_tx_detail.deferred_factor) == 0)
+   {
+      /* This is not a deferred transaction. */
+      memset( deferred_amount, '0', 12 );
+   }
+   else
+   {
+      /* This is a deferred transaction. */
+      memcpy( deferred_amount, auth_tx_detail.def_gross_amt, 12 );
+   }
+
+   /*convert prior available amt to string*/
+   if(prior_available_amt < 0)
+      prior_available_amt = 0;
+   sprintf(prior_available, "%012.0f", prior_available_amt);
+
+   memcpy( tcc, auth_tx_detail.product_codes[19].code, 1 );
+
+   if (strcmp(auth_tx_detail.currency_code, "608") == 0)/*peso*/
+      currency_type = 'P';
+   else if (strcmp(auth_tx_detail.currency_code, "840") == 0)/*US dollar*/
+      currency_type = 'U';
+   else currency_type = ' ';
+
+   if ( auth_tx_detail.cvc == 0x00 )
+      auth_tx_detail.cvc = ' ';
+
+   /* Device Type is 2-bytes in TLF01; first byte is 0. We need 2nd byte. */
+   if ( auth_tx_detail.terminal_type[0] == 0x00 )
+      device_type = ' ';
+   else
+      device_type = auth_tx_detail.terminal_type[1];
+
+   sprintf(record, "%015s%019s%4s%12s%2s%8s%3s%6s%c%02d%02d%02d%02d%02d%02d%4.4s%2.2s%012.012s%12.12s%-15.15s%2.2s%1.1s%4s%012s%03.3s%07.7s%c%c%3s%c%3s",
+                                auth_tx_detail.merchant_id,
+                                auth_tx_detail.card_num, 
+                                exp_date,
+                                auth_tx_detail.total_amount,
+                                auth_tx_detail.response_code, 
+                                auth_tx_detail.terminal_id, 
+                                auth_tx_detail.pos_entry_mode + 1,
+                                auth_tx_detail.auth_number,
+                                tran_code,
+                                hh_start, mm_start, ss_start,
+                                hh_finish, mm_finish, ss_finish, 
+                                auth_tx_detail.date_yyyymmdd + 4,
+                                auth_tx_detail.date_yyyymmdd + 2,
+                                prior_available,
+                                auth_tx_detail.retrieval_ref_num,
+                                auth_tx_detail.card_holder_name,
+                                descriptor_code,
+                                tcc,   // vs_tcc_code or mc_fcc_code!
+                                auth_tx_detail.category_code,
+                                deferred_amount,
+                                auth_tx_detail.deferred_term_length,
+                                auth_tx_detail.odometer,
+                                currency_type,
+                                auth_tx_detail.cvc,
+                                auth_tx_detail.service_code,
+                                device_type,
+                                " ");
+
+   strncpy(record + 165, "\n", 1); 
+
+   return(true);
+
+} /* create_detail_structure */
+
+/****************************************************************************
+*
+*  NAME:             date_format_ok
+*
+*  DESCRIPTION:      This function determines if the date format is ok.
+*
+*  INPUTS:           Variable date_requested or date_yyyymmdd
+*
+*  OUTPUTS:          None
+*
+*  RETURNS:          Returns true for valid date format (YYYYMMDD)
+*                    or false for invalid date format
+*
+*  AUTHOR:           Darcy Person
+*
+****************************************************************************/
+BOOLEAN date_format_ok(pBYTE date_requested)
+{
+   #define JAN       1
+   #define FEB       2
+   #define MAR       3
+   #define APR       4
+   #define MAY       5
+   #define JUN       6
+   #define JLY       7
+   #define AUG       8
+   #define SEP       9
+   #define OCT       10
+   #define NOV       11
+   #define DEC       12
+
+   char              msg[100];
+
+   int               i;
+   int               iday;
+   int               imonth;
+   int               length;
+
+   if ((length = strlen(date_requested)) != 8)
+   {
+      strcpy(msg, "Incorrect length ");
+      display_info_message(msg, "date_format_ok");   
+      return(false);
+   }
+
+   for (i=0; i < length; i++)
+   {
+      if (!isdigit(date_requested[i]))
+      {
+         strcpy(msg, "Non-numeric character in date ");
+         display_info_message(msg, "date_format_ok");
+         return(false);
+      }
+   }
+
+   strncpy(month, date_requested + 4, 2);
+   strncpy(day_m, date_requested + 6, 2);
+   imonth = atoi(month);
+   iday = atoi(day_m);
+
+   switch (imonth)
+   {
+      case JAN:
+      case MAR:
+      case MAY:
+      case JLY:
+      case AUG:
+      case OCT:
+      case DEC:
+         if (iday > 31)
+         {
+            strcpy(msg, "Month cannot have more than 31 days ");
+            display_info_message(msg, "date_format_ok");
+            return(false);
+         }
+         break;
+
+      case APR:
+      case JUN:
+      case SEP:
+      case NOV:
+         if (iday > 30)
+         {
+            strcpy(msg, "Month cannot have more than 30 days ");
+            display_info_message(msg, "date_format_ok");
+            return(false);
+         }
+         break;
+
+      /* Does not handle regular years different from leap years */
+      case FEB:
+         if (iday > 29)
+         {
+            strcpy(msg, "February cannot have more than 29 days ");
+            display_info_message(msg, "date_format_ok");
+            return(false);
+         }
+         break;
+
+      default:
+         strcpy(msg, "Invalid month ");
+         display_info_message(msg, "date_format_ok");
+         return(false);
+         break;
+   }
+
+   return(true);
+      
+} /* date_format_ok */
+
+
+/****************************************************************************
+*
+*  NAME:             display_error_message
+*
+*  DESCRIPTION:      This function sends an error message to the system 
+*                    monitor and to standard output if executed in debug mode.
+*
+*  INPUTS:           message and function name
+*
+*  OUTPUTS:          system monitor message and standard output message
+*
+*  RETURNS:          None
+*
+*  AUTHOR:           Darcy Person
+*
+****************************************************************************/
+void display_error_message(pBYTE msg, pBYTE function)
+{
+   TxUtils_Send_Msg_To_Operator 
+	   (0,                           /* 1 - write to sys monitor, 0 - don't */
+      msg,   						      /* the text of the message             */ 
+ 		1,                            /* 1 - write to event log, 0 - don't   */
+	   ERROR_MSG,                    /* message type                        */ 
+		function,   				      /* name of the function                */
+      4,									   /* severity                            */
+      FATAL_ERROR,		  				/* message type                        */              
+      NULL_PTR,						   /* TID                                 */
+		NULL_PTR,							/* card number                         */
+      NULL_PTR);  					   /* merchant_id                         */
+
+   /* The print macro only displays messages in debug mode */
+   strcat(msg, "\n");
+   PRINT(msg);
+
+   return;
+
+} /* display_error_message */
+
+
+/****************************************************************************
+*
+*  NAME:             display_info_message
+*
+*  DESCRIPTION:      This function sends an informational message to the 
+*                    system monitor and to standard output if executed 
+*                    in debug mode.
+*
+*  INPUTS:           Message and function name
+*
+*  OUTPUTS:          System monitor message and standard output message
+*
+*  RETURNS:          None
+*
+*  AUTHOR:           Darcy Person
+*
+****************************************************************************/
+void display_info_message(pBYTE msg, pBYTE function)
+{
+   TxUtils_Send_Msg_To_Operator 
+	   (0,                           /* 1 - write to sys monitor, 0 - don't */
+      msg,   						      /* the text of the message             */ 
+ 		1,                            /* 1 - write to event log, 0 - don't   */
+	   INFO_MSG,                     /* message type                        */ 
+		function,   				      /* name of the function                */
+      0,									   /* severity                            */
+      INFO_ERROR,		   				/* message type                        */              
+      NULL_PTR,							/* TID                                 */
+		NULL_PTR,							/* card number                         */
+      NULL_PTR);							/* merchant_id                         */
+
+   /* The PRINT macro only displays messages in debug mode */
+  // strcat(msg, "\n");
+   PRINT(msg);
+   PRINT("\n");
+
+   return;
+
+} /* display_info_message */
+
+
+/****************************************************************************
+*
+*  NAME:             display_log_info
+*
+*  DESCRIPTION:      This function displays information concerning the 
+*                    execution of the Transaction Log File program.
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          Display to standard output
+*
+*  RETURNS:          None
+*
+*  AUTHOR:           Darcy Person
+*   
+****************************************************************************/
+void display_log_info(void)
+{
+   printf("\n\n");
+   printf("Transaction Log File - version %s\n\n", Version );
+   printf("The Transaction Log File program creates credit (authMMDD.log)\n");
+   printf("and debit (dauthMMDD.log) transaction log files for all credit\n");
+   printf("and debit transactions.  If a valid date in YYYYMMDD format is\n");
+   printf("specified on the command line, the log files will contain     \n");
+   printf("transactions that were processed by ATP for that date.  If no \n");
+   printf("date is specified, log files will be generated for dates since\n");
+   printf("LastDate in the Ascendent tranlog.ini file through yesterday. \n");
+   printf("If LastDate is blank, the log files will contain transactions \n");
+   printf("for yesterday.  The log files will be stored in the directory \n");
+   printf("specified in the tranlog.ini file, or by default, in the      \n");
+   printf("Ascendent tranlog subdirectory.                               \n");
+   printf("--------------------------------------------------------------\n\n");
+   printf(" log_file [YYYYMMDD]        - date is optional                 \n\n");
+   printf(" Example: log_file          - all transactions since LastDate  \n\n");
+   printf(" Example: log_file 19991201 - transactions for specified date  \n\n");
+   
+   return;
+
+} /* display_log_info */
+
+
+/****************************************************************************
+*
+*  NAME:             EndProcess
+*
+*  DESCRIPTION:      
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          None
+*
+*  RETURNS:          BOOLEAN true for success or false for failure.
+*
+*  AUTHOR:           Irene Goldfild
+*   
+*  MODIFIED BY:    
+****************************************************************************/
+void EndProcess(void)
+{
+   PRINT("\n");
+
+} /* EndProcess */
+
+
+/****************************************************************************
+*
+*  NAME:             open_log_files
+*
+*  DESCRIPTION:      This function opens credit and debit log files 
+*                    for writing. 
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          None
+*
+*  RETURNS:          BOOLEAN true for success or false for failure.
+*
+*  AUTHOR:           Irene Goldfild
+*   
+*  MODIFIED BY:      Emilia P. 4/28/99
+*
+*************************************************************************************/
+BOOLEAN open_log_files(void)
+{
+   char		         msg[100];
+       
+   /* build credit log file name */
+   strcpy(cfilename, dir_str);
+   #ifndef WIN32
+      strcat(cfilename, "/auth");
+   #else
+      strcat(cfilename, "\\auth");
+   #endif
+   strcat(cfilename, month);
+   strcat(cfilename, day_m); 
+   strcat(cfilename, ".log");
+   
+   /* open credit log file */
+   if ((cfile_write = fopen(cfilename, "w")) == NULL_PTR)
+   {  
+      strcpy(msg, "Cannot open log file: ");
+      strcat(msg, cfilename); 
+      display_error_message(msg, "open_log_files");
+      return(false);
+   }
+   
+   /* build debit log file name */
+   strcpy(dfilename, dir_str);
+   #ifndef WIN32
+      strcat(dfilename, "/dauth");
+   #else
+      strcat(dfilename, "\\dauth");
+   #endif
+   strcat(dfilename, month);
+   strcat(dfilename, day_m); 
+   strcat(dfilename, ".log"); 
+
+   /* open debit log file */
+   if ((dfile_write = fopen (dfilename, "w")) == NULL_PTR)
+   {  
+      strcpy(msg, "Cannot open log file: ");
+      strcat(msg, dfilename); 
+      display_error_message(msg, "open_log_files");
+      return(false);
+   }
+   
+   return(true);
+     
+} /* open_log_files */
+
+
+/****************************************************************************
+*
+*  NAME:             ProcessTransactions
+*
+*  DESCRIPTION:      This function retrieves TLF01 records. 
+*
+*  INPUTS:           Either date_requested (user-provided) or
+*                    current_day (program-generated).
+*         
+*  OUTPUTS:          None
+*
+*  RETURNS:          None
+*
+*  AUTHOR:           Emilia Priyev 
+*   
+*  MODIFIED BY:    
+*
+****************************************************************************/
+void ProcessTransactions(pCHAR tran_date)
+{
+   char              msg[100];
+   BYTE              rc;
+
+   int               count_tran;
+   int               next_portion = 0;
+   int               num_returned;
+   
+   double            start_time;
+   double            end_time;
+   double            duration;
+
+   memset(&auth_tx_detail, 0, sizeof(auth_tx_detail)); 
+   strcpy(auth_tx_detail.primary_key.transaction_id, " ");
+
+   while (next_portion == 0)
+   {
+      strncpy( auth_tx_detail.date_yyyymmdd,
+               tran_date, 
+               sizeof(auth_tx_detail.date_yyyymmdd) );
+
+      if ( DB_Timing_Flag == true )
+      {
+         /* The functionality to gather DB Query Timing Statistics is ON.
+          * Get system time, then do again after the query. 
+          */
+         start_time = ptetime_get_time();
+      }
+
+      rc = db_get_tlf01_log_list( &auth_tx_detail, &tlf01_log_list, msg );
+
+      if ( DB_Timing_Flag == true )
+      {
+         /* The functionality to gather DB Query Timing Statistics is ON.
+          * Start time has been obtained. Now get end time and calculate
+          * the duration and update the statistics.
+          */
+         end_time = ptetime_get_time();
+         duration = end_time - start_time;
+         update_timing_stats( ST1_DB_SELECT, ST2_NONE, TLF01_DATA,
+                              (float)duration, &TimingStats );
+      }
+
+      if ( rc == PTEMSG_OK)
+      {
+         num_returned = atoi(tlf01_log_list.num_returned);
+
+         /* done once for each tlf01 row returned */
+         for (count_tran = 0; count_tran < num_returned; count_tran++)
+         {
+            memset(&auth_tx_detail, 0, sizeof(TLF01));
+            strcpy(auth_tx_detail.primary_key.transaction_id, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].transaction_id);
+            strcpy(auth_tx_detail.terminal_id, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].terminal_id);
+            strcpy(auth_tx_detail.merchant_id, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].merchant_id);
+            strcpy(auth_tx_detail.card_num, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].card_num);
+            strcpy(auth_tx_detail.exp_date, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].exp_date);
+            strcpy(auth_tx_detail.total_amount, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].total_amount);
+            strcpy(auth_tx_detail.terminal_type, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].terminal_type);
+            strcpy(auth_tx_detail.pos_entry_mode, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].pos_entry_mode);
+            strcpy(auth_tx_detail.response_code, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].response_code);
+            strcpy(auth_tx_detail.date_yyyymmdd, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].date_yyyymmdd);
+            strcpy(auth_tx_detail.time_hhmmss, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].time_hhmmss);
+            auth_tx_detail.tx_key = tlf01_log_list.tlf01_auth_list_struct[count_tran].tx_key;
+            strcpy(auth_tx_detail.auth_number, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].auth_number);
+            strcpy(auth_tx_detail.processing_code, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].processing_code);
+            strcpy(auth_tx_detail.message_type, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].message_type);
+            strcpy(auth_tx_detail.sys_trace_audit_num, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].sys_trace_audit_num);
+            strcpy(auth_tx_detail.outstanding_balance, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].outstanding_balance);
+            strcpy(auth_tx_detail.card_holder_name, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].ticket_nbr);
+            strcpy(auth_tx_detail.product_code, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].product_code);
+            strcpy(auth_tx_detail.deferred_factor, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].deferred_factor);
+            strcpy(auth_tx_detail.deferred_term_length, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].deferred_term_length);
+            strcpy(auth_tx_detail.category_code, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].category_code);
+            strcpy(auth_tx_detail.tran_start_time, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].tran_start_time);
+            strcpy(auth_tx_detail.tran_finish_time, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].tran_finish_time);
+			   strcpy(auth_tx_detail.reversal_amount, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].reversal_amount);
+            strcpy(auth_tx_detail.retrieval_ref_num,
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].retrieval_ref_num);
+            strcpy(auth_tx_detail.pos_condition_code,
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].pos_condition_code);
+            strcpy(auth_tx_detail.odometer,
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].odometer);
+            strcpy(auth_tx_detail.currency_code,
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].currency_code);
+
+            auth_tx_detail.cvc = tlf01_log_list.tlf01_auth_list_struct[count_tran].cvc;
+
+            strcpy(auth_tx_detail.def_gross_amt, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].def_gross_amt);
+            strcpy(auth_tx_detail.type_of_data, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].type_of_data);
+            strcpy(auth_tx_detail.product_codes[19].code, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].tcc);
+
+            strcpy(auth_tx_detail.product_codes[17].amount, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].reload_confirmed);
+
+            strcpy(auth_tx_detail.service_code, 
+               tlf01_log_list.tlf01_auth_list_struct[count_tran].service_code);
+
+			   if (create_detail_structure() == false)
+				   continue;
+
+			   write_to_log_files();
+         
+         } /* for loop */       
+        
+         if (num_returned < SCH_MAX_LIST_SIZE)
+         {
+            next_portion = 1;
+            continue;
+         }
+      
+      } /* endif */
+      else
+      {
+         /* display error returned by db_get_tlf01_service_list */
+         display_error_message(msg, "ProcessTransactions");
+         shut_down();
+         return;
+      }
+
+   } /* end while */
+
+} /* ProcessTransactions */
+
+
+/****************************************************************************
+*
+*  NAME:             set_start_date
+*
+*  DESCRIPTION:      This function sets current date and day before 
+*                    current date (yesterday).
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          char[9] yyyymmdd_start
+*
+*  RETURNS:          None
+*
+*  AUTHOR:           Irene Goldfild
+*   
+*  MODIFIED BY:      Emilia P. 4/29/99
+*
+****************************************************************************/
+BOOLEAN set_start_date(void)
+{
+   char              msg[100];
+   char              year_yyyy[5];  
+   int               day_m_int;
+   int               month_int;
+   int               year_int; 
+    
+	struct            tm *tmyes;
+   time_t            t_yesterday;
+    
+   /* Get date of previous day from system */
+   t_yesterday=time(NULL_PTR) - 86400;
+   tmyes=localtime(&t_yesterday);
+
+   /* Set previous day in yyyymmdd format */
+   month_int = tmyes->tm_mon + 1;
+   day_m_int = tmyes->tm_mday;
+   year_int = tmyes->tm_year;
+   year_int = year_int + 1900;
+   memset(day_m, 0, 3);
+   memset(month, 0, 3);
+   memset(year_yyyy, 0, 5);
+   sprintf(month, "%02d", month_int);
+   sprintf(day_m, "%02d", day_m_int);
+   itoa(year_int, year_yyyy, 10);
+
+   /* Populate yyyymmdd_yesterday and julian_yesterday */
+   strncpy(yyyymmdd_yesterday, year_yyyy, 4);
+   strncpy(yyyymmdd_yesterday + 4, month, 2);
+   strncpy(yyyymmdd_yesterday + 6, day_m, 2);
+   julian_yesterday = Txutils_Calculate_Julian_Date ((BYTE*)yyyymmdd_yesterday);
+
+   memset(yyyymmdd_start, 0, 9);
+  
+   /* Set yyyymmdd_start */
+   GetPrivateProfileString ("CONFIG",                 /* section name */ 
+                            "LastDate",               /* key name */
+                            "",							   /* default value if not there */
+                            yyyymmdd_start,           /* destination buffer */
+                            sizeof(yyyymmdd_start),	/* size of destination buffer */
+                            ini_path);                /* ini FILEname */
+   
+   if (strcmp(yyyymmdd_start, "") == 0)
+   {
+      /* No date specified in .ini file - use yesterday */
+      strncpy(yyyymmdd_start, yyyymmdd_yesterday, sizeof(yyyymmdd_start));
+      julian_start = Txutils_Calculate_Julian_Date ((BYTE*)yyyymmdd_start);
+   }
+ 	else
+   {
+      /* Check that date specified in .ini file is in the correct format */
+      if (!date_format_ok(yyyymmdd_start))
+      {
+         strcpy(msg,"Please enter a valid date in YYYYMMDD format in the INI file ");
+         display_error_message(msg,"set_start_date");
+         return(false);
+      }
+      else
+      {
+         /* Start with date given + 1 day */
+	      julian_start = Txutils_Calculate_Julian_Date ((BYTE*)yyyymmdd_start) + 1;
+	      Txutils_Calculate_Gregorian_Date(julian_start, yyyymmdd_start);
+      }
+   }
+
+   return(true);
+
+} /* set_start_date */
+
+
+/****************************************************************************
+*
+*  NAME:             shut_down
+*
+*  DESCRIPTION:      This function prepares the application to shut down.
+*
+*  INPUTS:           None
+*
+*  OUTPUTS:          None
+*
+*  RETURNS:          None
+*
+*  AUTHOR:           Darcy Person
+*
+****************************************************************************/
+void shut_down(void)
+{
+   CHAR Buffer[100] = "";
+
+   /* Added to fix a timing problem */
+	#ifdef WIN32
+		Sleep(2000);
+	#else
+		sleep(2);
+	#endif
+
+   /* Added to fix Equitable error report #852 */
+   sprintf( Buffer,"Stopping Transaction Log File program, version %s",Version);
+   display_info_message( Buffer, "MainProcessor");
+			
+   /* pteipc_shutdown_single_instance_app(); */
+   MainProcessDone = 1;
+
+   return;
+
+} /* shut_down */
+
+
+/****************************************************************************
+*
+*  NAME:             trim_string
+*
+*  DESCRIPTION:      This function trims input string
+*
+*  INPUTS:           pBYTE instr
+*         
+*  OUTPUTS:          None
+*
+*  RETURNS:          pBYTE instr
+*
+*  AUTHOR:           Irene Goldfild
+*   
+*  MODIFIED BY:    
+*
+****************************************************************************/
+pBYTE trim_string(pBYTE instr)
+{
+   int               len, pos;
+    
+   len = strlen((char *)instr);
+   
+   for(pos = len; pos >= 0; pos--)
+   {
+      if(instr[pos] == ' ' || instr[pos] == 0)
+         instr[pos] = 0;
+      else
+         break;
+   }
+        
+   return((pBYTE)instr);
+
+} /* trim_string */
+
+
+/****************************************************************************
+*
+*  NAME:             write_to_log_files
+*
+*  DESCRIPTION:      This function writes to log FILE. 
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          None
+*
+*  RETURNS:          BOOLEAN true for success or false for failure.
+*
+*  AUTHOR:           Irene Goldfild
+*   
+****************************************************************************/
+BOOLEAN write_to_log_files(void)
+{
+   char     tempstr[16];
+   char     error_buffer[100];
+   BOOLEAN  ret_val = true;
+
+   if ( auth_tx_detail.processing_code[2] == '0' ||
+        auth_tx_detail.processing_code[2] == '3' ||
+        auth_tx_detail.processing_code[2] == '4'  )
+   {
+      /* Write to credit log file */
+      if (fputs (record, cfile_write) < 0)
+      {
+         memset( tempstr,      0x00, sizeof(tempstr)      );
+         memset( error_buffer, 0x00, sizeof(error_buffer) );
+
+         itoa (ferror(cfile_write), tempstr, 10);
+         fclose (cfile_write);
+
+         sprintf( error_buffer,
+                 "Cebit log file write error:%s, card: %s, amt: %s",
+                  tempstr,
+                  auth_tx_detail.card_num,
+                  auth_tx_detail.total_amount );
+
+         display_error_message(error_buffer,"write_to_log_files");
+         ret_val = false;
+      }
+   }
+   else
+   {
+      /* Write to debit log file */
+      if (fputs (record, dfile_write) < 0)
+      {
+         memset( tempstr,      0x00, sizeof(tempstr)      );
+         memset( error_buffer, 0x00, sizeof(error_buffer) );
+
+         itoa (ferror(dfile_write), tempstr, 10);
+         fclose (dfile_write);
+
+         sprintf( error_buffer,
+                 "Debit log file write error:%s, card: %s, amt: %s",
+                  tempstr,
+                  auth_tx_detail.card_num,
+                  auth_tx_detail.total_amount );
+
+         display_error_message(error_buffer,"write_to_log_files");
+         ret_val = false;
+      }
+   }
+
+   return( ret_val );
+
+} /* write_to_log_files */
+
+

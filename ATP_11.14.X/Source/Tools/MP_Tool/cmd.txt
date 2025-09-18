@@ -1,0 +1,1 @@
+sbatmp SerachFile_12Mar.txt output.txt > F1

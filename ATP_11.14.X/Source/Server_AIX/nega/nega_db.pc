@@ -1,0 +1,288 @@
+/******************************************************************************
+
+   Module:           nega_db.pc
+
+   Title:            Negative File Import Database Routines
+
+   Description:
+
+   Application:      ATP
+
+   Author:           Last modified by farad
+
+   Revision History: 1.0
+
+$Log:   N:\PVCS\PTE\Equitable\Negative\nega_db.pc  $
+   
+      Rev 1.2   Jan 10 2002 17:32:36   dirby
+   Modified to support JCB and Amex cards and to allow for the
+   cards in the file to be in any order.  Also modified the summary
+   to show number of records of each type inserted.
+   SCR 567
+   
+      Rev 1.1   Jan 03 2000 09:39:42   gbarnes
+   updated for AIX port-ability
+   changed to c-style comments
+
+******************************************************************************/
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#ifdef WIN32
+#include <sqlproto.h>
+#endif
+
+#include <math.h>
+#include <time.h>
+#include <sys/timeb.h>
+
+#include "basictyp.h"
+#include "app_info.h"
+#include "pte.h"
+#include "ptemsg.h"
+#include "ptetimer.h"
+#include "nc_dbstruct.h"
+#include "nc_database.h"
+#include "dbcommon.h"
+#include "txutils.h"
+#include "ptetime.h"
+#include "nega.h"
+
+
+EXEC SQL INCLUDE sqlca;
+
+typedef struct
+{
+   WORD len;
+   BYTE pin_data[100];
+}RAWPINDATA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+
+   /* error code variable */
+   long    SQLCODE;
+   long    SQL_CODE;
+
+/**/
+EXEC SQL TYPE RAWPINDATA is VARRAW(5000);
+
+
+struct
+{
+   char  card_nbr     [17];
+   char  card_type     [2];
+   char  card_exten    [4];
+   char  card_status   [2];
+
+} pte_neg01;
+
+struct
+{
+   varchar  card_nbr     [17];
+   varchar  card_type     [2];
+   varchar  card_exten    [4];
+   varchar  card_status   [2];
+
+} db_neg01;
+
+struct
+{
+   char  card_nbr     [17];
+   char  card_type     [2];
+   char  card_exten    [4];
+   char  card_status   [2];
+
+} pte_neg02;
+
+struct
+{
+   varchar  card_nbr     [17];
+   varchar  card_type     [2];
+   varchar  card_exten    [4];
+   varchar  card_status   [2];
+
+} db_neg02;
+
+
+EXEC SQL END DECLARE SECTION;
+
+/******************************************************************************
+ *
+ *  NAME:         neg01_to_db
+ *
+ *  DESCRIPTION:  This function copies an NEG01 record into pte_neg01 for
+ *                updates, inserts, and deletes.
+ *
+ *  INPUTS:       neg01_ptr - NEG01 structure
+ *
+ *  OUTPUTS:      pte_neg01 - Global used to pass info to the database
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       Unknown
+ *
+ ******************************************************************************/
+void neg01_to_db( pNEG01 neg01_ptr )
+{
+  memcpy (&pte_neg01, neg01_ptr, sizeof(pte_neg01));
+}
+
+
+void neg02_to_db( pNEG02 neg02_ptr )
+{
+  memcpy (&pte_neg02, neg02_ptr, sizeof(pte_neg02));
+}
+
+
+/******************************************************************************
+ *
+ *  NAME:         db_delete_neg01
+ *
+ *  DESCRIPTION:  This function makes the call to the database to delete a
+ *                record in NEG01 based on a key values in neg01_ptr.
+ *                The record is copied into pte_neg01, then the record is
+ *                deleted.
+ *
+ *  INPUTS:       neg01_ptr - NEG01 structure
+ *
+ *  OUTPUTS:      ErrorMsg - Error message if database call failed.
+ *
+ *  RTRN VALUE:   A PTE code is returned:
+ *                       PTEMSG_OK  if no errors else a code to identify
+ *                       the reason for the failure.
+ *
+ *  AUTHOR:       Unknown
+ *
+ ******************************************************************************/
+BYTE db_delete_neg01( pNEG01 neg01_ptr, pCHAR ErrorMsg)
+{
+   neg01_to_db( neg01_ptr );
+
+   EXEC SQL DELETE FROM neg01
+   WHERE card_type = :pte_neg01.card_type;
+
+   if (( SQLCODE != 0 ) && ( SQLCODE != NO_DATA_FOUND) )
+      return(dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) );
+
+   return PTEMSG_OK;
+}
+
+
+/******************************************************************************
+ *
+ *  NAME:         db_insert_neg01
+ *
+ *  DESCRIPTION:  This function makes the call to the database to insert a
+ *                record into NEG01.
+ *
+ *  INPUTS:       neg01_ptr - NEG01 structure
+ *
+ *  OUTPUTS:      ErrorMsg - Error message if database call failed.
+ *
+ *  RTRN VALUE:   A PTE code is returned:
+ *                       PTEMSG_OK  if no errors else a code to identify
+ *                       the reason for the failure.
+ *
+ *  AUTHOR:       Unknown
+ *
+ ******************************************************************************/
+BYTE db_insert_neg01( pNEG01 neg01_ptr, pCHAR ErrorMsg )
+{
+   BYTE  ret_val;
+
+   neg01_to_db( neg01_ptr );
+
+   EXEC SQL INSERT INTO neg01
+     (  card_nbr,
+        card_type,
+        card_exten,
+        card_status
+     )
+   VALUES(  :pte_neg01.card_nbr,
+            :pte_neg01.card_type,
+            :pte_neg01.card_exten,
+            :pte_neg01.card_status
+     );
+
+   if ( SQLCODE == 0 )
+      ret_val = PTEMSG_OK;
+
+   else if ( SQLCODE == -1 )
+      ret_val = UNIQUE_CONSTRAINT;
+
+   else
+      ret_val = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg );
+
+   return( ret_val );
+}
+
+/******************************************************************************
+ *
+ *  NAME:         db_delete_neg02
+ *
+ *  DESCRIPTION:  This function makes the call to the database to delete a
+ *                record in NEG01 based on a key values in neg01_ptr.
+ *                The record is copied into pte_neg02, then the record is
+ *                deleted.
+ *
+ *  INPUTS:       neg02_ptr - NEG02 structure
+ *
+ *  OUTPUTS:      ErrorMsg - Error message if database call failed.
+ *
+ *  RTRN VALUE:   A PTE code is returned:
+ *                       PTEMSG_OK  if no errors else a code to identify
+ *                       the reason for the failure.
+ *
+ *  AUTHOR:       Unknown
+ *
+ ******************************************************************************/
+BYTE db_delete_neg02( pNEG02 neg02_ptr, pCHAR ErrorMsg)
+{
+   neg02_to_db( neg02_ptr );
+
+   EXEC SQL DELETE FROM neg02
+   WHERE card_type = :pte_neg02.card_type;
+
+   if (( SQLCODE != 0 ) && ( SQLCODE != NO_DATA_FOUND) )
+      return(dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) );
+
+   return PTEMSG_OK;
+}
+
+/******************************************************************************
+ *
+ *  NAME:         db_copy_neg01_neg02(PNEG01 neg01_ptr, pCHAR ErrorMsg)
+ *
+ *  DESCRIPTION:  This function makes the call to the database to delete a
+ *                record in NEG01 based on a key values in neg01_ptr.
+ *                The record is copied into pte_neg02, then the record is
+ *                deleted.
+ *
+ *  INPUTS:       neg02_ptr - NEG02 structure
+ *
+ *  OUTPUTS:      ErrorMsg - Error message if database call failed.
+ *
+ *  RTRN VALUE:   A PTE code is returned:
+ *                       PTEMSG_OK  if no errors else a code to identify
+ *                       the reason for the failure.
+ *
+ *  AUTHOR:       Unknown
+ *
+ ******************************************************************************/
+BYTE db_copy_neg01_neg02(pNEG01 neg01_ptr, pCHAR ErrorMsg)
+{
+   neg01_to_db( neg01_ptr );
+
+   /*EXEC SQL DELETE FROM neg02
+   WHERE card_type = :pte_neg02.card_type;*/
+
+   EXEC SQL INSERT INTO neg02
+   (card_nbr  , card_type , card_exten ,card_status )
+   SELECT card_nbr, card_type, card_exten, card_status FROM neg01
+   WHERE card_type = :pte_neg01.card_type;
+
+   if (( SQLCODE != 0 ) && ( SQLCODE != NO_DATA_FOUND) )
+      return(dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) );
+   return PTEMSG_OK;
+}

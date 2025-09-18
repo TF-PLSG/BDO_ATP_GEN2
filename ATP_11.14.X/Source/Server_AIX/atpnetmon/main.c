@@ -1,0 +1,685 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <signal.h>/*spr test*/
+#include "string.h"
+#include "basictyp.h"
+#include "pte.h"
+#include "ptemsg.h"
+#include "pteipc.h"
+#include "ntutils.h"
+
+#include "app_info.h"
+#include "equitdb.h"
+#include "nc_dbstruct.h"
+#include "memmnger.h"
+
+#include "constants.h"
+#include "prototypes.h"
+
+
+/*+---------------------+
+  | GLOBAL DECLARATIONS |
+  +---------------------+*/
+
+INT   XipcInstance;
+
+/* Input Parameters */
+INT   Network_ID_Count;
+CHAR  Network_CMD[26];  /* Increased No. of bytes from 10 to 11, Girija Y TF, April 3 2009 */
+CHAR  Network_Queue[MAX_QUE_NAME_SIZE];
+CHAR  Network_Id[MAX_QUE_NAME_SIZE];
+CHAR  Network_Type[2];
+CHAR  Bin[BIN_LENGTH];
+
+
+/* Host States */
+CHAR  Current_State[2];
+CHAR  Intended_State[10];
+
+/* QUEUES */
+CHAR  netds_que_name[] = "netdsA";
+//CHAR  Dest_Queue[MAX_QUE_NAME_SIZE];
+
+/* Network Controller Records */
+NCF01_GUI_LIST  Ncf01_List;
+
+NCF01_REC       Network_Recs[MAX_NUM_NCF01_RECS];
+
+/* Application Name */
+CHAR  AppName[MAX_QUE_NAME_SIZE];
+
+/* ATPNETMON Version */
+CHAR  Version[] = "ATP_11.1.0";
+
+NCF01_REC temp;                //Girija GB
+LOCAL_NCF01_GUI_LIST local_ncf01;    //Girija GB
+CHAR interactive_que[MAX_QUE_NAME_SIZE] = "";
+/*sprtest */
+int execute;
+void trap(int signal){ execute = 0; }
+/******************************************************************************
+ *
+ *  NAME:         MAIN
+ *
+ *  DESCRIPTION:  This function is the start up function.  It will initiate
+ *                programming flow according to the input parameters.
+ *
+ *  INPUTS:       <See usage above>
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   1
+ *
+ *  AUTHOR:       
+ *
+ ******************************************************************************/
+
+INT main( INT argc, pCHAR argv[] )
+{
+#ifndef WIN32
+	INT   ctr;
+	CHAR  ExeName[MAX_APP_NAME_SIZE]="";
+#endif
+	INT   i;
+	INT iTimer = 5;
+	BYTE  state[10] = "";	
+	BOOLEAN isingle = false;
+	BOOLEAN inetid_found = false;
+	/* Initialize Global Variables */
+	XipcInstance = XIPC_INACTIVE;
+	
+	Network_ID_Count = 0;
+	memset(&Ncf01_List,     0x00, sizeof(NCF01_GUI_LIST) );
+	memset(&local_ncf01,    0x00, sizeof(local_ncf01) );
+	memset( Network_Recs,   0x00, sizeof(Network_Recs)   );
+	memset( Network_Id,     0x00, sizeof(Network_Id)     );
+	memset( Network_Queue,  0x00, sizeof(Network_Queue)     );
+	memset( Network_Type,   0x00, sizeof(Network_Type)   );
+	memset( Network_CMD,    0x00, sizeof(Network_CMD)    );
+	memset( Bin,            0x00, sizeof(Bin)            );
+	memset( Current_State,  0x00, sizeof(Current_State)  );
+	memset( Dest_Queue_atpnetmon, 0x00, sizeof(Dest_Queue_atpnetmon) );
+	memset( Intended_State, 0x00, sizeof(Intended_State) );
+	memset( AppName,        0x00, sizeof(AppName)        );
+	
+	/* Get AppName */
+#ifdef WIN32
+	GetAppName( AppName );
+#else
+	strcpy( ExeName, argv[0] );
+	ctr = strlen( ExeName ) - 1;
+	for( i = ctr; i >= 0; i-- )
+	{
+		if( ExeName[i] == '/' )
+            break;
+	}
+	strcpy( AppName, &ExeName[i+1] );
+#endif
+	
+//	if(argc != 2)
+	if((argc < 2) || (argc > 3))
+	{
+		
+		//display usage
+		display_usage();
+		return(1);
+	}
+	else
+	{
+		if ( (0 == strcmp(argv[1], "-v")) ||  (0 == strcmp(argv[1], "-V")))
+		{
+			printf( "\n\n     ATPNETMON, Version %s, is exiting!\n\n", Version );
+			return(1);          
+		}
+		else if ( (0 == strcmp(argv[1], "v")) || (0 == strcmp(argv[1], "V")))
+		{
+			printf( "\n\n     ATPNETMON, Version %s, is exiting!\n\n", Version );
+			return(1);          
+		}
+		else if ( 0 == strcmp(argv[1], "?") )
+		{
+			display_usage();
+			return(1);          
+		}
+		else if ( 0 == strcmp(argv[1], "-?") )
+		{
+			display_usage();
+			return(1);          
+		}
+		else if ((0 == strcmp(argv[1],"all")) || (0 == strcmp(argv[1],"ALL")))
+		{
+			isingle = false;
+		}
+		else
+		{
+			isingle = true;
+		}
+	}
+	if(argc == 3)
+	{
+		iTimer = atoi(argv[2]);
+	}	
+	if ( true == xipc_instance(XIPC_CHECK_IN) )
+	{
+		sprintf(Network_Type,"I");
+		sprintf(Network_CMD,"LOGON");
+		if ( true == get_ncf01_records() )
+		{
+		    signal(SIGINT, &trap);
+		    signal(SIGTSTP,&trap);
+			execute = 1;
+			populate_network_list();
+			while(execute)
+			{
+#ifndef WIN32
+				system("clear");
+#else
+				system("cls");
+#endif
+				memset( Current_State,  0x00, sizeof(Current_State)  );
+				memset( Intended_State, 0x00, sizeof(Intended_State) );
+				memset( state,	   0x00, sizeof(state)          );
+				printf("\nHOSTNAME\t\t\tSTATUS\n");
+				printf("--------\t\t\t------\n");
+				
+				if(!isingle)
+				{
+					for( i=0; i<Network_ID_Count; i++ )
+					{
+						memset( state,	   0x00, sizeof(state)          );
+						memset( Current_State,  0x00, sizeof(Current_State)  );
+						strcpy(Network_Id,Network_Recs[i].network_id);
+						get_host_state();				
+						if ( Current_State[0] != 0x00 )
+						{
+							switch( Current_State[0] )
+							{
+							case '0':  strcpy( state, "Online"  ); break;
+							case '1':  strcpy( state, "Offline" ); break;
+							case '3':  strcpy( state, "Down"    ); break;
+							default:   strcpy( state, "Offline" ); break;
+							}
+							printf("%s\t\t\t\t%s\n",Network_Id,state);
+						}
+						else
+							printf("%s\t\t\t\tERROR\n",Network_Id);
+						
+					}
+				}
+				else
+				{
+					strcpy(Network_Id,argv[1]);
+					for( i=0; i<Network_ID_Count; i++ )
+					{
+					   if ( 0 == strcmp(Network_Id, Network_Recs[i].network_id) )
+					   {
+						  inetid_found = true;
+						  break;
+					   }
+					}
+					if(!inetid_found)
+					{
+						printf("Network id Not found.....\n");
+						display_usage();
+						return(1);
+					}
+					get_host_state();
+					if ( Current_State[0] != 0x00 )
+					{
+						switch( Current_State[0] )
+						{
+						case '0':  strcpy( state, "Online"  ); break;
+						case '1':  strcpy( state, "Offline" ); break;
+						case '3':  strcpy( state, "Down"    ); break;
+						default:   strcpy( state, "Offline" ); break;
+						}
+						printf("%s\t\t\t\t%s\n",Network_Id,state);
+					}
+					else
+						printf("%s\t\t\t\tERROR\n",Network_Id);
+					
+				}
+				printf("--------\t\t\t------\n");
+#ifdef WIN32
+				Sleep( iTimer *1000 );
+#else
+				usleep( iTimer *1000000 );
+#endif				
+			}
+			signal(SIGINT, SIG_DFL);
+			signal(SIGTSTP,SIG_DFL);
+			printf("Program exits.....");
+		}
+		else
+			printf("error in get_ncf01_records");
+	}
+	else
+		printf("error in xipc_instance");
+	
+	(void)xipc_instance( XIPC_CHECK_OUT );
+	printf( "\n\n     ATPNETMON, Version %s, is exiting!\n\n", Version );
+	return(1);
+}
+
+/******************************************************************************
+ *
+ *  NAME:         DISPLAY_USAGE
+ *
+ *  DESCRIPTION:  This function will display the usage of the
+ *                ATPNETMON application.
+ *
+ *  INPUTS:       None
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       
+ *
+ ******************************************************************************/
+void  display_usage()
+{
+   printf( "\n\n" );
+   printf( "ATPNETMON  Version %s\n", Version );
+   printf( "										\n" );
+   printf( "The ATPNETMON utility is an XIPC application used to Monitor	\n" );
+   printf( "Network hosts, like	Visa, MC, JCB, etc.				\n" );
+   printf( "The command line entry of 'atpnetmon' without any parameters	\n" );
+   printf( "will bring up utility with Help					\n" );
+   printf( "If given with parameters, the usage is as follows:			\n" );
+   printf( "										\n" );
+   printf( "atpnetmon  [net_id] [-v] [?] [ALL] [Timer]				\n" );
+   printf( "										\n" );
+   printf( " where									\n" );
+   printf( "  net_id	Like ncvisa,ncjcb,etc to monitor specific host status	\n" );
+   printf( "  ALL	Used to monitor all network host status			\n" );
+   printf( "  -v	Displays the Version of ATPNETMON				\n" );
+   printf( "   v	Displays the Version of ATPNETMON				\n" );
+   printf( "  -?	Displays the Help						\n" );
+   printf( "   ?	Displays the Help						\n" );
+   printf( "  [Timer]	Screen Refresh Timer in seconds(Default is 5	\n" );
+   printf( "ex: To monitor ncvisa every 1 second					\n" );
+   printf( "		$atpnetmon ncvisa 1						\n" );
+   printf( "ex: To monitor all network's every 1 second				\n" );
+   printf( "		$atpnetmon ALL 1						\n" );
+
+   return;
+}
+
+
+/******************************************************************************
+ *
+ *  NAME:         XIPC_INSTANCE
+ *
+ *  DESCRIPTION:  This function will either log the application into XIPC
+ *                or it will log the application out of XIPC.
+ *
+ *  INPUTS:       x_control - XIPC_CHECK_IN  or  XIPC_CHECK_OUT
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   True if successful, else false
+ *
+ *  AUTHOR:       
+ *
+ ******************************************************************************/
+INT xipc_instance( INT x_control )
+{
+   INT   retval = true;
+   CHAR  xipc_instance[30]="";
+
+   if ( x_control == XIPC_CHECK_IN )
+   {
+      if ( XipcInstance == XIPC_INACTIVE )
+      {
+         GetXipcInstanceName( xipc_instance );
+         if( !pteipc_init_single_instance_app(AppName, xipc_instance) )
+         {
+            printf("\nFailed to log into XIPC.\n\n" );
+            retval = false;
+         }
+         else
+            XipcInstance = XIPC_ACTIVE;
+      }
+   }
+   else
+   {
+      pteipc_shutdown_single_instance_app();
+      XipcInstance = XIPC_INACTIVE;
+   }
+
+   return( retval );
+}
+
+/*********************************************************************************************/
+
+void strTrim (char* strSource, char* strDestination)
+{
+	int index1 = 0, index2 = 0, CurrentChar = 0, firstValidCharacter = 0 ;
+	memset (strDestination, 0, sizeof (strDestination)) ;
+	
+	while ((CurrentChar = strSource[index1++]) != 0)
+	{
+		if (CurrentChar > 0x20) // valid character
+		{
+			firstValidCharacter = 1 ;
+			strDestination[index2++] = CurrentChar ;
+		}
+		else // control character or a space
+		{
+			if (!firstValidCharacter)
+				// skip leading control characters or spaces
+				continue ;
+			break ;
+		}
+	}
+	strDestination[index2] = 0 ;
+} /* strTrim */
+
+
+int IsFieldPopulated (char str[])
+{
+    char strTemp[1000] = {0} ;
+    strTrim (str, strTemp) ;
+    if (strlen (strTemp) != 0)
+        return 1 ;
+    return 0 ;
+} 
+
+/******************************************************************************
+ *
+ *  NAME:         GET_NCF01_RECORDS
+ *
+ *  DESCRIPTION:  This function will send a message to NETDS to all the
+ *                network controller records. This is done on the interactive
+ *                queue, so we wait for the response.
+ *
+ *  INPUTS:       None
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   True if successful, else false
+ *
+ *  AUTHOR:       
+ *
+ ******************************************************************************/
+INT get_ncf01_records()
+{
+   INT            retval = true;
+   LONG           retcode;
+   CHAR           temp_str[100] = "";
+   CHAR           list_buffer[sizeof(AUTH_TX) + sizeof(NCF01_GUI_LIST)];
+   pPTE_MSG       p_msg_out = NULL_PTR;
+   pPTE_MSG       p_msg_in  = NULL_PTR;
+   pBYTE          p_data;
+   pPTE_MSG_DATA  p_msg_data;
+   NCF01          ncf01;
+   
+   int nNumberReturned=0,nSize=0,i=0;         //Girija GB    
+   static int j=0;                      //Girija GB                
+
+
+   memset(&temp,0x00, sizeof(temp));
+
+   memset(&ncf01,          0x00, sizeof(NCF01)          );
+   memset(&local_ncf01,          0x00, sizeof(local_ncf01));
+
+   memset( list_buffer,    0x00, sizeof(list_buffer)    );
+   memset(&Ncf01_List,     0x00, sizeof(NCF01_GUI_LIST) );
+
+   /* 'Seed' the first record for the SQL query. */
+ start:  
+
+   strcpy( ncf01.primary_key.network_id,   "      " );
+   if(IsFieldPopulated(temp.network_id))                        //Girija GB
+   {//memset(&ncf01,          0x00, sizeof(NCF01)          );
+		strcpy( ncf01.primary_key.network_id,  temp.network_id);  //Girija GB  
+   }
+   strcpy( ncf01.primary_key.network_type, " "      );           
+   if(IsFieldPopulated( temp.network_type))                        //Girija GB                  
+   {    //memset(&ncf01,          0x00, sizeof(NCF01)          );
+	 strcpy( ncf01.primary_key.network_type,  temp.network_type);   //Girija GB
+   }
+
+
+   memcpy ((list_buffer + sizeof(AUTH_TX)), &ncf01, sizeof(NCF01) );    
+
+   p_msg_out = ptemsg_build_msg( MT_DB_REQUEST,
+                                 ST1_DB_GET_GUI_LIST,
+                                 0,
+                                 NULL_PTR,
+                                 interactive_que_name,
+                                 (pBYTE)list_buffer,
+                                 sizeof( list_buffer ),
+                                 NCF01_DATA );
+   if( p_msg_out == NULL_PTR )
+   {
+      retval = false;
+      printf("\nInsufficient memory to build request-to-host message.\n" );
+   }
+   else
+   {
+      p_msg_in = pteipc_send_receive( p_msg_out, netds_que_name,
+                                      interactive_que_name, &retcode );
+
+      if( NULL_PTR == p_msg_in )
+      {
+         pteipc_get_errormsg( retcode, temp_str );
+         printf("\nCommunication Error during request to NetDS: %s\n",temp_str);
+		 printf("\nCommunication Error during request to NetDS: %s  inter_que:%s que_name:%s\n",temp_str,interactive_que_name,netds_que_name);
+         printf("Cannot get Network Controller list from database - NCF01\n");
+         retval = false;
+      }
+      else
+      {
+         if( PTEMSG_OK != ptemsg_get_result_code(p_msg_in) )
+         {
+            p_msg_data    = ptemsg_get_pte_msg_data( p_msg_in );
+            p_data        = ptemsg_get_pte_msg_data_data( p_msg_data );
+
+            strncpy (temp_str, p_data+sizeof(AUTH_TX), sizeof(temp_str)-1);
+            printf( "\nDatabase Error: %s\n", temp_str );
+            printf("Cannot get Network Controller list from database-NCF01\n");
+            retval = false;
+         }
+         else
+         {
+            /* Successful fetch of NCF01 records from Netds. */
+            p_msg_data = ptemsg_get_pte_msg_data( p_msg_in );
+            p_data     = ptemsg_get_pte_msg_data_data( p_msg_data );
+
+            memcpy( &Ncf01_List,
+                    p_data+sizeof(AUTH_TX),
+                    sizeof(NCF01_GUI_LIST) );
+
+            
+            nNumberReturned = atoi ((char *)&Ncf01_List.num_returned);	          //Girija GB	
+	       if( nNumberReturned == GUI_MAX_LIST_SIZE)                             //Girija GB
+		   {		                                                             //Girija GB
+			   strcpy( temp.network_id,Ncf01_List.ncf01_record[nNumberReturned-1].primary_key.network_id );//Girija GB
+			   strcpy( temp.network_type,Ncf01_List.ncf01_record[nNumberReturned-1].primary_key.network_type );//Girija GB
+			   nSize = nNumberReturned - 1;	//Girija GB
+			   memcpy(&local_ncf01.ncf01_record[j],&Ncf01_List.ncf01_record,sizeof(Ncf01_List.ncf01_record)); /*TF Phani, Need to copy entire structure*/
+			 for(i=0;i< nSize;i++)//Girija GB
+			 {             //Girija GB
+				 strcpy(local_ncf01.ncf01_record[j].primary_key.network_id,   Ncf01_List.ncf01_record[i].primary_key.network_id );    //Girija GB
+				 strcpy(local_ncf01.ncf01_record[j].primary_key.network_type, Ncf01_List.ncf01_record[i].primary_key.network_type); //Girija GB
+				 j++;
+			 }        //Girija GB
+		   }  //Girija GB
+		   if( nNumberReturned < GUI_MAX_LIST_SIZE)                             //Girija GB
+		   {		                                                             //Girija GB
+				 strcpy( temp.network_id,Ncf01_List.ncf01_record[nNumberReturned-1].primary_key.network_id );//Girija GB
+				 strcpy( temp.network_type,Ncf01_List.ncf01_record[nNumberReturned-1].primary_key.network_type );//Girija GB
+				 nSize = nNumberReturned;	//Girija GB
+				 memcpy(&local_ncf01.ncf01_record[j],&Ncf01_List.ncf01_record,sizeof(Ncf01_List.ncf01_record)); /*TF Phani, Need to copy entire structure*/
+				 for(i=0;i< nSize;i++)//Girija GB
+				 {             //Girija GB
+					 strcpy(  local_ncf01.ncf01_record[j].primary_key.network_id,    Ncf01_List.ncf01_record[i].primary_key.network_id );    //Girija GB
+					 strcpy(  local_ncf01.ncf01_record[j].primary_key.network_type,    Ncf01_List.ncf01_record[i].primary_key.network_type); //Girija GB
+					 j++;
+				 }        //Girija GB
+				memset(&temp,0x00, sizeof(temp));
+				nNumberReturned=0;
+	         
+			}  //Girija GB
+		 }   //End of else //Girija GB
+	  }   //Girija GB
+	}   //Girija GB// 2nd else
+      		
+
+   if (nNumberReturned > 0)  //Girija GB
+    goto start; //Girija GB
+   free( p_msg_in );
+   Local_count=j;  //Girija GB
+   //  strcpy(&local_ncf01.num_returned ,Local_count);
+   return( retval );
+  
+
+}
+
+
+
+
+/******************************************************************************
+ *
+ *  NAME:         POPULATE_NETWORK_LIST
+ *
+ *  DESCRIPTION:  This function will copy the network Ids obtained from the
+ *                database into a global variable list.  As it does this, it
+ *                will remove duplicates that exist due to Acquirer and Issuer
+ *                records in the database.
+ *
+ *  INPUTS:       Ncf01_List - (Global) NCF01 records from database
+ *
+ *  OUTPUTS:      Network_Recs     - (Global) List for the Network records
+ *                Network_ID_Count - (Global) Number of unique Network IDs
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       
+ *
+ ******************************************************************************/
+void populate_network_list()
+{
+   INT  i, j;
+   //INT  num_items;    //Girija GB    
+   INT  match;
+   BYTE temp_netid[MAX_QUE_NAME_SIZE];   
+
+   //num_items = atoi(Ncf01_List.num_returned);
+  // for( i=0; i<num_items; i++ )
+for( i=0; i<Local_count; i++ )           //Girija GB
+   {
+      memset( temp_netid, 0x00, sizeof(temp_netid) );
+      strcpy( temp_netid, local_ncf01.ncf01_record[i].primary_key.network_id ); //Girija GB
+
+      /* Make sure this Network Id is not already in the list. */
+      match = false;
+      for( j=0; j<Network_ID_Count; j++ )
+      {
+         if ( 0 == strcmp(temp_netid, Network_Recs[j].network_id) )
+         {
+            match = true;
+            Network_Recs[j].network_type[0] = 'B'; /* Both A and I */
+
+            /* Get the logon bin Ids into our list. */
+            populate_bins( &local_ncf01.ncf01_record[i],
+                           &Network_Recs[Network_ID_Count] );        //Girija GB
+
+            break;
+         }
+      }
+
+      if ( match == false )
+      {
+         /* Add new Network to list. */
+         strcpy( Network_Recs[Network_ID_Count].network_id, temp_netid );
+
+         strcpy( Network_Recs[Network_ID_Count].network_type,
+                 local_ncf01.ncf01_record[i].primary_key.network_type );      //Girija GB
+
+         strcpy( Network_Recs[Network_ID_Count].queue,
+                 local_ncf01.ncf01_record[i].que_name );        //Girija GB
+
+         /* Get the logon bin Ids into our list. */
+         populate_bins( &local_ncf01.ncf01_record[i],      
+                        &Network_Recs[Network_ID_Count] );          //Girija GB
+
+         Network_ID_Count++;
+      }
+   }
+Local_count=0;  //Girija GB
+   return;
+
+}
+
+/******************************************************************************
+ *
+ *  NAME:         GET_HOST_STATE
+ *
+ *  DESCRIPTION:  This function will get the state (Online, Offline, etc.)
+ *                of the Network ID from shared memory.  Not all networks
+ *                have the same size shared memory table.  For example the
+ *                Visa networks (ncvisa and ncvsms) have station Ids, while
+ *                the others do not.
+ *
+ *  INPUTS:       Network_ID - Network ID to get state of
+ *
+ *  OUTPUTS:      Exit - (Global) Flag to exit in case of problems
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       
+ *
+ ******************************************************************************/
+void get_host_state()
+{
+   INT   ReturnCode ;
+   CHAR  tempstr[256] = "";
+   BYTE  tmouts[10]   = "";
+   BYTE  txns[10]     = "";
+   BYTE  state[4]     = "";
+   CHAR  instr[80]    = "";
+
+   strcpy( tempstr, Network_Id );
+   strcat( tempstr, "Table" );
+
+   ReturnCode = ReadGenericTable( tempstr, tmouts, txns, state );
+   if (ReturnCode != MEMACCESSERROR)
+   {
+      memset( Current_State, 0x00, sizeof(Current_State) );
+      Current_State[0] = state[0];
+   }
+   return;
+}
+
+/******************************************************************************
+ *
+ *  NAME:         POPULATE_BINS
+ *
+ *  DESCRIPTION:  This function will copy the logon bin Ids from an NCF01
+ *                record into the global list.
+ *
+ *  INPUTS:       ncf01_rec - Record from database table NCF01
+ *
+ *  OUTPUTS:      rec_list  - Pointer to global list of network records
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       D. Irby
+ *
+ ******************************************************************************/
+void populate_bins( pNCF01 ncf01_rec, pNCF01_REC rec_list )
+{
+   INT  i;
+
+   if ( ncf01_rec->logon_bin[0].identifier[0] != 0x00 )
+   {
+      for( i=0; i<10; i++ )
+      {
+         strcpy( rec_list->bin[i], ncf01_rec->logon_bin[i].identifier );
+      }
+   }
+   return;
+}

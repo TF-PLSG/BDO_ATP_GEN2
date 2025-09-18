@@ -1,0 +1,666 @@
+<?php
+
+/**
+ * @package		MVC
+ * @author		Gopal Sikhawal
+ */
+define('NUM_RESULT_PER_PAGE', 25);
+class Batch_Model extends MVC_Model
+{
+
+    function getAllHeaderLookUp($page, $data) {
+
+		$param = array();
+		$first = true;
+		$where = '';
+		//var_dump($data);die;
+		foreach($data as $key => $value) {
+			if($value) {
+				$param[$key] = "'%".$value."%'";
+				if($first) {
+					$first = false;
+					$where = " WHERE ".$key." LIKE ".$param[$key];
+				} else {
+					$where .= ' AND '.$key.' LIKE '.$param[$key];
+				}
+			}
+		}
+		
+        $start = ($page-1)*NUM_RESULT_PER_PAGE;
+        $end = $start+NUM_RESULT_PER_PAGE;
+
+		$sql = 'SELECT count(*) AS TOTAL FROM BCH01_ARCHIVE '.$where;
+		$count = database::doSelectOne($sql, $param);
+		
+		$result = array();
+		$result['Total'] = isset($count['TOTAL']) ? $count['TOTAL'] : 0;
+		$result['NUM_RESULT_PER_PAGE'] = NUM_RESULT_PER_PAGE;
+		//var_dump($result);die;
+		if(isset($count['TOTAL']) && $count['TOTAL'] > $start) {
+			$sql = 'SELECT O.* FROM
+                    (SELECT ROWNUM RN, I.*  FROM
+                        (SELECT * FROM BCH01_ARCHIVE '.$where.' ORDER BY DEVICE_ID ASC ) I
+                    ) O
+                WHERE O.RN > '.$start.' AND O.RN <='.$end;
+
+			$result['data'] = database::doSelect($sql, $param);
+		}
+		
+        return $result;
+    }
+	function getAllHeaderLookUpExport($data) {
+
+		$param = array();
+		$first = true;
+		$where = '';
+		
+		foreach($data as $key => $value) {
+			if($value) {
+				$param[$key] = $value.'%';
+				if($first) {
+					$first = false;
+					$where = ' WHERE '.$key.' LIKE '.$key;
+					 
+				} else {
+					$where .= ' AND '.$key.' LIKE '.$key;
+				}
+			}
+		}
+		$sql = 'SELECT *  FROM BCH01_ARCHIVE '.$where;
+		$result = database::doSelect($sql, $param);
+		
+        return $result;
+    }
+	function getAllDetailLookUpExport($data) {
+       
+        $param = array();
+		$first = true;
+		$where = '';
+		unset($data['UNMASK']);
+		if(isset($data['TRAN_DATE']) && $data['TRAN_DATE']) {
+			$data['TRAN_DATE'] = strtoupper(date('d-M-y', strtotime($data['TRAN_DATE'])));
+		}	
+		if(isset($data['OPEN_DATE']) && $data['OPEN_DATE']) {
+			$data['OPEN_DATE'] = strtoupper(date('d-M-y', strtotime($data['OPEN_DATE'])));
+		}
+		
+		foreach($data as $key => $value) {
+			if($value) {
+				if($first) {
+					$first = false;
+					if($key == 'TRAN_DATE') {
+						$param[$key] = $value;
+						$where = ' WHERE '.$key.'=:'.$key;
+					} elseif($key == 'OPEN_DATE') {
+						$param[$key] = $value;
+						$where = ' WHERE TRUNC('.$key.')=:'.$key;
+					} else {
+						$param[$key] = $value.'%';
+						$where = ' WHERE '.$key.' LIKE :'.$key;
+					}
+				} else {
+					if($key == 'TRAN_DATE' ) {
+						$param[$key] = $value;
+						$where .= ' AND '.$key.'=:'.$key;
+					} elseif($key == 'OPEN_DATE') {
+						$param[$key] = $value;
+						$where .= ' AND TRUNC('.$key.')=:'.$key;
+					} else {
+						$param[$key] = $value.'%';
+						$where .= ' AND '.$key.' LIKE :'.$key;
+					}
+				}
+			}
+		}
+        $sql = 'SELECT * FROM BCH11_ARCHIVE '.$where;
+		$result = database::doSelect($sql, $param);
+        return $result;
+    }
+    function getAllDetailLookUp($page, $data) {
+       
+        $param = array();
+		$first = true;
+		$where = '';
+		unset($data['UNMASK']);
+		if(isset($data['TRAN_DATE']) && $data['TRAN_DATE']) {
+			$data['TRAN_DATE'] = strtoupper(date('d-M-y', strtotime($data['TRAN_DATE'])));
+		}	
+		if(isset($data['OPEN_DATE']) && $data['OPEN_DATE']) {
+			$data['OPEN_DATE'] = strtoupper(date('d-M-y', strtotime($data['OPEN_DATE'])));
+		}
+		
+		foreach($data as $key => $value) {
+			if($value) {
+				if($first) {
+					$first = false;
+					if($key == 'TRAN_DATE') {
+						$param[$key] = $value;
+						$where = ' WHERE '.$key.'=:'.$key;
+					} elseif($key == 'OPEN_DATE') {
+						$param[$key] = $value;
+						$where = ' WHERE TRUNC('.$key.')=:'.$key;
+					} else {
+						$param[$key] = $value.'%';
+						$where = ' WHERE '.$key.' LIKE :'.$key;
+					}
+				} else {
+					if($key == 'TRAN_DATE' ) {
+						$param[$key] = $value;
+						$where .= ' AND '.$key.'=:'.$key;
+					} elseif($key == 'OPEN_DATE') {
+						$param[$key] = $value;
+						$where .= ' AND TRUNC('.$key.')=:'.$key;
+					} else {
+						$param[$key] = $value.'%';
+						$where .= ' AND '.$key.' LIKE :'.$key;
+					}
+				}
+			}
+		}
+        $start = ($page-1)*NUM_RESULT_PER_PAGE;
+        $end = $start+NUM_RESULT_PER_PAGE;
+       
+        $sql = 'SELECT count(*) AS TOTAL FROM BCH11_ARCHIVE '.$where;
+		$count = database::doSelectOne($sql, $param);
+		$result = array();
+		$result['Total'] = isset($count['TOTAL']) ? $count['TOTAL'] : 0;
+		$result['NUM_RESULT_PER_PAGE'] = NUM_RESULT_PER_PAGE;
+		
+		if(isset($count['TOTAL']) && $count['TOTAL'] > $start) {
+			$sql = 'SELECT O.* FROM
+                    (SELECT ROWNUM RN, I.*  FROM 
+                        (SELECT * FROM BCH11_ARCHIVE '.$where.' ORDER BY DEVICE_ID ASC ) I
+                    ) O 
+                WHERE O.RN > '.$start.' AND O.RN <='.$end;
+
+			$result['data'] = database::doSelect($sql, $param);
+		}
+		
+        return $result;
+    }
+
+    public function getBatchDetail($TRANSACTION_ID) {
+        $param['TRANSACTION_ID'] = $TRANSACTION_ID;
+        $where = ' WHERE TRANSACTION_ID = :TRANSACTION_ID';
+        $sql = 'SELECT * FROM BCH11_ARCHIVE '.$where;
+        $data = database::doSelectOne($sql, $param);
+        
+        return $data;
+    }
+    public function getHeadDetail($DEVICE_ID, $BATCH_NBR) {
+        $param['DEVICE_ID'] = $DEVICE_ID;
+        $param['BATCH_NBR'] = $BATCH_NBR;
+        $where = ' WHERE DEVICE_ID = :DEVICE_ID AND BATCH_NBR = :BATCH_NBR ';
+		$sql = 'SELECT * FROM BCH01_ARCHIVE '.$where;
+        
+        $data = database::doSelectOne($sql, $param);
+		//var_dump($data);die;
+        return $data;
+    }
+	function getAllAuthLookUp($page, $data) {
+       
+        $param = array();
+		$first = true;
+		$where = '';
+		unset($data['UNMASK']);
+		if(isset($data['TRAN_DATE']) && $data['TRAN_DATE']) {
+			$data['TRAN_DATE'] = strtoupper(date('d-M-y', strtotime($data['TRAN_DATE'])));
+		}	
+		if(isset($data['OPEN_DATE']) && $data['OPEN_DATE']) {
+			$data['OPEN_DATE'] = strtoupper(date('d-M-y', strtotime($data['OPEN_DATE'])));
+		}
+		//echo '<pre>';print_r($data);
+		foreach($data as $key => $value) {
+			if($value) {
+				if($first) {
+					$first = false;
+					if($key == 'OPEN_DATE') {
+						$param[$key] = $value;
+						$where = ' WHERE TRUNC('.$key.')=:'.$key;
+					} elseif($key == 'TRAN_DATE') {
+						$param[$key] = $value;
+						$where = ' WHERE '.$key.'=:'.$key;
+					} else {
+						$param[$key] = $value.'%';
+						$where = ' WHERE '.$key.' LIKE :'.$key;
+					}
+				} else {
+					if($key == 'OPEN_DATE') {
+						$param[$key] = $value;
+						$where .= ' AND TRUNC('.$key.')=:'.$key;
+					} elseif($key == 'TRAN_DATE') {
+						$param[$key] = $value;
+						$where .= ' AND '.$key.'=:'.$key;
+					} else {
+						$param[$key] = $value.'%';
+						$where .= ' AND '.$key.' LIKE :'.$key;
+					}
+				}
+			}
+		}
+        $start = ($page-1)*NUM_RESULT_PER_PAGE;
+        $end = $start+NUM_RESULT_PER_PAGE;
+       
+        $sql = 'SELECT count(*) AS TOTAL FROM BCH20_ARCHIVE '.$where; //echo $sql; exit;
+		$count = database::doSelectOne($sql, $param);
+		
+		$result = array();
+		$result['Total'] = isset($count['TOTAL']) ? $count['TOTAL'] : 0;
+		$result['NUM_RESULT_PER_PAGE'] = NUM_RESULT_PER_PAGE;
+		
+		if(isset($count['TOTAL']) && $count['TOTAL'] > $start) {
+			$sql = 'SELECT O.* FROM
+                    (SELECT ROWNUM RN, I.*  FROM 
+                        (SELECT * FROM BCH20_ARCHIVE '.$where.' ORDER BY DEVICE_ID ASC ) I
+                    ) O 
+                WHERE O.RN > '.$start.' AND O.RN <='.$end;
+
+			$result['data'] = database::doSelect($sql, $param);
+		}
+		
+        return $result;
+
+    }
+	function getAllAuthLookUpExport($data) {
+       
+        $param = array();
+		$first = true;
+		$where = '';
+		unset($data['UNMASK']);
+		if(isset($data['TRAN_DATE']) && $data['TRAN_DATE']) {
+			$data['TRAN_DATE'] = strtoupper(date('d-M-y', strtotime($data['TRAN_DATE'])));
+		}	
+		if(isset($data['OPEN_DATE']) && $data['OPEN_DATE']) {
+			$data['OPEN_DATE'] = strtoupper(date('d-M-y', strtotime($data['OPEN_DATE'])));
+		}
+		//echo '<pre>';print_r($data);
+		foreach($data as $key => $value) {
+			if($value) {
+				if($first) {
+					$first = false;
+					if($key == 'OPEN_DATE') {
+						$param[$key] = $value;
+						$where = ' WHERE TRUNC('.$key.')=:'.$key;
+					} elseif($key == 'TRAN_DATE') {
+						$param[$key] = $value;
+						$where = ' WHERE '.$key.'=:'.$key;
+					} else {
+						$param[$key] = $value.'%';
+						$where = ' WHERE '.$key.' LIKE :'.$key;
+					}
+				} else {
+					if($key == 'OPEN_DATE') {
+						$param[$key] = $value;
+						$where .= ' AND TRUNC('.$key.')=:'.$key;
+					} elseif($key == 'TRAN_DATE') {
+						$param[$key] = $value;
+						$where .= ' AND '.$key.'=:'.$key;
+					} else {
+						$param[$key] = $value.'%';
+						$where .= ' AND '.$key.' LIKE :'.$key;
+					}
+				}
+			}
+		}
+       
+        $sql = 'SELECT * FROM BCH20_ARCHIVE '.$where; //echo $sql; exit;
+		$result = database::doSelect($sql, $param);
+
+        return $result;
+    }
+	public function getBatchAuth($TRANSACTION_ID) {
+        $param['TRANSACTION_ID'] = $TRANSACTION_ID;
+        $where = ' WHERE TRANSACTION_ID = TRANSACTION_ID';
+        $sql = 'SELECT * FROM BCH20_ARCHIVE '.$where;
+        
+        $data = database::doSelectOne($sql, $param);
+        return $data;
+    }
+	public function UpdateHST($param) {
+		//echo '<pre>';print_r($param);exit;
+		$first = true;
+		$keys = '';
+		$values = '';
+		foreach($param as $k => $v) {
+			if($first) {
+				$first = false;
+				$keys .= $k;
+				$values .= ':b'.$k;
+			} else {
+				$keys = $keys.', '.$k;
+				$values = $values.', :b'.$k;
+			}
+		}
+		
+		$sql = 'INSERT INTO HST01 ('.$keys.') VALUES ('.$values.')';
+	//	echo $sql;exit;
+		$data = database::doInsert($sql, $param, database::SECOND_INSTANCE);
+        return $data;
+	}
+	public function exportCsv($type, $columns) {
+	
+		ini_set('memory_limit', '-1');
+		$type = trim($type);
+		$result = array();
+		
+		if($type == 'header') {
+			$filename="BCH01Export.csv";
+			$fname = 'BCH01';
+			$ftag = 'BCH01';
+			
+			$expColumns = $this->getHeaderExportColumns();
+			$result = $this->getAllHeaderLookUpExport($_SESSION[$type]);
+		} elseif($type == 'details') {
+			
+			$filename="BCH11Export.csv";
+			$fname = 'BCH11';
+			$ftag = 'BCH11';
+			$expColumns = $this->getDetailExportColumns();
+			$result = $this->getAllDetailLookUpExport($_SESSION[$type]);
+			
+		} elseif($type == 'auth') {
+			
+			$filename="BCH20Export.csv";
+			$fname = 'BCH20';
+			$ftag = 'BCH20';
+			$expColumns = $this->getAuthExportColumns();
+			$result = $this->getAllAuthLookUpExport($_SESSION[$type]);
+		}
+		
+		if(isset($_SESSION[$type]) && !empty($_SESSION[$type])) {
+			if(isset($_SESSION['export_user'])) {
+				$UNIQUE_ID = date('YmdHis');
+				$mt = microtime(true);
+				$s = explode('.',$mt);
+				$micro = $s[1]*1000;
+				$UNIQUE_ID .= substr($micro, 0, 3);
+			
+				$hst_data = array('CHANGED_BY' => $_SESSION['export_user']['NAME'], 
+					'FILE_NAME' => $fname, 
+					'FIELD_TAG' => $ftag,
+					'FILE_PRIMARY_KEY' => 'ARCHIVE',
+					'DATE_MODIFIED' => date('Ymd'),
+					'TIME_MODIFIED' => date('His'),
+					'UNIQUE_ID' => $UNIQUE_ID,
+					'CURRENT_DATA' => $filename
+				);
+				$this->UpdateHST($hst_data);
+			}
+		}
+		ob_start();
+		header('Content-Type: application/excel');
+		header('Content-Disposition: attachment; filename="'.$filename.'"');
+		header('Cache-Control: max-age=0');
+		$fp = fopen('php://output', 'w');
+		$first = true;
+		
+		foreach ($result as $line ) {
+			if($first) {
+				$first = false;
+				$header = array();
+				foreach($columns as $c) {
+					$header[] = $expColumns[$c];
+				}
+				fputcsv($fp, $header);
+			}
+			$temp = array();
+			foreach($columns as $key) {
+				$val = $line[$key];
+				if(in_array($key, $columns)) {
+					if($key == 'CARD_NBR') {
+						if(isset($_SESSION[$type]['UNMASK']) && $_SESSION[$type]['UNMASK'] == 1) {
+							$temp[] = $val;
+						} elseif(!empty($val)) {
+							$temp[] = substr($val, 0, 6) . str_repeat("X", strlen($val) - 10) . substr($val, -4);
+						}
+					} else {
+						$temp[] = $val;
+					}
+				}
+			}
+			fputcsv($fp, $temp);
+		}
+		fclose($fp);
+		$out = ob_get_contents();
+		ob_end_clean();
+		echo trim($out);
+	}
+	function getAuthExportColumns() {
+		$expColumns = array();
+		$expColumns['DEVICE_ID'] = 'DEVICE_ID';
+		$expColumns['BATCH_NBR'] = 'BATCH_NBR';
+		$expColumns['RETRIEVAL_REF_NUM'] = 'RETRIEVAL_REF_NUM';
+		$expColumns['MERCHANT_ID'] = 'MERCHANT_ID';
+		$expColumns['PROCESSING_CODE'] = 'PROCESSING_CODE';
+		$expColumns['TRAN_AMOUNT'] = 'TRAN_AMOUNT';
+		$expColumns['RESPONSE_CODE'] = 'RESPONSE_CODE';
+		$expColumns['AUTH_NUMBER'] = 'AUTH_NUMBER'; 
+		$expColumns['TRAN_DATE'] = 'TRAN_DATE';
+		$expColumns['TRAN_TIME'] = 'TRAN_TIME';
+		$expColumns['TRANSACTION_ID'] = 'TRANSACTION_ID';
+		$expColumns['MESSAGE_TYPE'] = 'MESSAGE_TYPE';
+		$expColumns['CARD_NBR'] = 'CARD_NBR';
+		$expColumns['INVOICE_NBR'] = 'INVOICE_NBR';
+		$expColumns['SETTLE_FILE_PREFIX'] = 'SETTLE_FILE_PREFIX';
+		$expColumns['PRODUCT_CODE'] = 'PRODUCT_CODE';
+		//$expColumns['ODOMETER'] = 'ODOMETER';
+		$expColumns['SYS_TRACE_AUDIT_NUM'] = 'SYS_TRACE_AUDIT_NUM';
+		$expColumns['TX_KEY'] = 'TX_KEY';
+		$expColumns['BIN_TYPE'] = 'BIN_TYPE';
+		$expColumns['TYPE_OF_DATA'] = 'TYPE_OF_DATA';
+		$expColumns['DOWN_PAYMENT'] = 'DOWN_PAYMENT';
+		$expColumns['PERIOD'] = 'PERIOD';
+		$expColumns['INTEREST_RATE'] = 'INTEREST_RATE';
+		$expColumns['TOTAL_INTEREST'] = 'TOTAL_INTEREST';
+		$expColumns['REDEMPTION_AMOUNT'] = 'REDEMPTION_AMOUNT';
+		$expColumns['VEHICLE_NUMBER'] = 'VEHICLE_NUMBER';
+		$expColumns['POS_ENTRY_MODE'] = 'POS_ENTRY_MODE';
+		$expColumns['PROFILE'] = 'PROFILE';
+		$expColumns['NBR_OF_PROD_CODES'] = 'NBR_OF_PROD_CODES';
+		/*$expColumns['PRODUCT1_CODE'] = 'PRODUCT1_CODE';
+		$expColumns['PRODUCT1_QUANTITY'] = 'PRODUCT1_QUANTITY';
+		$expColumns['PRODUCT1_AMOUNT'] = 'PRODUCT1_AMOUNT';
+		$expColumns['PRODUCT2_CODE'] = 'PRODUCT2_CODE';
+		$expColumns['PRODUCT2_QUANTITY'] = 'PRODUCT2_QUANTITY';
+		$expColumns['PRODUCT2_AMOUNT'] = 'PRODUCT2_AMOUNT';
+		$expColumns['PRODUCT3_CODE'] = 'PRODUCT3_CODE';
+		$expColumns['PRODUCT3_QUANTITY'] = 'PRODUCT3_QUANTITY';
+		$expColumns['PRODUCT3_AMOUNT'] = 'PRODUCT3_AMOUNT';
+		$expColumns['PRODUCT4_CODE'] = 'PRODUCT4_CODE';
+		$expColumns['PRODUCT4_QUANTITY'] = 'PRODUCT4_QUANTITY';
+		$expColumns['PRODUCT4_AMOUNT'] = 'PRODUCT4_AMOUNT';*/
+		$expColumns['PRODUCT5_CODE'] = 'PRODUCT5_CODE';
+		$expColumns['PRODUCT5_QUANTITY'] = 'PRODUCT5_QUANTITY';
+		$expColumns['PRODUCT5_AMOUNT'] = 'PRODUCT5_AMOUNT';
+		/*$expColumns['PRODUCT6_CODE'] = 'PRODUCT6_CODE';
+		$expColumns['PRODUCT6_QUANTITY'] = 'PRODUCT6_QUANTITY';
+		$expColumns['PRODUCT6_AMOUNT'] = 'PRODUCT6_AMOUNT';
+		$expColumns['PRODUCT7_CODE'] = 'PRODUCT7_CODE';
+		$expColumns['PRODUCT7_QUANTITY'] = 'PRODUCT7_QUANTITY';
+		$expColumns['PRODUCT7_AMOUNT'] = 'PRODUCT7_AMOUNT';
+		$expColumns['PRODUCT8_CODE'] = 'PRODUCT8_CODE';
+		$expColumns['PRODUCT8_QUANTITY'] = 'PRODUCT8_QUANTITY';
+		$expColumns['PRODUCT8_AMOUNT'] = 'PRODUCT8_AMOUNT';
+		$expColumns['PRODUCT9_CODE'] = 'PRODUCT9_CODE';
+		$expColumns['PRODUCT9_QUANTITY'] = 'PRODUCT9_QUANTITY';
+		$expColumns['PRODUCT9_AMOUNT'] = 'PRODUCT9_AMOUNT';
+		$expColumns['PRODUCT10_CODE'] = 'PRODUCT10_CODE';
+		$expColumns['PRODUCT10_QUANTITY'] = 'PRODUCT10_QUANTITY';
+		$expColumns['PRODUCT10_AMOUNT'] = 'PRODUCT10_AMOUNT';
+		$expColumns['PRODUCT11_CODE'] = 'PRODUCT11_CODE';
+		$expColumns['PRODUCT11_QUANTITY'] = 'PRODUCT11_QUANTITY';
+		$expColumns['PRODUCT11_AMOUNT'] = 'PRODUCT11_AMOUNT';
+		$expColumns['PRODUCT12_CODE'] = 'PRODUCT12_CODE';
+		$expColumns['PRODUCT12_QUANTITY'] = 'PRODUCT12_QUANTITY';
+		$expColumns['PRODUCT12_AMOUNT'] = 'PRODUCT12_AMOUNT';
+		$expColumns['PRODUCT13_CODE'] = 'PRODUCT13_CODE';
+		$expColumns['PRODUCT13_QUANTITY'] = 'PRODUCT13_QUANTITY';
+		$expColumns['PRODUCT13_AMOUNT'] = 'PRODUCT13_AMOUNT';
+		$expColumns['PRODUCT14_CODE'] = 'PRODUCT14_CODE';
+		$expColumns['PRODUCT14_QUANTITY'] = 'PRODUCT14_QUANTITY';
+		$expColumns['PRODUCT14_AMOUNT'] = 'PRODUCT14_AMOUNT';
+		$expColumns['PRODUCT15_CODE'] = 'PRODUCT15_CODE';
+		$expColumns['PRODUCT15_QUANTITY'] = 'PRODUCT15_QUANTITY';
+		$expColumns['PRODUCT15_AMOUNT'] = 'PRODUCT15_AMOUNT';
+		$expColumns['PRODUCT16_CODE'] = 'PRODUCT16_CODE';
+		$expColumns['PRODUCT16_QUANTITY'] = 'PRODUCT16_QUANTITY';
+		$expColumns['PRODUCT16_AMOUNT'] = 'PRODUCT16_AMOUNT';
+		$expColumns['PRODUCT17_CODE'] = 'PRODUCT17_CODE';
+		$expColumns['PRODUCT17_QUANTITY'] = 'PRODUCT17_QUANTITY';
+		$expColumns['PRODUCT17_AMOUNT'] = 'PRODUCT17_AMOUNT';
+		$expColumns['PRODUCT18_CODE'] = 'PRODUCT18_CODE';
+		$expColumns['PRODUCT18_QUANTITY'] = 'PRODUCT18_QUANTITY';
+		$expColumns['PRODUCT18_AMOUNT'] = 'PRODUCT18_AMOUNT';
+		$expColumns['PRODUCT19_CODE'] = 'PRODUCT19_CODE';
+		$expColumns['PRODUCT19_QUANTITY'] = 'PRODUCT19_QUANTITY';
+		$expColumns['PRODUCT19_AMOUNT'] = 'PRODUCT19_AMOUNT';
+		$expColumns['PRODUCT20_CODE'] = 'PRODUCT20_CODE';
+		$expColumns['PRODUCT20_QUANTITY'] = 'PRODUCT20_QUANTITY';
+		$expColumns['PRODUCT20_AMOUNT'] = 'PRODUCT20_AMOUNT';*/
+		$expColumns['APORTIONMENT_FLAG'] = 'APORTIONMENT_FLAG';
+		$expColumns['EXP_DATE'] = 'EXP_DATE';
+		$expColumns['OPEN_DATE'] = 'OPEN_DATE';
+		$expColumns['OPEN_TIME'] = 'OPEN_TIME';
+		$expColumns['CASH_BONUS'] = 'CASH_BONUS';
+		$expColumns['TRANSMISSION_TIMESTAMP'] = 'TRANSMISSION_TIMESTAMP';
+		$expColumns['MCARD_BANKNET'] = 'MCARD_BANKNET';
+		$expColumns['PROCESSED'] = 'PROCESSED';
+		$expColumns['TICKET_NBR'] = 'TICKET_NBR';
+		$expColumns['DEF_GROSS_AMT'] = 'TERM';
+		$expColumns['TERM'] = '';
+		$expColumns['PURGE_DATE'] = 'PURGE_DATE';
+		return $expColumns;
+	}
+	function getDetailExportColumns() {
+		$expColumns = array();
+		$expColumns['DEVICE_ID'] = 'DEVICE_ID';
+		$expColumns['BATCH_NBR'] = 'BATCH_NBR';
+		$expColumns['RETRIEVAL_REF_NUM'] = 'RETRIEVAL_REF_NUM';
+		$expColumns['MERCHANT_ID'] = 'MERCHANT_ID';
+		$expColumns['PROCESSING_CODE'] = 'PROCESSING_CODE';
+		$expColumns['TRAN_AMOUNT'] = 'TRAN_AMOUNT';
+		$expColumns['RESPONSE_CODE'] = 'RESPONSE_CODE';
+		$expColumns['AUTH_NUMBER'] = 'AUTH_NUMBER';
+		$expColumns['TRAN_DATE'] = 'TRAN_DATE';
+		$expColumns['TRAN_TIME'] = 'TRAN_TIME';
+		$expColumns['TRANSACTION_ID'] = 'TRANSACTION_ID';
+		$expColumns['MESSAGE_TYPE'] = 'MESSAGE_TYPE';
+		$expColumns['CARD_NBR'] = 'CARD_NBR';
+		$expColumns['INVOICE_NBR'] = 'INVOICE_NBR';
+		$expColumns['SETTLE_FILE_PREFIX'] = 'SETTLE_FILE_PREFIX';
+		$expColumns['PRODUCT_CODE'] = 'PRODUCT_CODE';
+		//$expColumns['ODOMETER'] = 'ODOMETER';
+		$expColumns['SYS_TRACE_AUDIT_NUM'] = 'SYS_TRACE_AUDIT_NUM';
+		$expColumns['TX_KEY'] = 'TX_KEY';
+		$expColumns['BIN_TYPE'] = 'BIN_TYPE';
+		$expColumns['TYPE_OF_DATA'] = 'TYPE_OF_DATA';
+		$expColumns['DOWN_PAYMENT'] = 'DOWN_PAYMENT';
+		$expColumns['PERIOD'] = 'PERIOD';
+		$expColumns['INTEREST_RATE'] = 'INTEREST_RATE';
+		$expColumns['TOTAL_INTEREST'] = 'TOTAL_INTEREST';
+		$expColumns['REDEMPTION_AMOUNT'] = 'REDEMPTION_AMOUNT';
+		$expColumns['VEHICLE_NUMBER'] = 'VEHICLE_NUMBER';
+		$expColumns['POS_ENTRY_MODE'] = 'POS_ENTRY_MODE';
+		$expColumns['PROFILE'] = 'PROFILE';
+		$expColumns['NBR_OF_PROD_CODES'] = 'NBR_OF_PROD_CODES';
+		/*$expColumns['PRODUCT1_CODE'] = 'PRODUCT1_CODE';
+		$expColumns['PRODUCT1_QUANTITY'] = 'PRODUCT1_QUANTITY';
+		$expColumns['PRODUCT1_AMOUNT'] = 'PRODUCT1_AMOUNT';
+		$expColumns['PRODUCT2_CODE'] = 'PRODUCT2_CODE';
+		$expColumns['PRODUCT2_QUANTITY'] = 'PRODUCT2_QUANTITY';
+		$expColumns['PRODUCT2_AMOUNT'] = 'PRODUCT2_AMOUNT';
+		$expColumns['PRODUCT3_CODE'] = 'PRODUCT3_CODE';
+		$expColumns['PRODUCT3_QUANTITY'] = 'PRODUCT3_QUANTITY';
+		$expColumns['PRODUCT3_AMOUNT'] = 'PRODUCT3_AMOUNT';
+		$expColumns['PRODUCT4_CODE'] = 'PRODUCT4_CODE';
+		$expColumns['PRODUCT4_QUANTITY'] = 'PRODUCT4_QUANTITY';
+		$expColumns['PRODUCT4_AMOUNT'] = 'PRODUCT4_AMOUNT';*/
+		$expColumns['PRODUCT5_CODE'] = 'PRODUCT5_CODE';
+		$expColumns['PRODUCT5_QUANTITY'] = 'PRODUCT5_QUANTITY';
+		$expColumns['PRODUCT5_AMOUNT'] = 'PRODUCT5_AMOUNT';
+		/*$expColumns['PRODUCT6_CODE'] = 'PRODUCT6_CODE';
+		$expColumns['PRODUCT6_QUANTITY'] = 'PRODUCT6_QUANTITY';
+		$expColumns['PRODUCT6_AMOUNT'] = 'PRODUCT6_AMOUNT';
+		$expColumns['PRODUCT7_CODE'] = 'PRODUCT7_CODE';
+		$expColumns['PRODUCT7_QUANTITY'] = 'PRODUCT7_QUANTITY';
+		$expColumns['PRODUCT7_AMOUNT'] = 'PRODUCT7_AMOUNT';
+		$expColumns['PRODUCT8_CODE'] = 'PRODUCT8_CODE';
+		$expColumns['PRODUCT8_QUANTITY'] = 'PRODUCT8_QUANTITY';
+		$expColumns['PRODUCT8_AMOUNT'] = 'PRODUCT8_AMOUNT';
+		$expColumns['PRODUCT9_CODE'] = 'PRODUCT9_CODE';
+		$expColumns['PRODUCT9_QUANTITY'] = 'PRODUCT9_QUANTITY';
+		$expColumns['PRODUCT9_AMOUNT'] = 'PRODUCT9_AMOUNT';
+		$expColumns['PRODUCT10_CODE'] = 'PRODUCT10_CODE';
+		$expColumns['PRODUCT10_QUANTITY'] = 'PRODUCT10_QUANTITY';
+		$expColumns['PRODUCT10_AMOUNT'] = 'PRODUCT10_AMOUNT';
+		$expColumns['PRODUCT11_CODE'] = 'PRODUCT11_CODE';
+		$expColumns['PRODUCT11_QUANTITY'] = 'PRODUCT11_QUANTITY';
+		$expColumns['PRODUCT11_AMOUNT'] = 'PRODUCT11_AMOUNT';
+		$expColumns['PRODUCT12_CODE'] = 'PRODUCT12_CODE';
+		$expColumns['PRODUCT12_QUANTITY'] = 'PRODUCT12_QUANTITY';
+		$expColumns['PRODUCT12_AMOUNT'] = 'PRODUCT12_AMOUNT';
+		$expColumns['PRODUCT13_CODE'] = 'PRODUCT13_CODE';
+		$expColumns['PRODUCT13_QUANTITY'] = 'PRODUCT13_QUANTITY';
+		$expColumns['PRODUCT13_AMOUNT'] = 'PRODUCT13_AMOUNT';
+		$expColumns['PRODUCT14_CODE'] = 'PRODUCT14_CODE';
+		$expColumns['PRODUCT14_QUANTITY'] = 'PRODUCT14_QUANTITY';
+		$expColumns['PRODUCT14_AMOUNT'] = 'PRODUCT14_AMOUNT';
+		$expColumns['PRODUCT15_CODE'] = 'PRODUCT15_CODE';
+		$expColumns['PRODUCT15_QUANTITY'] = 'PRODUCT15_QUANTITY';
+		$expColumns['PRODUCT15_AMOUNT'] = 'PRODUCT15_AMOUNT';
+		$expColumns['PRODUCT16_CODE'] = 'PRODUCT16_CODE';
+		$expColumns['PRODUCT16_QUANTITY'] = 'PRODUCT16_QUANTITY';
+		$expColumns['PRODUCT16_AMOUNT'] = 'PRODUCT16_AMOUNT';
+		$expColumns['PRODUCT17_CODE'] = 'PRODUCT17_CODE';
+		$expColumns['PRODUCT17_QUANTITY'] = 'PRODUCT17_QUANTITY';
+		$expColumns['PRODUCT17_AMOUNT'] = 'PRODUCT17_AMOUNT';
+		$expColumns['PRODUCT18_CODE'] = 'PRODUCT18_CODE';
+		$expColumns['PRODUCT18_QUANTITY'] = 'PRODUCT18_QUANTITY';
+		$expColumns['PRODUCT18_AMOUNT'] = 'PRODUCT18_AMOUNT';
+		$expColumns['PRODUCT19_CODE'] = 'PRODUCT19_CODE';
+		$expColumns['PRODUCT19_QUANTITY'] = 'PRODUCT19_QUANTITY';
+		$expColumns['PRODUCT19_AMOUNT'] = 'PRODUCT19_AMOUNT';
+		$expColumns['PRODUCT20_CODE'] = 'PRODUCT20_CODE';
+		$expColumns['PRODUCT20_QUANTITY'] = 'PRODUCT20_QUANTITY';
+		$expColumns['PRODUCT20_AMOUNT'] = 'PRODUCT20_AMOUNT';*/
+		$expColumns['APORTIONMENT_FLAG'] = 'APORTIONMENT_FLAG';
+		$expColumns['EXP_DATE'] = 'EXP_DATE';
+		$expColumns['OPEN_DATE'] = 'OPEN_DATE';
+		$expColumns['OPEN_TIME'] = 'OPEN_TIME';
+		$expColumns['CASH_BONUS'] = 'CASH_BONUS';
+		$expColumns['TRANSMISSION_TIMESTAMP'] = 'TRANSMISSION_TIMESTAMP';
+		$expColumns['MCARD_BANKNET'] = 'MCARD_BANKNET';
+		$expColumns['TICKET_NBR'] = 'TICKET_NBR';
+		$expColumns['DEF_GROSS_AMT'] = 'DEF_GROSS_AMT';
+		$expColumns['TERM'] = 'TERM';
+		$expColumns['PURGE_DATE'] = 'PURGE_DATE';
+		return $expColumns;
+	}
+	function getHeaderExportColumns() {
+		$expColumns = array();
+		$expColumns['DEVICE_ID'] = 'DEVICE_ID';
+		$expColumns['BATCH_NBR'] = 'BATCH_NBR';
+		$expColumns['MERCHANT_ID'] = 'MERCHANT_ID';
+		$expColumns['TOTAL_CREDIT_CNT'] = 'TOTAL_CREDIT_CNT';
+		$expColumns['TOTAL_CREDIT_AMT'] = 'TOTAL_CREDIT_AMT';
+		$expColumns['TOTAL_CREDIT_REFUND_CNT'] = 'TOTAL_CREDIT_REFUND_CNT';
+		$expColumns['TOTAL_CREDIT_REFUND_AMT'] = 'TOTAL_CREDIT_REFUND_AMT';
+		$expColumns['TOTAL_DEBIT_CNT'] = 'TOTAL_DEBIT_CNT';
+		$expColumns['TOTAL_DEBIT_AMT'] = 'TOTAL_DEBIT_AMT';
+		$expColumns['TOTAL_DEBIT_REFUND_CNT'] = 'TOTAL_DEBIT_REFUND_CNT';
+		$expColumns['TOTAL_DEBIT_REFUND_AMT'] = 'TOTAL_DEBIT_REFUND_AMT';
+		$expColumns['TOTAL_VOID_CREDIT_CNT'] = 'TOTAL_VOID_CREDIT_CNT';
+		$expColumns['TOTAL_VOID_CREDIT_AMT'] = 'TOTAL_VOID_CREDIT_AMT';
+		$expColumns['TOTAL_VOID_CREDIT_REFUND_CNT'] = 'TOTAL_VOID_CREDIT_REFUND_CNT';
+		$expColumns['TOTAL_VOID_CREDIT_REFUND_AMT'] = 'TOTAL_VOID_CREDIT_REFUND_AMT';
+		$expColumns['OPEN_DATE'] = 'OPEN_DATE';
+		$expColumns['OPEN_TIME'] = 'OPEN_TIME';
+		$expColumns['RELEASE_DATE'] = 'RELEASE_DATE';
+		$expColumns['RELEASE_TIME'] = 'RELEASE_TIME';
+		$expColumns['BATCH_STATUS'] = 'BATCH_STATUS';
+		$expColumns['VISA_MERCHANT_ID'] = 'VISA_MERCHANT_ID';
+		$expColumns['PURGE_DATE'] = 'PURGE_DATE';
+		return $expColumns;
+	}
+}
+?>

@@ -1,0 +1,7 @@
+# nt_to_unix
+# This script will convert an NT source file with training CTRL-M's to
+# a UNIX format that has the CTRL-M's removed.
+# This script takes a single argument which is the file to edit. The file
+# will be replaced with its edited version.
+awk '{ gsub("\r", "", $0); print }' $1 > temp
+mv temp $1

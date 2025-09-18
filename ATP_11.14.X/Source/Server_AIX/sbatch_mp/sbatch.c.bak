@@ -1,0 +1,1027 @@
+/*******************************************************************************
+*  
+* MODULE:           sbatch.c
+*
+* Copyright (c) 2008, ThoughtFocus Technologies, Inc. All Rights Reserved.   
+*  
+* TITLE:             
+*  
+* DESCRIPTION:        
+*
+* APPLICATION:      sbatch.exe
+*
+* AUTHOR:           Ravikumar Nageshaiah, ThoughtFocus
+*
+* REVISION HISTORY:
+*
+* $Log:   SVN\EPICPORTZ\Equitable\sbatch.c  $
+*  
+*  
+		Rev 1.9  Dec 23 2009   TF-Ajay 
+	Changed variable declration place from .H file to .C file 
+	Updated version 1.0.0.10
+	
+	  Rev 1.8  Dec 17 2009   TF-Ajay 
+	Changed Sbatch to retreive txn from TLF01_STIP table based on txn date with network controller name
+	Now second parameter is date
+	If date not provided by the user. Sbatch will read system data by default
+	Updated version 1.0.0.9
+	
+	  
+		Rev 1.7  Aug 31 2009   TF-Ajay 
+	It should not change for other brands except VISA
+	In the 0120 message field 4 and field 49 is in peso. 
+	The value should be in field 4 and field 6 should be as received from VISA, in this case the 3rd currency value.
+	Updated version 1.0.0.8
+	
+	  Rev 1.6   Aug 27 2009   TF-Ajay 
+	In the 0120 message field 4 and field 49 is in peso. 
+	The value should be in field 4 and field 6 should be as received from VISA, in this case the 3rd currency value.
+	Updated version 1.0.0.7
+	
+	Rev 1.5   Aug 03 2009   TF-Ajay 
+	If originated from the DCPISO or Voice, no need send fld 6 & 51 
+	Updated version 1.0.0.6
+	
+	 Rev 1.4   Jul 28 2009   TF-Ajay 
+	For Amex, Advice repeat send as a 0120 only 
+	Updated version 1.0.0.5
+
+
+	Rev 1.3   Jul 22 2009   TF-Ajay 
+	If txn  gets non-approval response code of more than three times. That txn make it is processed
+	So That txn no more  send to host 
+	Updated version 1.0.0.4
+
+
+	Rev 1.2   Jul 13 2009   TF-Ajay 
+	Txn process as a STIP and After process update ncf30/bch20/bch10 table
+	Updated version 1.0.0.3
+
+	Rev 1.1   Jun 03 2009 Ajay - ThoughtFocus
+	Change the code to update BCH10 table also. when it  process the txns
+	Updated version 1.0.0.2
+
+	Rev 1.0   Jun 26 2008 Ravikumar Nageshaiah - ThoughtFocus
+	initial release
+
+*******************************************************************************/
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <time.h>
+#include <memory.h>
+#include <math.h>
+#include "basictyp.h"
+#include "pte.h"
+#include "ptemsg.h"
+#include "pteipc.h"
+#include "ptestats.h"
+#include "ptesystm.h"
+#include "ptetime.h"
+#include "ntutils.h"
+#include "app_info.h"
+#include "equitdb.h"
+#include "dc_dbstruct.h"
+#include "sbatch.h"
+#include "global_definitions.h"
+#include "txutils.h"
+#include "dc_database.h"
+#include "memmnger.h"
+#include "ptetimer.h"
+#include "dbcommon.h"
+#include "timings.h"
+
+#define MAXCOUNT	"2"
+/***** External variables */
+extern volatile int  EndProcessSignalled;
+extern volatile int  MainProcessDone;
+extern int           Start();
+extern void          Stop ();
+
+/***** Global variables *****/
+extern char          ExeName[100];
+static char			 ServiceName[100];
+
+static long			 total_tx_num;
+static long			 advice_repeat_ctr;
+
+//static TLF01			Auth_Tx;
+TLF01	tlf01_tmp_struct, db_tlf01_struct;
+AUTH_TX Auth_Tx ;
+pTLF01 tlf01_ptr;
+pNCF01	ncf01_ptr;
+NCF01 ncf01_tmp_struct;
+BYTE db_select_ncf01 (char[], pNCF01 , char*);
+/* declared variable in .C file TF-Ajay 23 Dec 2009 */
+char    NetCntlName[12];
+char	authorizing_host_queue[9];
+CHAR	TxnDate[9];
+CHAR    AppName   [MAX_APP_NAME_SIZE];
+
+/* Currency Codes ..TF Phani*/
+#define  PESO     "608"
+#define  USD      "840"
+
+
+#ifdef WIN32
+   #define DEFAULT_DIRECTORY  "\\ascendent\\sbatch"
+#else
+   #define DEFAULT_DIRECTORY "/ascendent/sbatch"
+#endif
+
+BYTE db_get_tlf01_stip_standin_rec(char *, pTLF01 , char *);
+
+BYTE p_buffer [MAX_DATASERVER_BUFFER_LENGTH] ; /* defined to be 25000 */
+
+
+CHAR  Version[] = "ATP_5.18.0"; 
+
+
+/****************************************************************************
+*
+*  NAME:             main
+*
+*  DESCRIPTION:      This function gets optional initial parameter
+*                    Network Controller.
+*
+*  INPUTS:           int argc - number of parameters
+*                    pchar argv[1] - The network controller to which the 
+*					 standin processed  transactions to be sent
+*                  
+*  OUTPUTS:          None
+*
+*  RETURNS:          None
+*
+*  AUTHOR:           Ravikumar Nageshaiah	
+*   
+*
+****************************************************************************/
+void main(int argc, char *argv[])
+{
+   	int rc = 0;
+    memset(NetCntlName, 0, sizeof(NetCntlName));
+	memset(TxnDate, 0, sizeof(TxnDate));
+	#ifndef WIN32
+		strcpy(ExeName, argv[0]);
+	#endif
+
+   	if (argc > 1)
+	{
+      if(strcmp(argv[1], "?") == 0)
+		{
+         display_log_info();
+         return;
+		}
+		else
+		 strcpy(NetCntlName, argv[1]);
+		/* If date not provided, It will read system currnet date 17 Dec,2009 TF-Ajay*/
+		if(argv[2]!=NULL)
+			strcpy(TxnDate, argv[2]);
+		
+    }
+	else
+	{
+		strcpy(NetCntlName,"");
+	    strcpy(TxnDate,"");
+	}
+
+   if ((rc = MainProcessor()) != 0)
+	   printf("Error Running sbatch: send standin batch to host program \n\n");
+	
+	Stop();
+
+} /* main */
+
+
+/****************************************************************************
+*
+*  NAME:             MainProcessor
+*
+*  DESCRIPTION:      This function handles high-level application logic.
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          None
+*
+*  RETURNS:          None
+*
+*  AUTHOR:           Ravikumar Nageshaiah
+*   
+*  MODIFIED BY:      
+*
+****************************************************************************/
+int MainProcessor()
+{
+	CHAR     msg[256] = {0} ;
+	CHAR     strTemp [256] = {0} ;
+	CHAR time_date[25];
+
+
+	memset (&Auth_Tx, 0, sizeof Auth_Tx) ;
+
+
+	GetAppName(AppName) ;
+	
+    strcpy(ServiceName, AppName);
+
+	/* Display Application version. */
+	sprintf(strTemp, "Attempting to start %s, version %s", ServiceName, Version);
+	TxUtils_Send_Msg_To_Operator (0,strTemp,1, INFO_MSG,"MainProcessor",
+								 4, INFO_ERROR,0,0,0) ;
+	printf("Attempting to start %s, version %s\n", ServiceName, Version);
+
+	#ifdef _DEBUG
+	pteipc_trace_on(); 
+	#endif
+	
+	/* Create queues sbatchA, sbatchI, sbatchC */
+	if(!pteipc_init_multiple_instance_app(ServiceName, ServiceName, "pte_ipc"))
+	{	
+		sprintf (strTemp,
+		  "%s: MainProcessor: Failed to Create XIPC queues",
+		   ServiceName) ;
+		TxUtils_Send_Msg_To_Operator (1,strTemp,1, ERROR_MSG,"MainProcessor",
+								4,FATAL_ERROR, 0,0,0) ;
+
+		/* signal that we are ready to shut down and quit */
+		pteipc_shutdown_single_instance_app() ;
+		MainProcessDone = 1 ;
+		return 1;
+	}
+	sprintf(strTemp,
+	  "Started the %s Service for %s Host",
+	   NetCntlName, ServiceName);
+	TxUtils_Send_Msg_To_Operator (0,strTemp,1, INFO_MSG,"MainProcessor",
+							 1, INFO_ERROR,0,0,0) ;
+
+	printf("Started the sbatch Service for %s Host\n",NetCntlName);
+
+	/* Check that NetCntlName is not NULL */
+	if (strcmp(NetCntlName, "") == 0)
+	{
+		strcpy(msg, "Please enter a valid Network/Host Controller Name ");
+		TxUtils_Send_Msg_To_Operator (1,msg,1, ERROR_MSG,"MainProcessor",
+							 1, FATAL_ERROR,0,0,0);
+		#ifdef _DEBUG
+			scanf("%s", &NetCntlName);
+		#else
+		display_log_info();
+		shut_down();
+		return 1;
+		#endif
+	}
+	/* Changes done in sbatch to retrieve txn based on date with network contorller Dec 16, 2009 TF-Ajay */ 
+	/* Check that, if Date is  NULL, Read the system cuurent date */
+	if (strcmp(TxnDate, "") == 0)
+		{
+			strcpy(msg, "User not provided Date for Sbatch, considering current date");
+			TxUtils_Send_Msg_To_Operator (1,msg,1, ERROR_MSG,"MainProcessor",
+								 1, FATAL_ERROR,0,0,0);
+
+			/* Get system timestamp "YYYY-MM-DD-hh.mm.ss.jjj" */
+            ptetime_get_timestamp( time_date );
+
+            /* Reformat to get date "YYYYMMDD". */
+            get_date( time_date, TxnDate);            
+		}
+
+
+
+	/* Try to connect to the database */
+	if (dbcommon_connect("equitable", "equitable", "equitable", "ORCL", msg) != PTEMSG_OK)
+	{
+		strcpy(msg, "Unable to Connect to Oracle ");
+		TxUtils_Send_Msg_To_Operator (1,msg,1, ERROR_MSG,"MainProcessor",
+							 1, FATAL_ERROR,0,0,0);
+		shut_down();
+		return 1;
+	}
+	/* Initialize structure used to build TLF01 detail */
+	memset(&Auth_Tx, 0, sizeof(Auth_Tx)); 
+	ProcessTransactions();
+  
+   shut_down();
+   return 0;
+          
+} /* MainProcessor */
+
+
+/******************************************************************************
+*
+*  NAME:         GET_DATE
+*
+*  DESCRIPTION:  This procedure takes an input string that contains a 
+                date and
+*                time.  It copies the date portion into an output 
+                string,
+*                formatted slightly different.
+*
+*  INPUTS:       time_date : Format = "YYYY-0M-0D-0H.0I.0S.JJJ"
+*
+*  OUTPUTS:      date_str  : Format = "YYYY0M0D"
+*
+*  RTRN VALUE:   None
+*
+*  AUTHOR:      Ajay S.T.
+*
+*  MODIFICATIONS:
+
+******************************************************************************/
+void get_date( pCHAR time_date, pCHAR date_str )
+{
+	memset ( date_str,  0x00,         9 );
+	strncpy( date_str,  time_date,    4 );
+	strncat( date_str, &time_date[5], 2 );
+	strncat( date_str, &time_date[8], 2 );
+}
+/****************************************************************************
+*
+*  NAME:             display_error_message
+*
+*  DESCRIPTION:      This function sends an error message to the system 
+*                    monitor and to standard output if executed in debug mode.
+*
+*  INPUTS:           message and function name
+*
+*  OUTPUTS:          system monitor message and standard output message
+*
+*  RETURNS:          None
+*
+*  AUTHOR:           Darcy Person
+*
+****************************************************************************/
+void display_error_message(pBYTE msg, pBYTE function)
+{
+   TxUtils_Send_Msg_To_Operator 
+	   (1,                           /* 1 - write to sys monitor, 0 - don't */
+      msg,   						      /* the text of the message             */ 
+ 		1,                            /* 1 - write to event log, 0 - don't   */
+	   INFO_MSG,                    /* message type                        */ 
+		function,   				      /* name of the function                */
+      4,									   /* severity                            */
+      INFO_ERROR,		  				/* message type                        */              
+      NULL_PTR,						   /* TID                                 */
+		NULL_PTR,							/* card number                         */
+      NULL_PTR);  					   /* merchant_id                         */
+
+   /* The print macro only displays messages in debug mode */
+   strcat(msg, "\n");
+   PRINT(msg);
+
+   return;
+
+} /* display_error_message */
+
+
+/****************************************************************************
+*
+*  NAME:             display_log_info
+*
+*  DESCRIPTION:      This function displays information concerning the 
+*                    execution of the Transaction Log File program.
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          Display to standard output
+*
+*  RETURNS:          None
+*
+*  AUTHOR:           Darcy Person
+*   
+****************************************************************************/
+void display_log_info(void)
+{
+   printf("\n\n");
+   printf("sbatch - version %s\n\n", Version );
+   printf("The Standin Batch To Host program sends all the ATP standin    \n");
+   printf("approved transactions to host when the host link is down. If a \n");
+   printf("valid Network Controller name and Date of transaction are specified on the command line,\n");
+   printf("all the transactions that were processed by ATP for that Network for purticular given date\n");
+   printf("Host are sent resent to the specified host. \n");
+   printf(" sbatch  - Network Controller Name is  Mandatory and Date is optional, \n\n");
+   printf(" If Date not provide. Sbatch will read System current date, \n\n");
+   printf(" Example: sbatch  ncvis2 20091210-  this would send");
+   printf(" all the ATP standin approved transactions on 20091210(YYYYMMDD) for Cadience's VISA Host Link\n\n");
+   
+   return;
+
+} /* display_log_info */
+
+/****************************************************************************
+*
+*  NAME:             EndProcess
+*
+*  DESCRIPTION:      
+*
+*  INPUTS:           None
+*         
+*  OUTPUTS:          None
+*
+*  RETURNS:          BOOLEAN true for success or false for failure.
+*
+*  AUTHOR:           Ravikumar Nageshaiah
+*   
+*  MODIFIED BY:    
+****************************************************************************/
+void EndProcess(void)
+{
+   PRINT("\n");
+
+} /* EndProcess */
+/****************************************************************************/
+BYTE Check_Is_Host_Up (BYTE* destination_name)
+{
+   XINT  ReturnCode ;
+   CHAR  strTemp [256] = {0} ;
+   BYTE  tmouts[100] = {0}, txns[100] = {0}, state[100] = {0} ;
+   BYTE  ret_val = false;int i;
+
+   if (destination_name[0] != 0)
+   {
+      for( i = 0; destination_name[i] != '\0'; i++);   
+	  destination_name[--i];	
+	  if(destination_name[i] == 'A')
+	  {
+		  destination_name[i] = '\0';
+	  }
+	  strcpy (strTemp, destination_name) ;
+      strcat (strTemp, "Table") ;
+
+      ReturnCode = ReadGenericTable (strTemp, tmouts, txns, state) ;
+      if (ReturnCode == MEMACCESSERROR)
+      {
+         memset (strTemp, 0, sizeof strTemp) ;
+         sprintf (strTemp, 
+                 "Err accessing shared memory (%s)\n",
+                  destination_name) ;
+
+      
+         TxUtils_Send_Msg_To_Operator (1,strTemp, 1, ERROR_MSG,
+                                      "Check_Is_Host_Up", 4, FATAL_ERROR,
+                                       Auth_Tx.TLF01_details.terminal_id, 
+                                       Auth_Tx.TLF01_details.card_num, 
+                                       Auth_Tx.TLF01_details.merchant_id) ;
+      }
+      else
+      {
+         /* Forward request to network controller
+          * if the network controller is Online.
+          */
+
+		  if ( strEqual(state, ONLINE) )
+            ret_val = true;
+      }
+   }
+   return( ret_val );
+
+} /* TxService_Is_Host_Up */
+/****************************************************************************
+*
+*  NAME:             ProcessTransactions
+*
+*  DESCRIPTION:      This function retrieves TLF01_STIP records. 
+*
+*  INPUTS:           NetCntlName (user-provided)
+*         
+*  OUTPUTS:          None
+*
+*  RETURNS:          None
+*
+*  AUTHOR:           Ravikumar Nageshaiah 
+*   
+*  MODIFIED BY:			Phani Kumar 
+*
+****************************************************************************/
+void ProcessTransactions(void)
+{
+	char              msg[100];
+	char			  strBuffer[256];
+	BYTE              rc;
+	pPTE_MSG p_msg = 0 ;int  dest_len=0;
+	LONG     lReturnCode = 0L ;
+	int               next_portion = 0;
+	INT      err_ctr = 0;
+	CHAR     strTemp [256] = {0} ;
+	 BYTE           tranid[21];
+     EMV_RAW        emvraw;
+	 BYTE			emv_result_code;
+	memset(&Auth_Tx, 0, sizeof(Auth_Tx)); 
+	memset(&tlf01_tmp_struct,0,sizeof(TLF01));
+	memset(&ncf01_tmp_struct,0,sizeof(NCF01));
+	
+	rc = db_select_ncf01(NetCntlName,&ncf01_tmp_struct, msg);
+	if ( rc == PTEMSG_OK)
+	{
+		advice_repeat_ctr = atoi(ncf01_tmp_struct.advice_repeat_counter);
+		printf("Obtained advice_repeat_counter from NCF01: %d\n", advice_repeat_ctr);
+	}
+	else
+	{
+		printf("The Oracle error number to get NCF01.advice_repeat_counter %d::%s \n",dbcommon_oracle_to_pte_rcode( rc, msg), msg);
+		printf("Setting the advice_repeat_counter to 3\n");
+		
+	}
+	//Check for host status
+
+	if(Check_Is_Host_Up(NetCntlName) == false)
+	{
+			printf("Sbatch: NC is not ONLINE, Plz make network ONLINE and START again : Network controller-  %s",NetCntlName);
+			sprintf(msg,"Sbatch: NC is not ONLINE, Plz make network ONLINE and START again : Network controller-  %s",NetCntlName);
+			LogEvent( msg, INFO_MSG );
+			display_error_message(msg,"ProcessTransactions");
+			return;
+	}
+
+	while (next_portion == 0)
+	{
+
+		strcpy(authorizing_host_queue, NetCntlName);
+		memset(&tlf01_tmp_struct,0,sizeof(TLF01));
+		#ifdef WIN32
+			Sleep (10000);
+		#else
+			usleep (1000000);// 1 sec delay
+		#endif
+		rc = db_get_tlf01_stip_standin_rec(authorizing_host_queue, &tlf01_tmp_struct, msg );
+
+		if ( rc == PTEMSG_OK)
+		{
+			memset(&Auth_Tx, 0, sizeof(Auth_Tx));
+			memcpy (&Auth_Tx.TLF01_details, &tlf01_tmp_struct, sizeof (TLF01)) ;
+			strcpy(Auth_Tx.TLF01_details.orig_message,Auth_Tx.TLF01_details.message_type);
+			strcpy(Auth_Tx.TLF01_details.orig_retrieval_ref_num, Auth_Tx.TLF01_details.retrieval_ref_num);
+			strcpy(Auth_Tx.TLF01_details.retrieval_ref_num,"");
+			Auth_Tx.TLF01_details.tx_key = AUTH_ADVICE;
+			
+			if((strcmp(Auth_Tx.TLF01_details.message_type,"0120") == 0))
+				strcpy(Auth_Tx.TLF01_details.message_type,"0121");
+			else
+				strcpy(Auth_Tx.TLF01_details.message_type,"0120");
+			strcpy(Auth_Tx.TLF01_details.originator_queue,application_que_name);
+			strcpy(Auth_Tx.TLF01_details.handler_queue, application_que_name);
+			strcpy(Auth_Tx.TLF01_details.response_code,"");
+		/*	strcpy(Auth_Tx.TLF01_details.message_type,"0120");  This line no need TF, Ajay*/
+			strcpy(Auth_Tx.TLF01_details.response_text,"");
+			strcpy(Auth_Tx.TLF01_details.authorizing_host_queue, NetCntlName);
+		/* TF Phani- Copy indutry code*/
+			strcpy(Auth_Tx.industry_code, Auth_Tx.TLF01_details.product_codes[8].code);
+		/* If txn from DCPSIO or voice no need to send fld 6 and 51.
+			Make it null, if it is there TF-Ajay Jul-31-2009 */
+			if((strcmp(Auth_Tx.TLF01_details.dispensation.origin,"LO")==0)||
+			   (strcmp(Auth_Tx.TLF01_details.voice_auth,"Y")==0))
+				{
+				 strcpy(Auth_Tx.ch_billing_curr_code,"");
+				 strcpy(Auth_Tx.ch_billing_amt,"");
+				}
+			else
+			{	/* Copy Billing Conversion rate back*/
+				 strcpy(Auth_Tx.ch_billing_conv_rate,Auth_Tx.TLF01_details.product_codes[8].amount);
+				 strcpy(Auth_Tx.ch_billing_amt,Auth_Tx.TLF01_details.product_codes[7].amount);
+				 strcpy(Auth_Tx.ch_billing_curr_code,Auth_Tx.TLF01_details.product_codes[7].code);
+
+				/* In case of 3rd currency, BDO needs to populates 4,6 and 49 and 51 as it is.. TF PHANI */
+				if ( (strncmp(Auth_Tx.TLF01_details.acquirer_id,"ncvis2",5)==0))
+				{
+					if(0 != strcmp( PESO, Auth_Tx.TLF01_details.nfi_seq_nbr)&& 
+					   0 != strcmp( USD,  Auth_Tx.TLF01_details.nfi_seq_nbr)&&
+					  (0 != strcmp( USD,  Auth_Tx.TLF01_details.num_dbsales)&&
+					   0 != strcmp( PESO, Auth_Tx.TLF01_details.num_dbsales) ) )
+      				{	/*Copy DE4 to sales_amount, Copy DE6 to total_amount.,Copy DE49 to nfi_seq_nbr, Copy DE51 to currency_code..*/
+
+						
+					   /* Copy DE6 to total_amount. */
+					   memcpy( Auth_Tx.ch_billing_amt,Auth_Tx.TLF01_details.total_amount,12 );
+				   		  /* Copy DE4 to sales_amount.  */
+					   if(strlen(Auth_Tx.TLF01_details.sales_amount) > 2 && atoi(Auth_Tx.TLF01_details.sales_amount) > 0)
+					   memcpy( Auth_Tx.TLF01_details.total_amount,Auth_Tx.TLF01_details.sales_amount,12 );
+						  /* Copy DE51 to currency_code. */
+					   memcpy( Auth_Tx.ch_billing_curr_code,Auth_Tx.TLF01_details.currency_code,3);
+					   /* Copy DE49 to nfi_seq_nbr. */
+					   if(strlen(Auth_Tx.TLF01_details.nfi_seq_nbr) > 2)
+					   memcpy( Auth_Tx.TLF01_details.currency_code,Auth_Tx.TLF01_details.nfi_seq_nbr,3 );
+					}
+					else
+					{/* its not 3rd currency don't change anything */}
+				}
+				else if((strncmp(Auth_Tx.TLF01_details.acquirer_id,"ncjcb2",5)==0))
+				{
+
+				}
+				else if((strncmp(Auth_Tx.TLF01_details.acquirer_id,"ncmcr2",4)==0))
+				{		 /* Copy DE9 to coversion rate. */
+					memcpy( Auth_Tx.TLF01_details.conversion_rate,Auth_Tx.TLF01_details.product_codes[12].amount,8 );
+						  /* Copy DE50 to settlement currency_code. */
+					memcpy( Auth_Tx.settlement_curr_code,Auth_Tx.TLF01_details.product_codes[12].code,3);
+					// DE 61 value for 0120
+					strcpy(Auth_Tx.acceptor_term_name,Auth_Tx.TLF01_details.source_key);
+				}
+				else if((strncmp(Auth_Tx.TLF01_details.acquirer_id,"nposa2",5)==0))
+				{
+				}
+				else
+				{ /* Don't do anything */
+				}
+
+			}
+
+			dest_len = strlen(authorizing_host_queue);
+			if (authorizing_host_queue[dest_len - 1] == 'A'){}
+			else
+			strcat(authorizing_host_queue,"A");
+// Get EMV data
+			 if ( 0 == strncmp("005", Auth_Tx.TLF01_details.pos_entry_mode, 3) ||
+				 0 == strncmp("007", Auth_Tx.TLF01_details.pos_entry_mode, 3)) // Check for EMV tx
+              {
+                        /* Fetch any EMV data associated with this txn. */
+                        memset( &emvraw, 0x00, sizeof(EMV_RAW) );
+                        memset( tranid, 0x00, sizeof(tranid) );
+                        memcpy( tranid, Auth_Tx.TLF01_details.primary_key.transaction_id, sizeof(tranid));
+                        emv_result_code = db_select_emvraw(tranid,&emvraw,strBuffer);
+                        if ( emv_result_code == PTEMSG_OK )
+                        {
+                           memcpy(Auth_Tx.EMV_details.emv_block,
+                                   emvraw.RAW_DATA,
+                                   atoi(emvraw.DATA_LENGTH) );
+
+                          
+                        }
+                        else
+                        {
+                           /* Orig txn has been found, so even if
+                            * EMV data is not found, still return success.
+                            */
+                           emv_result_code = PTEMSG_OK;
+                        }
+              }
+
+/*End of EMV data*/
+			/* Validate amount*/
+			if(strlen(Auth_Tx.TLF01_details.total_amount)<12)
+			{
+				//Some thing wrong with conversion Make sure length will be 12
+				INT i = atoi(Auth_Tx.TLF01_details.total_amount);
+				sprintf(Auth_Tx.TLF01_details.total_amount,"%012d",i);
+			}
+			err_ctr = 0;
+			printf("Processing transaction with tlf01_stip ID: %s\n", Auth_Tx.TLF01_details.primary_key.transaction_id);
+			lReturnCode = Send_Request_To_Service (  authorizing_host_queue,
+											MT_AUTH_REQUEST, 
+											0, 
+											0, 
+											0, 
+											(pBYTE) (&Auth_Tx), 
+											sizeof(AUTH_TX)) ;
+			while (err_ctr <= advice_repeat_ctr )
+			{
+				/* You are blocked here waiting for a message on either app queue or
+				* control que.  If there is no message on either que for 5 seconds,
+				* the blocking call returns.  Application_que_name and control_que_name
+				* are populated in pteipc_init_multiple_instance_app (pteipc.c).
+				*/
+				p_msg = pteipc_receive( application_que_name, control_que_name,
+							  20, &lReturnCode);
+
+				if(p_msg != NULL_PTR)
+				{
+					err_ctr = 0;
+					PinnacleMsgHandler (p_msg);
+					total_tx_num++;
+					free(p_msg);
+					break;
+				}
+				else if(lReturnCode == QUE_ER_TIMEOUT)
+				{
+					/* Queue has timed out. There is nothing in it. */
+					/*increment the retry count and try sending 121 message now*/
+					err_ctr++;
+					/*Amex host does not identifys 0121 msg. So send as 0120 msg even though its repeat. TF-Ajay 28-Jul-09*/
+					if((strncmp(Auth_Tx.TLF01_details.acquirer_id,"nposa2",5)==0)||
+						(0== strncmp(Auth_Tx.TLF01_details.handler_queue,"ncposA",5)))
+					{		/* Don't change the message type */		}
+					else
+					{
+						strcpy(Auth_Tx.TLF01_details.message_type,"0121");
+						Auth_Tx.TLF01_details.tx_key = AUTH_ADVICE_REPEAT;
+					}
+
+					lReturnCode = Send_Request_To_Service (  authorizing_host_queue,
+								MT_AUTH_REQUEST, 
+								0, 
+								0, 
+								0, 
+								(pBYTE) (&Auth_Tx), 
+								sizeof(AUTH_TX));
+					
+				}
+				else
+				{
+					err_ctr++;
+					pteipc_get_errormsg(lReturnCode, strTemp);
+					sprintf( strBuffer,
+					 "Error on pteipc_receive %s, error code: %ld, retry attempt:%d",
+					  strTemp, lReturnCode, err_ctr );
+					TxUtils_Send_Msg_To_Operator(1, strBuffer, 1, ALERT_MSG,
+										 "MainProcessor", 4, FATAL_ERROR,
+										  NULL_PTR, NULL_PTR, NULL_PTR);
+
+					/* There is a problem with the queue.  Delay 1 second
+					* so as to not flood Applnk's queue and syslog.
+					*/
+					#ifdef WIN32
+						Sleep( 1000 );
+					#else
+						usleep( 1000000 );
+					#endif
+
+					/* Inform Operators if service's queue is no longer readable. */
+					if ( err_ctr > 10 )
+					{
+						err_ctr = 0;
+						sprintf( strBuffer,
+							   "SHUT DOWN %s. UNABLE TO ACCESS QUEUE!!!!",
+							 ServiceName );
+						TxUtils_Send_Msg_To_Operator (1, strBuffer, 1, ALERT_MSG,
+												 "MainProcessor", 4, FATAL_ERROR,0,0,0);
+						#ifdef WIN32
+							Sleep (50000);
+						#else
+							usleep (50000000);
+						#endif
+					}
+				}
+				if( err_ctr >= advice_repeat_ctr)
+				{
+					sprintf( msg, "Reached maximum auth advice retry count, No Repsone from Cadience ");
+					display_error_message(msg,"ProcessTransactions");
+					//shut_down();
+					//exit(0);
+				}
+			}//while advice_repeat_ctr
+ 		} /* endif */
+	 
+		else if (rc == PTEMSG_NOT_FOUND)
+		{
+			next_portion = 1;
+			continue;
+		}else
+		{/* TF Phani.. Break the loop even for DB errors*/
+			next_portion = 1;
+			continue;
+		
+		}
+
+	} // end while - next_portion
+	if(total_tx_num == 0)
+	{
+			sprintf( msg, "Completed Process Transactions for %s. Could not find any records", NetCntlName );
+			 LogEvent( msg, INFO_MSG );
+	}
+	else
+	{		
+			sprintf(msg,"Sbatch processed %ld number of transactions for %s ", total_tx_num,NetCntlName);
+			display_error_message(msg,"ProcessTransactions");
+			LogEvent( msg, INFO_MSG );
+	}
+	printf("%s\n",msg);
+	//LogEvent(pCHAR msg,int type);
+	display_error_message(msg,"ProcessTransactions");
+
+} // ProcessTransactions 
+
+
+
+/****************************************************************************
+*
+*  NAME:             shut_down
+*
+*  DESCRIPTION:      This function prepares the application to shut down.
+*
+*  INPUTS:           None
+*
+*  OUTPUTS:          None
+*
+*  RETURNS:          None
+*
+*  AUTHOR:           Darcy Person
+*
+****************************************************************************/
+
+void shut_down(void)
+{
+   CHAR Buffer[100] = "";
+
+   /* Added to fix a timing problem */
+	#ifdef WIN32
+		Sleep(2000);
+	#else
+		sleep(2);
+	#endif
+
+   /* Added to fix Equitable error report #852 */
+   sprintf( Buffer,"Stopping sbatch program, version %s",Version);
+   display_error_message( Buffer, "MainProcessor");
+			
+   pteipc_shutdown_single_instance_app(); 
+   MainProcessDone = 1;
+
+   return;
+
+} /* shut_down */
+
+
+BYTE Send_Request_To_Service (BYTE* que_name, BYTE nType, BYTE nSubType1, 
+							  BYTE nSubType2, BYTE nAppDataType, 
+							  pBYTE p_data,   INT nDataSize)
+{
+	LONG retCode = 0L ;
+	pPTE_MSG p_msg_out = NULL_PTR ;
+	INT nBufferSize = 0 ;
+	char strError[512] = {0} ;
+
+	memset (p_buffer, 0, sizeof p_buffer) ;
+	memcpy (p_buffer, &Auth_Tx, sizeof Auth_Tx) ;
+	
+	if (p_data != 0)
+		memcpy (p_buffer + sizeof Auth_Tx, p_data, nDataSize) ;
+		
+	nBufferSize = sizeof Auth_Tx + nDataSize ;
+
+	p_msg_out = ptemsg_build_msg (  nType, 
+								    nSubType1, 
+								    nSubType2, 
+								    que_name, 
+								    application_que_name, 
+								    (pBYTE) p_buffer, 
+								    nBufferSize, 
+								    nAppDataType) ;
+
+	if (p_msg_out == NULL_PTR)
+	{
+		strcpy (strError,"Insufficient Memory for building terminal message") ;
+		
+	     TxUtils_Send_Msg_To_Operator 
+				  (1, strError,
+					1, ERROR_MSG,"sbatch.c", 4, FATAL_ERROR,0, 0, 0);
+		return SYSTEM_ERROR ;
+ 	} 
+
+	retCode = pteipc_send (p_msg_out, que_name) ;
+	free (p_msg_out) ;
+
+	if (retCode != 0)
+	{
+		sprintf (strError,"Error %ld has occurred sending message to %s\n", retCode, que_name) ;
+        
+          TxUtils_Send_Msg_To_Operator 
+				  (1, strError,
+					1, ERROR_MSG,"sbatch.c", 4, FATAL_ERROR,0, 0, 0);
+		return SYSTEM_ERROR ;
+	}
+
+	return DEVICE_OK ;
+} /* Send_Request_To_Service */
+
+
+
+
+/*************************************************************************************
+NAME:			PinnacleMsgHandler
+DESCRIPTION:	This function gets called when the primary thread (MainProcessor) of the
+				application gets a message in its queue. When the thread receives a message,
+				this function dispatches it to a function depending on the message type
+INPUTS:			p_msg_in: Pointer to a PTE_MSG
+OUTPUTS:		None
+RETURNS:        Void
+AUTHOR:         Ravikumar K N  
+MODIFIED BY:	
+*************************************************************************************/
+void PinnacleMsgHandler(pPTE_MSG p_msg_in)
+
+{
+   pPTE_MSG p_cur_msg = 0 ;
+   pPTE_MSG p_msg_out = 0 ;
+   BYTE     MessageType = 0 ;
+   BYTE     ReturnCode = 0 ;
+   CHAR     strTemp[256] = {0} ;
+
+
+	memset (&Auth_Tx, 0, sizeof (AUTH_TX)) ;
+    
+
+    p_cur_msg = p_msg_in ;
+    p_msg_out = 0 ;
+
+   MessageType = ptemsg_get_msg_type (p_cur_msg) ;
+   switch (MessageType)
+   {
+      case MT_AUTH_RESPONSE: 
+
+         ReturnCode = Process_Auth_Advice_Response (p_cur_msg) ;
+      break ;	
+
+
+	  
+      default:
+          strcpy (strTemp, "Unknown message type received in the Pinnacle Message Handler") ;
+          TxUtils_Send_Msg_To_Operator 
+				  (1, strTemp,
+					1, ERROR_MSG,"sbatch.c", 4, FATAL_ERROR,0, 0, 0);
+		break ;
+    }  /* switch msg_type */
+} /* PinnacleMsgHandler */
+
+
+BYTE Process_Auth_Advice_Response (pPTE_MSG p_msg_in)
+{
+	BYTE ReturnCode = true;
+	pBYTE pATEMessageDataData = 0 ;
+	pPTE_MSG_DATA pATEMessageData = 0 ;
+	char strTemp[256] = {0} ;
+    int txnCount=0;
+	char strBuffer[50]={0};
+
+	
+	pATEMessageData			= ptemsg_get_pte_msg_data (p_msg_in) ;
+	pATEMessageDataData		= ptemsg_get_pte_msg_data_data (pATEMessageData) ;
+	
+	/*******************************************************************/
+    memset (&Auth_Tx, 0, sizeof Auth_Tx) ;
+	memcpy (&Auth_Tx, (AUTH_TX *)pATEMessageDataData, sizeof Auth_Tx) ;
+	/*******************************************************************/
+	sprintf (strTemp,"Received msg from host-RespCode:%s\n", 
+		      Auth_Tx.TLF01_details.response_code) ;
+
+   if (Auth_Tx.TLF01_details.tx_key==AUTH_ADVICE_RESPONSE)
+	{
+		printf("Response returned from Host for Auth Advice \n");
+		memset( &db_tlf01_struct, 0, sizeof( db_tlf01_struct ) );
+        memcpy( &db_tlf01_struct, ( pTLF01 )pATEMessageDataData, sizeof( TLF01 ) );
+		strcpy(Auth_Tx.TLF01_details.product_codes[1].code,PROCESSED);
+
+		ReturnCode = db_update_tlf01_stip( &Auth_Tx.TLF01_details, strTemp );
+
+        if(strcmp(Auth_Tx.TLF01_details.dispensation.origin,"RO")==0)
+		{
+			ReturnCode= db_update_ncf30_stip(&Auth_Tx.TLF01_details, strTemp );
+		}
+		else if(strcmp(Auth_Tx.TLF01_details.voice_auth,"Y")==0)
+		{
+			ReturnCode = db_update_bch20_stip(&Auth_Tx.TLF01_details, strTemp );
+		}
+		else 
+		{
+			ReturnCode = db_update_bch10_stip(&Auth_Tx.TLF01_details, strTemp );
+		}
+/*	}
+	else
+	{
+		printf("Error returned from the host. This transaction will be attempted send once again \n");
+
+		/* If txn  gets non-approval response code of more than times. That txn make it is processed
+		 So That txn no more it will send to host TF-Ajay  22-Jul-2009
+		if(strcmp(Auth_Tx.TLF01_details.product_codes[6].code,MAXCOUNT)==0)
+		{
+			printf("Maximum re sent counts reached \n");
+			memset( &db_tlf01_struct, 0, sizeof( db_tlf01_struct ) );
+			memcpy( &db_tlf01_struct, ( pTLF01 )pATEMessageDataData, sizeof( TLF01 ) );
+			strcpy(Auth_Tx.TLF01_details.product_codes[1].code,PROCESSED);
+			strcpy(Auth_Tx.TLF01_details.response_code,"00");
+
+			ReturnCode = db_update_tlf01_stip( &Auth_Tx.TLF01_details, strTemp );
+
+			if(strcmp(Auth_Tx.TLF01_details.dispensation.origin,"RO")==0)
+			{
+				ReturnCode= db_update_ncf30_stip(&Auth_Tx.TLF01_details, strTemp );
+			}
+			else if(strcmp(Auth_Tx.TLF01_details.voice_auth,"Y")==0)
+			{
+				ReturnCode = db_update_bch20_stip(&Auth_Tx.TLF01_details, strTemp );
+			}
+			else 
+			{
+				ReturnCode = db_update_bch10_stip(&Auth_Tx.TLF01_details, strTemp );
+			}	 
+		}
+		else
+		{       txnCount=atoi(Auth_Tx.TLF01_details.product_codes[6].code);
+				txnCount++;
+				memset(Auth_Tx.TLF01_details.product_codes[6].code,0,sizeof(Auth_Tx.TLF01_details.product_codes[6].code));
+				itoa(txnCount,Auth_Tx.TLF01_details.product_codes[6].code,sizeof(Auth_Tx.TLF01_details.product_codes[6].code));
+				 
+				ReturnCode = db_update_tlf01_stip_count(&Auth_Tx.TLF01_details, strTemp );
+		}
+*/
+	}
+   else
+   {
+	   sprintf( strBuffer, "Its not a valid response-%s with -%s ",Auth_Tx.TLF01_details.tx_key,Auth_Tx.TLF01_details.message_type);
+	   TxUtils_Send_Msg_To_Operator(1, strBuffer, 1, ALERT_MSG,
+										 "Process_Auth_Advice_Response", 4, FATAL_ERROR,
+										  NULL_PTR, NULL_PTR, NULL_PTR);
+   }
+
+	return 0;
+}
+
+

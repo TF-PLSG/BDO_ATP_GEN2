@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project default="create_run_jar" name="Create Runnable Jar for Project JMSMessage with libraries in sub-folder">
+	<!--this file was created by Eclipse Runnable JAR Export Wizard-->
+	<!--ANT 1.7 is required                                        -->
+	<target name="clean">
+		<delete dir="jar" />
+	</target>
+	<target name="init">
+	</target>
+	<path id="compile.classpath">
+		<fileset dir="lib">
+			<include name="*.jar" />
+		</fileset>
+	</path>
+	<target name="compile" depends="init">
+		<javac includeantruntime="false" destdir="bin" debug="true" srcdir="src">
+			<classpath refid="compile.classpath" />
+		</javac>
+	</target>
+	<target name="create_run_jar" depends="compile">
+		<mkdir dir="jar" />
+		<jar destfile="jar/falcon.jar">
+			<manifest>
+				<attribute name="Main-Class" value="MsgSenderThread" />
+				<attribute name="Class-Path" value=". falcon_lib/com.ibm.mq.commonservices.jar falcon_lib/com.ibm.mqjms.jar falcon_lib/com.ibm.ws.ejb.thinclient_7.0.0.jar falcon_lib/com.ibm.ws.messagingClient.jar falcon_lib/com.ibm.ws.orb_7.0.0.jar falcon_lib/com.ibm.ws.sib.client.thin.jms_7.0.0.jar falcon_lib/imq.jar falcon_lib/jms-1.1.jar falcon_lib/naming.jar falcon_lib/httpclient-4.5.5.jar falcon_lib/httpcore-4.4.9.jar falcon_lib/commons-logging-1.2.jar falcon_lib/log4j-1.2.17.jar falcon_lib/apache-log4j-extras-1.2.17.jar"/>
+			</manifest>
+			<fileset dir="bin" />
+		</jar>
+		<mkdir dir="jar/falcon_lib" />
+		<copy file="lib/com.ibm.mq.commonservices.jar" todir="jar/falcon_lib" />
+		<copy file="lib/com.ibm.mqjms.jar" todir="jar/falcon_lib" />
+		<copy file="lib/com.ibm.ws.ejb.thinclient_7.0.0.jar" todir="jar/falcon_lib" />
+		<copy file="lib/com.ibm.ws.messagingClient.jar" todir="jar/falcon_lib" />
+		<copy file="lib/com.ibm.ws.orb_7.0.0.jar" todir="jar/falcon_lib" />
+		<copy file="lib/com.ibm.ws.sib.client.thin.jms_7.0.0.jar" todir="jar/falcon_lib" />
+		<copy file="lib/imq.jar" todir="jar/falcon_lib" />
+		<copy file="lib/jms-1.1.jar" todir="jar/falcon_lib" />
+		<copy file="lib/apache-log4j-extras-1.2.17.jar" todir="jar/falcon_lib" />
+		<copy file="lib/log4j-1.2.17.jar" todir="jar/falcon_lib" />
+		<copy file="lib/naming.jar" todir="jar/falcon_lib" />
+		<copy file="lib/httpclient-4.5.5.jar" todir="jar/falcon_lib" />
+		<copy file="lib/httpcore-4.4.9.jar" todir="jar/falcon_lib" />
+		<copy file="lib/commons-logging-1.2.jar" todir="jar/falcon_lib" />
+	</target>
+</project>
+

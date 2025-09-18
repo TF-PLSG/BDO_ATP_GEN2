@@ -1,0 +1,50 @@
+BINDIR=../bin
+LIBDIR=../lib
+COREDIR=../../Libraries/core_aix
+COREINC=$(COREDIR)/../include
+CORELIB=$(COREDIR)/lib
+APPINC=../../Server_AIX/include
+APPLIB=../../Server_AIX/lib
+CFLAGS64= -g -q64 -w -I$(COREINC) -I../include \
+	 -I$(XIPCROOT)/include 
+CFLAGS= -g -w -I$(COREINC) -I../include \
+         -I$(XIPCROOT)/include
+LFLAGS=-q64 -L$(CORELIB) -L$(LIBDIR) -L$(XIPCROOT)/lib
+JAVACLASSNAME=FalconHandler
+JNISHAREDLIB=libFalconHandler.so
+SYSTEMLIBFOLDER=/usr/lib
+#SYSTEM_JAVA_INCLUDE_FOLDER=/usr/java5/include
+SYSTEM_JAVA_INCLUDE_FOLDER=/usr/java6_64/include
+C_COMPILER=cc
+JAVA_COMPILER=javac
+JAVALIBDIR =../../Libraries/core_aix/lib
+
+falcon.jar: $(JNISHAREDLIB)
+	cd JMSMessage && ant && cp ./jar/falcon.jar ../ && cd ..
+	cp ./falcon $(BINDIR)/
+	cp ./falcon.jar $(BINDIR)/
+
+$(JNISHAREDLIB): java_daemon.o $(JAVACLASSNAME).class $(JAVACLASSNAME).o 
+	$(C_COMPILER) -q64 -qarch=auto -qmkshrobj -o ./$(JNISHAREDLIB) $(JAVACLASSNAME).o  -lpteipc -lptecom -lequit -lpte -lxcom -lm -lpthread -lnsl -L$(APPLIB) -L$(CORELIB)
+	@echo
+	@echo "\t\tLibrary $(JNISHAREDLIB) is created."
+	@echo "\t\tProvide root password to copy it to $(SYSTEMLIBFOLDER)/."
+	@echo
+	su root "-c rm -f $(SYSTEMLIBFOLDER)/$(JNISHAREDLIB) && cp -f ./$(JNISHAREDLIB) $(SYSTEMLIBFOLDER)/"
+
+java_daemon.o: java_daemon.c 
+	$(C_COMPILER) $(CFLAGS64) java_daemon.c -o falcon
+
+$(JAVACLASSNAME).o : $(JAVACLASSNAME).c $(JAVACLASSNAME).h 
+	$(C_COMPILER) -g -q64 -fPIC -I $(SYSTEM_JAVA_INCLUDE_FOLDER)/ -I $(COREINC) -I $(APPINC) -I $(XIPCROOT)/include -c $(JAVACLASSNAME).c -o $(JAVACLASSNAME).o 
+
+$(JAVACLASSNAME).h : $(JAVACLASSNAME).class
+	javah -jni $(JAVACLASSNAME)
+
+$(JAVACLASSNAME).class : $(JAVACLASSNAME).java
+	$(JAVA_COMPILER) $(JAVACLASSNAME).java
+
+clean :
+	-@rm -f *.o *.so *.class $(JAVACLASSNAME).h $(JAVALIBDIR)/java_daemon.o ./falcon ./falcon.jar
+	-@rm -f JMSMessage/jar/falcon.jar
+

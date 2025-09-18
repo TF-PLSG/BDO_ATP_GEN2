@@ -1,0 +1,78 @@
+<html>
+<body>
+<pre>
+<h1>Build Log</h1>
+<h3>
+--------------------Configuration: hostsim - Win32 Release--------------------
+</h3>
+<h3>Command Lines</h3>
+Creating command line "rc.exe /l 0x409 /fo".\Release/hostsim.res" /d "NDEBUG" /d "_AFXDLL" "C:\veena\bdo\branches\Amex\hostsim.rc"" 
+Creating temporary file "C:\DOCUME~1\ADMINI~1\LOCALS~1\Temp\RSPC0.tmp" with contents
+[
+/nologo /MD /W3 /GX /O2 /I "D:\HostAmex\include\core_1_2_1" /I "D:\HostAmex\include\bea_1_0_0" /I "C:\veena\bdo\branches\Amex\Host_sim_libs\include\bea_1_0_0" /I "C:\veena\bdo\branches\Amex\Host_sim_libs\include\Core_1_2_1" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_AFXDLL" /D "_MBCS" /FR".\Release/" /Fo".\Release/" /Fd".\Release/" /FD /c 
+"C:\veena\bdo\branches\Amex\convert.c"
+"C:\veena\bdo\branches\Amex\hostsim.cpp"
+"C:\veena\bdo\branches\Amex\hostsimDlg.cpp"
+"C:\veena\bdo\branches\Amex\hostsimn.c"
+"C:\veena\bdo\branches\Amex\response.c"
+"C:\veena\bdo\branches\Amex\serialc.cpp"
+"C:\veena\bdo\branches\Amex\tcpip.cpp"
+"C:\veena\bdo\branches\Amex\trace.c"
+]
+Creating command line "cl.exe @C:\DOCUME~1\ADMINI~1\LOCALS~1\Temp\RSPC0.tmp" 
+Creating temporary file "C:\DOCUME~1\ADMINI~1\LOCALS~1\Temp\RSPC1.tmp" with contents
+[
+/nologo /MD /W3 /GX /O2 /I "D:\HostAmex\include\core_1_2_1" /I "D:\HostAmex\include\bea_1_0_0" /I "C:\veena\bdo\branches\Amex\Host_sim_libs\include\bea_1_0_0" /I "C:\veena\bdo\branches\Amex\Host_sim_libs\include\Core_1_2_1" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_AFXDLL" /D "_MBCS" /FR".\Release/" /Fp".\Release/Hostsim.pch" /Yc"stdafx.h" /Fo".\Release/" /Fd".\Release/" /FD /c 
+"C:\veena\bdo\branches\Amex\StdAfx.cpp"
+]
+Creating command line "cl.exe @C:\DOCUME~1\ADMINI~1\LOCALS~1\Temp\RSPC1.tmp" 
+Creating temporary file "C:\DOCUME~1\ADMINI~1\LOCALS~1\Temp\RSPC2.tmp" with contents
+[
+kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib pte.lib ptecom.lib pteipc.lib /nologo /subsystem:windows /pdb:none /machine:I386 /nodefaultlib:"libcmt" /nodefaultlib:"libcmtd" /nodefaultlib:"nafxcw" /out:".\Release/Hostsim_Amex.exe" /libpath:"D:\HostAmex\lib\core\1_2_1" /libpath:"D:\HostAmex\lib\bea\1_0_0" /libpath:"C:\veena\bdo\branches\Amex\Host_sim_libs\lib\bea\1_0_0" /libpath:"C:\veena\bdo\branches\Amex\Host_sim_libs\lib\core\1_2_1" 
+.\Release\convert.obj
+.\Release\hostsim.obj
+.\Release\hostsimDlg.obj
+.\Release\hostsimn.obj
+.\Release\response.obj
+.\Release\serialc.obj
+.\Release\StdAfx.obj
+.\Release\tcpip.obj
+.\Release\trace.obj
+.\Release\hostsim.res
+]
+Creating command line "link.exe @C:\DOCUME~1\ADMINI~1\LOCALS~1\Temp\RSPC2.tmp"
+<h3>Output Window</h3>
+Compiling resources...
+Compiling...
+StdAfx.cpp
+Compiling...
+convert.c
+Generating Code...
+Compiling...
+hostsim.cpp
+hostsimDlg.cpp
+Generating Code...
+Compiling...
+hostsimn.c
+response.c
+C:\veena\bdo\branches\Amex\response.c(1674) : warning C4101: 'j' : unreferenced local variable
+Generating Code...
+Compiling...
+serialc.cpp
+tcpip.cpp
+Generating Code...
+Compiling...
+trace.c
+Generating Code...
+Linking...
+Creating command line "bscmake.exe /nologo /o".\Release/Hostsim.bsc"  .\Release\StdAfx.sbr .\Release\convert.sbr .\Release\hostsim.sbr .\Release\hostsimDlg.sbr .\Release\hostsimn.sbr .\Release\response.sbr .\Release\serialc.sbr .\Release\tcpip.sbr .\Release\trace.sbr"
+Creating browse info file...
+<h3>Output Window</h3>
+
+
+
+<h3>Results</h3>
+Hostsim_Amex.exe - 0 error(s), 1 warning(s)
+</pre>
+</body>
+</html>

@@ -1,0 +1,196 @@
+$(document).ready(function () {
+
+
+ //$("#opentxid").click(function() {
+//$("#opentxid").bind('click', function(){
+			//var txid =  $("#opentxid" ).val);
+			//alert("txid");
+			//console.log("asdadsas");
+	//	});
+ //});
+ 
+
+
+/*function openpopup(Transaction_ID, System_Date) {
+        $.ajax({
+            url: "<?php echo PATHURL.'tlf/transactioninfo/';?>"+Transaction_ID+'/'+System_Date,
+            type: 'GET',
+            cache: false,
+            success: function(data) {
+                $('#modalContent').html(data);
+                $('#tlfModel').modal('show');
+            }
+        });
+    }*/
+	$(function () {
+		$("#CARD_NUM, #TRANSACTION_START_TIME, #TRANSACTION_END_TIME").keydown(function (e) {
+			// Allow: backspace, delete, tab, escape, enter and .
+			if ( $.inArray(e.keyCode, [46, 8, 9, 27, 13, 110, 190]) !== -1 ||
+				 // Allow: Ctrl+A
+				(e.keyCode == 65 && e.ctrlKey === true) || 
+				// Allow: Ctrl+C
+				(e.keyCode == 67 && e.ctrlKey === true) || 
+				 // Allow: home, end, left, right
+				(e.keyCode >= 35 && e.keyCode <= 39) ) {
+					 // let it happen, don't do anything
+					 return; 
+			}
+			// Ensure that it is a number and stop the keypress
+			if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+				e.preventDefault();
+			}
+		});
+		$('#TERMINAL_ID, #MERCHANT_ID, #OPERATOR_ID, #AUTH_NUMBER').keypress(function (e) {
+			if ($.inArray(e.keyCode, [46, 8, 9, 27, 13, 110, 190]) !== -1 ||
+				 // Allow: Ctrl+A
+				 (e.keyCode == 65 && e.ctrlKey === true) || 
+				// Allow: Ctrl+C
+				(e.keyCode == 67 && e.ctrlKey === true) || 
+				 // Allow: home, end, left, right
+				(e.keyCode >= 35 && e.keyCode <= 39)) {
+					 // let it happen, don't do anything
+					 return;
+			}
+			var regex = new RegExp("^[a-zA-Z0-9]+$");
+			var str = String.fromCharCode(!e.charCode ? e.which : e.charCode);
+			if (regex.test(str)) {
+				return true;
+			}
+
+			e.preventDefault();
+			return false;
+		});
+		$('#exp-access').bind('click', function(){
+			$('#exp-access-popup').modal('show');
+		});
+		$('#submit-exp-csv').bind('click', function(){
+			if($('input[name="exp[]"]:checked').length > 0) {
+				$('#SubmitExportCsv').submit();
+				$('#ExpModelColumns').modal('hide');
+				$('input[name="exp[]"]').attr("checked", false);
+			} else {
+				alert('Please Select Columns.');
+			}
+		});
+		$('#ExpModelColumns').on('hidden.bs.modal', function () {
+			$('input[name="exp[]"]').attr("checked", false);
+		});
+		
+		$('#exp-access-submit').bind('click', function(){
+			var path_url = $("#exp-access-submit" ).data('path');
+			params = {'UserName':$('#UserName').val(), 'Password':$('#Password').val()};
+	
+			$.ajax({
+				url: path_url + 'user/exp_access',
+				type: 'POST',
+				data: params,
+				cache: false,
+				success: function(data) {
+					var obj = jQuery.parseJSON(data);
+					if(obj.is_error == false) {
+						$('#pwd_error_messages').addClass('hidden');
+						$('#pwd_error_messages').removeClass('show');
+						$('#exp-access-popup').modal('hide');
+						$('#UserName').val('');
+						$('#Password').val('');
+						$('#ExpModelColumns').modal('show');
+						$('#ExpModelColumns').resize();
+					} else {
+						$('#pwd_error_messages').html('');
+						$('#pwd_error_messages').removeClass('hidden');
+						$('#pwd_error_messages').addClass('show');
+						var errors = obj['error'];
+						for(var i in errors) {
+							$('#pwd_error_messages').append('<p>'+errors[i]+'</p>');
+						}
+						
+					}
+				}
+			});
+		});
+        $('#form_date1').datetimepicker({
+            weekStart: 1,
+            todayBtn:  1,
+            autoclose: 1,
+            todayHighlight: 1,
+            startView: 2,
+            minView: 2,
+            forceParse: 1
+		});
+		$('#form_date2').datetimepicker({
+            weekStart: 1,
+            todayBtn:  1,
+            autoclose: 1,
+            todayHighlight: 1,
+            startView: 2,
+            minView: 2,
+            forceParse: 1
+		});
+        $(".hide-filter").click(function() {
+			if ($(".filter-div").is(":visible")) {
+				$(this).html('<i class="fa fa-fw fa-toggle-up"></i> Show Filter');
+            }else {
+				$(this).html('<i class="fa fa-fw fa-toggle-down"></i> Hide Filter');  
+            }    
+			$(".filter-div").toggle();
+        });
+		//<?php if(isset($_SESSION['user']['ACTION_16']) && substr($_SESSION['user']['ACTION_16'], 0, 1) == 1): ?>
+		//console.log(document.getElementById("session").value.substring(0,1));
+		
+		var sessionvar = document.getElementById("my_variable").value;
+		
+		if((typeof sessionvar !== 'undefined') && ( sessionvar.substring(0,1)==1 )){
+			//alert("1");
+			$(".mask-card-number").click(function() {
+				if ($(this).hasClass("mask")) {
+					$(this).removeClass('mask').addClass('unmask').html('<i class="fa fa-fw fa-circle-o"></i> Mask CC');
+					$('#MASKUNMASK').val(1);
+					$('#submitSearch').submit();
+				}else {
+					$(this).removeClass('unmask').addClass('mask').html('<i class="fa fa-fw fa-dot-circle-o"></i> UnMask CC');
+					$('#MASKUNMASK').val(0);
+					$('#submitSearch').submit();
+				}
+			});
+		}
+			
+		//<?php endif;?>
+		
+		$('#expcols').css({'height':$(window).height()-170+'px','overflow-y':'scroll'});
+		
+	});
+	function checkdate() { alert("HI");
+		if($('#dtp_input_1').val() == '') {
+			alert('Please enter Transaction Start Date.');
+			return false;
+		}
+		if($('#dtp_input_2').val() == '') {
+			alert('Please enter Transaction End Date.');
+			return false;
+		}
+		if($('#dtp_input_1').val() != '' && $('#dtp_input_2').val() != '') {
+			
+			return true;
+		}
+		return false;
+	}
+	$("p.anchor").click(function() {
+
+	   var txid = event.srcElement.innerHTML;
+	   var sysdate = $(this).data("mydate");
+	   var mypath =$(this).data("mypath");
+	   
+	   $.ajax({
+            url: mypath+'tlf/transactioninfo/'+txid+'/'+sysdate,
+            type: 'GET',
+            cache: false,
+            success: function(data) {
+                $('#modalContent').html(data);
+                $('#tlfModel').modal('show');
+				//console.log(data);
+            }
+        });
+	   
+	   
+	});
+});

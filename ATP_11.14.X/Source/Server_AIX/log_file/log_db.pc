@@ -1,0 +1,340 @@
+/******************************************************************************
+
+   Module:           log_db.pc
+
+   Title:            Log file DB Routines
+
+   Description:
+
+   Application:      Equitable Bank
+
+   Authour:          Emilia P.
+
+   Revision History: 1.0
+    
+
+   $Log:   N:\POS\PVCS6.6\EPICPORTZ\PTE\Equitable\tran_log_file\log_db.pc  $  
+   
+      Rev 1.21   Feb 17 2006 13:46:20   dirby
+   Added terminal_type to the TLF01 structures.
+   SCR 19844
+   
+      Rev 1.20   Dec 20 2005 15:34:02   dirby
+   Added service code to the end of the log file.  Instead of 7 filler,
+   now there is just 4 filler at the end.
+   SCR 19010
+   
+      Rev 1.19   Jun 09 2005 10:53:50   dirby
+   Modified to log reload transactions only if they have been confirmed.
+   SCR 15748
+   
+      Rev 1.18   May 18 2005 15:35:50   dirby
+   Added message_type to the TLF01 structure.
+   SCR 15661
+   
+      Rev 1.17   Jul 02 2002 13:16:56   dirby
+   1.  Updated version to 4.0.2.1
+   2.  Removed database hit to MCF01 by getting TCC from TLF01.
+   3.  Renamed tlf01_list_structure to tlf01_auth_list_structure to
+   avoid confusion with tlf01_list_structure in equitdb.h.
+   SCR 800
+   
+      Rev 1.16   Nov 08 2001 14:21:52   dirby
+   Added def_gross_amt and type_of_data to the TLF01 list structure.     SCR 256
+   
+      Rev 1.15   Jul 13 2001 11:49:58   lmitchel
+   modifications to add tlf01.cvc to output files
+   
+      Rev 1.14   Aug 09 2000 18:29:36   lmitchel
+   Correct available amount field(tlf01.outstanding) =  available amount prior to transaction
+   
+      Rev 1.13   Aug 01 2000 16:01:10   lmitchel
+   Added odometer and currency code
+   
+      Rev 1.12   Jul 18 2000 12:40:32   dirby
+   Added pos_condition_code to the TLF01 data.  This is used
+   to differentiate between a sales completion and an offline sale.
+   It will be '06' for a sales completion.
+   
+      Rev 1.11   Apr 17 2000 15:08:24   svelaga
+   removed file card_holder_name from TLF01_LIST_STRUCTURE 
+   and added ticket_nbr.
+   
+      Rev 1.10   Mar 14 2000 16:20:28   ddabberu
+   changed invoice number with card_holder_name
+   (stores the content of field 63) scr 485
+   
+      Rev 1.9   Jan 24 2000 11:52:10   farad
+   Fixed bug #191 (farad 1-24-2000).  Modified the code such 
+   that it only would take 2 digits from the 3 digit field and write
+    it to the file.
+   
+      Rev 1.8   Jan 04 2000 13:36:52   gbarnes
+   Updated for AIX Port
+
+      Rev 1.7   Dec 17 1999 15:33:26   dperson
+   Added code to populate retrieval_ref_num from TLF01
+
+      Rev 1.6   Jul 30 1999 14:33:26   apinto
+   Transaction Category Code is tlf01.vs_tcc_code
+   or tlf01.mc_fcc_code : Logic Verified-OK!
+
+      Rev 1.5   07 Jun 1999 16:45:26   epriyev
+   added code to support unix version.
+
+      Rev 1.4   May 24 1999 13:21:26   dperson
+   Added code to compute deferred_amount
+   Added code to handle blank tran_start_time
+   and tran_finish_time values
+
+      Rev 1.3   May 24 1999 06:58:22   dperson
+   Updated deferred_amount calculation
+
+      Rev 1.2   May 18 1999 13:34:26   dperson
+
+      Rev 1.1   13 May 1999 10:39:22   epriyev
+   Added code for unix compilation, edited 
+   output record format.
+
+******************************************************************************/
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#ifdef WIN32
+   #include <sqlproto.h>
+#endif
+
+#include <math.h>
+#include <time.h>
+#include <sys/timeb.h>
+
+
+#include "basictyp.h"
+#include "pte.h"
+#include "ptemsg.h"
+#include "app_info.h"
+#include "equitdb.h"
+#include "dc_dbstruct.h"
+#include "dc_database.h"
+#include "ptetimer.h"
+#include "dbcommon.h"
+#include "txutils.h"
+#include "ptetime.h"
+#include "log_file.h"
+
+
+
+/* Oracle error codes */
+#define NULL_COLUMN_DATA -1405
+#define NO_DATA_FOUND     1403
+
+
+EXEC SQL INCLUDE sqlca;
+
+EXEC SQL BEGIN DECLARE SECTION;
+
+/* error code variable */
+
+long    SQLCODE;
+long    SQL_CODE;
+
+struct
+   {
+      varchar transaction_id                     [21];
+      varchar terminal_id                        [9];
+      varchar merchant_id                        [16];
+      varchar card_num                           [20];
+      varchar exp_date                           [5];
+      varchar total_amount                       [13];
+      varchar terminal_type                      [3];
+      varchar pos_entry_mode                     [5];
+      varchar response_code                      [3];
+      varchar date_yyyymmdd                      [9];
+      varchar time_hhmmss                        [7];
+      varchar tx_key                             [1];
+      varchar auth_number                        [7];
+      varchar processing_code                    [7];
+      varchar message_type                       [5];
+      varchar sys_trace_audit_num                [7];
+      varchar outstanding_balance                [13];
+      varchar ticket_nbr                         [16];
+      varchar product_code                       [9];
+      varchar deferred_factor                    [8];  
+      varchar deferred_term_length               [4];  
+      varchar category_code                      [5];
+      varchar tran_start_time                    [17];
+      varchar tran_finish_time                   [17];
+      varchar reversal_amount                    [13];
+      varchar retrieval_ref_num                  [13];
+      varchar pos_condition_code                 [3];
+      varchar odometer                           [8];
+      varchar currency_code                      [4];
+      varchar cvc                                [1];
+      varchar def_gross_amt                      [13];
+      varchar type_of_data                       [3];
+      varchar tcc                                [7];
+      varchar reload_confirmed                   [13];
+      varchar service_code                       [4];
+   }db_tlf01_struct; 
+
+EXEC SQL END DECLARE SECTION;
+
+
+
+/*************************************************************************************/
+void db_to_tlf01_list ( pTLF01_AUTH_LIST_STRUCT tlf01_ptr )
+{
+   memset(tlf01_ptr, 0, sizeof(TLF01_AUTH_LIST_STRUCT));
+   memcpy(tlf01_ptr->transaction_id, db_tlf01_struct.transaction_id.arr, db_tlf01_struct.transaction_id.len);
+   memcpy(tlf01_ptr->terminal_id, db_tlf01_struct.terminal_id.arr, db_tlf01_struct.terminal_id.len);
+   memcpy(tlf01_ptr->merchant_id, db_tlf01_struct.merchant_id.arr, db_tlf01_struct.merchant_id.len);
+   memcpy(tlf01_ptr->card_num, db_tlf01_struct.card_num.arr, db_tlf01_struct.card_num.len);
+   memcpy(tlf01_ptr->exp_date, db_tlf01_struct.exp_date.arr, db_tlf01_struct.exp_date.len);
+   memcpy(tlf01_ptr->total_amount, db_tlf01_struct.total_amount.arr, db_tlf01_struct.total_amount.len);
+   memcpy(tlf01_ptr->terminal_type, db_tlf01_struct.terminal_type.arr, db_tlf01_struct.terminal_type.len);
+   memcpy(tlf01_ptr->pos_entry_mode, db_tlf01_struct.pos_entry_mode.arr, db_tlf01_struct.pos_entry_mode.len);
+   memcpy(tlf01_ptr->response_code, db_tlf01_struct.response_code.arr, db_tlf01_struct.response_code.len);
+   memcpy(tlf01_ptr->date_yyyymmdd, db_tlf01_struct.date_yyyymmdd.arr, db_tlf01_struct.date_yyyymmdd.len);
+   memcpy(tlf01_ptr->time_hhmmss, db_tlf01_struct.time_hhmmss.arr, db_tlf01_struct.time_hhmmss.len);
+   tlf01_ptr->tx_key = db_tlf01_struct.tx_key.arr[0];
+   memcpy(tlf01_ptr->auth_number, db_tlf01_struct.auth_number.arr, db_tlf01_struct.auth_number.len);
+   memcpy(tlf01_ptr->processing_code, db_tlf01_struct.processing_code.arr, db_tlf01_struct.processing_code.len);
+   memcpy(tlf01_ptr->message_type, db_tlf01_struct.message_type.arr, db_tlf01_struct.message_type.len);
+   memcpy(tlf01_ptr->sys_trace_audit_num, db_tlf01_struct.sys_trace_audit_num.arr, db_tlf01_struct.sys_trace_audit_num.len);
+   memcpy(tlf01_ptr->outstanding_balance, db_tlf01_struct.outstanding_balance.arr, db_tlf01_struct.outstanding_balance.len);
+   memcpy(tlf01_ptr->ticket_nbr, db_tlf01_struct.ticket_nbr.arr, db_tlf01_struct.ticket_nbr.len);
+   memcpy(tlf01_ptr->tran_start_time, db_tlf01_struct.tran_start_time.arr, db_tlf01_struct.tran_start_time.len);
+   memcpy(tlf01_ptr->tran_finish_time, db_tlf01_struct.tran_finish_time.arr, db_tlf01_struct.tran_finish_time.len);
+   memcpy(tlf01_ptr->category_code, db_tlf01_struct.category_code.arr, db_tlf01_struct.category_code.len);
+   memcpy(tlf01_ptr->product_code, db_tlf01_struct.product_code.arr, db_tlf01_struct.product_code.len);
+   memcpy(tlf01_ptr->deferred_factor, db_tlf01_struct.deferred_factor.arr, db_tlf01_struct.deferred_factor.len);
+   memcpy(tlf01_ptr->deferred_term_length, db_tlf01_struct.deferred_term_length.arr, db_tlf01_struct.deferred_term_length.len);
+   memcpy(tlf01_ptr->reversal_amount, db_tlf01_struct.reversal_amount.arr, db_tlf01_struct.reversal_amount.len);
+   memcpy(tlf01_ptr->retrieval_ref_num, db_tlf01_struct.retrieval_ref_num.arr, db_tlf01_struct.retrieval_ref_num.len);
+   memcpy(tlf01_ptr->pos_condition_code, db_tlf01_struct.pos_condition_code.arr, db_tlf01_struct.pos_condition_code.len);
+   memcpy(tlf01_ptr->odometer, db_tlf01_struct.odometer.arr, db_tlf01_struct.odometer.len);
+   memcpy(tlf01_ptr->currency_code, db_tlf01_struct.currency_code.arr, db_tlf01_struct.currency_code.len); 
+   tlf01_ptr->cvc = db_tlf01_struct.cvc.arr[0];   /*070201 LM*/
+   memcpy(tlf01_ptr->def_gross_amt, db_tlf01_struct.def_gross_amt.arr, db_tlf01_struct.def_gross_amt.len); 
+   memcpy(tlf01_ptr->type_of_data, db_tlf01_struct.type_of_data.arr, db_tlf01_struct.type_of_data.len); 
+   memcpy(tlf01_ptr->tcc, db_tlf01_struct.tcc.arr, db_tlf01_struct.tcc.len); 
+   memcpy(tlf01_ptr->reload_confirmed, db_tlf01_struct.reload_confirmed.arr, db_tlf01_struct.reload_confirmed.len); 
+   memcpy(tlf01_ptr->service_code, db_tlf01_struct.service_code.arr, db_tlf01_struct.service_code.len); 
+   return;
+}
+
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE db_get_tlf01_log_list( pTLF01 Tlf01_ptr,
+                            pTLF01_LOG_LIST Tlf01_Log_List,
+                            pCHAR ErrorMsg )
+{
+   EXEC SQL BEGIN DECLARE SECTION;
+      int temp;
+      char date_1 [9] = "";
+      char transaction_id [21] = "";
+   EXEC SQL END DECLARE SECTION;
+    
+
+   memset( Tlf01_Log_List, 0, sizeof(TLF01_LOG_LIST) );
+   strcpy( Tlf01_Log_List->num_returned, "0" );
+
+   strncpy ( date_1, Tlf01_ptr->date_yyyymmdd, sizeof(date_1) );
+   strncpy ( transaction_id, Tlf01_ptr->primary_key.transaction_id, sizeof(transaction_id) );
+
+
+   EXEC SQL DECLARE Tlf01_cursor2 CURSOR FOR
+
+      SELECT transaction_id,
+        tlf01.terminal_id,
+        tlf01.merchant_id,
+        tlf01.card_num,
+        tlf01.exp_date,
+        tlf01.total_amount,
+        tlf01.terminal_type,
+        tlf01.pos_entry_mode,
+        tlf01.response_code,
+        tlf01.date_yyyymmdd,
+        tlf01.time_hhmmss,
+        tlf01.tx_key,
+        tlf01.auth_number ,
+        tlf01.processing_code,
+        tlf01.message_type,
+        tlf01.sys_trace_audit_num,
+        tlf01.outstanding_balance,
+        tlf01.ticket_nbr,
+        tlf01.product_code,
+        tlf01.deferred_factor,
+        tlf01.deferred_term_length,
+        tlf01.category_code ,
+        tlf01.tran_start_time,
+        tlf01.tran_finish_time,
+        tlf01.reversal_amount,
+        tlf01.retrieval_ref_num,
+        tlf01.pos_condition_code,
+        tlf01.odometer,
+        tlf01.currency_code,
+        tlf01.cvc,
+        tlf01.def_gross_amt,
+        tlf01.type_of_data,
+        tlf01.product20_code,
+        tlf01.product18_amount,
+        tlf01.service_code
+
+      FROM tlf01				
+
+      WHERE  system_date    = :date_1
+        AND  transaction_id > :transaction_id ;
+
+
+   EXEC SQL WHENEVER SQLERROR goto sql_error;
+
+   EXEC SQL OPEN Tlf01_cursor2;
+
+
+   EXEC SQL WHENEVER SQLERROR goto sql_error2;
+
+   EXEC SQL WHENEVER NOTFOUND DO break;
+
+   for ( temp = 0; temp < SCH_MAX_LIST_SIZE; temp++ )
+   {
+      memset(&db_tlf01_struct, 0x00, sizeof(db_tlf01_struct));
+
+      EXEC SQL FETCH Tlf01_cursor2
+
+      INTO :db_tlf01_struct;
+
+
+      sql_error2:
+
+      if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+      {
+         SQL_CODE = SQLCODE;
+         EXEC SQL CLOSE Tlf01_cursor2;
+         return( dbcommon_oracle_to_pte_rcode( SQL_CODE, ErrorMsg ) );
+      }
+      db_to_tlf01_list(&Tlf01_Log_List->tlf01_auth_list_struct[temp]);
+      itoa(temp + 1, Tlf01_Log_List->num_returned, 10);
+   }
+
+
+   EXEC SQL CLOSE Tlf01_cursor2;
+
+   return PTEMSG_OK;
+
+
+
+sql_error:
+
+   EXEC SQL WHENEVER SQLERROR CONTINUE;
+
+   EXEC SQL WHENEVER NOTFOUND CONTINUE;
+
+   return( dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) );
+}
+
+
+
+/******************************************************************************/
+

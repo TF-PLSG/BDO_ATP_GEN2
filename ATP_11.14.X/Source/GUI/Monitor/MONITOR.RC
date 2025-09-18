@@ -1,0 +1,516 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United States) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
+    "#define _AFX_NO_OLE_RESOURCES\r\n"
+    "#define _AFX_NO_TRACKER_RESOURCES\r\n"
+    "#define _AFX_NO_PROPERTY_RESOURCES\r\n"
+    "\r\n"
+    "#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)\r\n"
+    "#ifdef _WIN32\r\n"
+    "LANGUAGE 9, 1\r\n"
+    "#pragma code_page(1252)\r\n"
+    "#endif\r\n"
+    "#include ""res\\monitor.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
+    "#include ""afxres.rc""         // Standard components\r\n"
+    "#endif\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDR_MAINFRAME           ICON                    "res\\Monitor.ico"
+IDR_MONITOTYPE          ICON                    "res\\monitorDoc.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDR_MAINFRAME           BITMAP                  "res\\Toolbar.bmp"
+IDB_TESTOFF             BITMAP                  "res\\TestOff.bmp"
+IDB_TESTING             BITMAP                  "res\\Testing.bmp"
+IDB_NC_RED              BITMAP                  "res\\red_light.bmp"
+IDB_NC_GREEN            BITMAP                  "res\\green_light.bmp"
+IDB_NC_YELLOW           BITMAP                  "res\\yellow_light.bmp"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Toolbar
+//
+
+IDR_MAINFRAME TOOLBAR 16, 15
+BEGIN
+    BUTTON      ID_FILE_NEW
+    BUTTON      ID_FILE_OPEN
+    BUTTON      ID_FILE_SAVE
+    SEPARATOR
+    BUTTON      ID_EDIT_CUT
+    BUTTON      ID_EDIT_COPY
+    BUTTON      ID_EDIT_PASTE
+    SEPARATOR
+    BUTTON      ID_FILE_PRINT
+    BUTTON      ID_APP_ABOUT
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDR_MAINFRAME MENU
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&New\tCtrl+N",                ID_FILE_NEW
+        MENUITEM "&Open...\tCtrl+O",            ID_FILE_OPEN
+        MENUITEM "&Save\tCtrl+S",               ID_FILE_SAVE
+        MENUITEM "Save &As...",                 ID_FILE_SAVE_AS
+        MENUITEM SEPARATOR
+        MENUITEM "Recent File",                 ID_FILE_MRU_FILE1, GRAYED
+        MENUITEM SEPARATOR
+        MENUITEM "E&xit",                       ID_APP_EXIT
+    END
+    POPUP "&Edit"
+    BEGIN
+        MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
+        MENUITEM SEPARATOR
+        MENUITEM "Cu&t\tCtrl+X",                ID_EDIT_CUT
+        MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY
+        MENUITEM "&Paste\tCtrl+V",              ID_EDIT_PASTE
+    END
+    POPUP "&View"
+    BEGIN
+        MENUITEM "&Toolbar",                    ID_VIEW_TOOLBAR
+        MENUITEM "&Status Bar",                 ID_VIEW_STATUS_BAR
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&About monitor...",           ID_APP_ABOUT
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Accelerator
+//
+
+IDR_MAINFRAME ACCELERATORS
+BEGIN
+    "N",            ID_FILE_NEW,            VIRTKEY, CONTROL
+    "O",            ID_FILE_OPEN,           VIRTKEY, CONTROL
+    "S",            ID_FILE_SAVE,           VIRTKEY, CONTROL
+    "Z",            ID_EDIT_UNDO,           VIRTKEY, CONTROL
+    "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL
+    "C",            ID_EDIT_COPY,           VIRTKEY, CONTROL
+    "V",            ID_EDIT_PASTE,          VIRTKEY, CONTROL
+    VK_BACK,        ID_EDIT_UNDO,           VIRTKEY, ALT
+    VK_DELETE,      ID_EDIT_CUT,            VIRTKEY, SHIFT
+    VK_INSERT,      ID_EDIT_COPY,           VIRTKEY, CONTROL
+    VK_INSERT,      ID_EDIT_PASTE,          VIRTKEY, SHIFT
+    VK_F6,          ID_NEXT_PANE,           VIRTKEY 
+    VK_F6,          ID_PREV_PANE,           VIRTKEY, SHIFT
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_ABOUTBOX DIALOG 0, 0, 217, 55
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About monitor"
+FONT 8, "MS Sans Serif"
+BEGIN
+    ICON            IDR_MAINFRAME,IDC_STATIC,11,17,20,20
+    LTEXT           "Monitor Version ",IDC_STATIC_APPVERSION,40,10,119,8,SS_NOPREFIX
+    LTEXT           "Copyright © 2006, Hypercom Inc.",IDC_STATIC,40,25,119,8
+    DEFPUSHBUTTON   "OK",IDOK,178,7,32,14,WS_GROUP
+END
+
+IDD_MONITOR_FORM_Orignial DIALOGEX 0, 0, 810, 349
+STYLE DS_SETFONT | WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    LISTBOX         IDC_DIALOG_CONNECT_STATUS,512,27,205,75,NOT LBS_NOTIFY | LBS_SORT | LBS_MULTIPLESEL | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_USETABSTOPS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Log On",IDC_LOGON,721,232,45,12
+    PUSHBUTTON      "Log &Off",IDC_LOGOFF,721,246,45,12
+    PUSHBUTTON      "&Echo Test",IDC_ECHOTEST,721,260,45,12
+    PUSHBUTTON      "SA&F",IDC_SAF,721,273,45,12
+    PUSHBUTTON      "&Refresh",IDC_REFRESH,721,287,45,12
+    PUSHBUTTON      "P&ing Dialog",IDC_PING_DIALOG_BUTTON1,721,304,50,14
+    LISTBOX         IDC_TRAN_ACTIVITY_LIST,17,31,418,134,NOT LBS_NOTIFY | LBS_SORT | LBS_MULTIPLESEL | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_USETABSTOPS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | WS_VSCROLL | WS_TABSTOP,WS_EX_RIGHT
+    PUSHBUTTON      "&Ping Service",IDC_PING_BUTTON,439,44,50,14
+    PUSHBUTTON      "R&eset Counts",IDC_RESET_COUNTS_BUTTON,439,89,50,14
+    CONTROL         "List1",IDC_LOG_MESSAGES,"SysListView32",LVS_REPORT | LVS_SINGLESEL | WS_BORDER | WS_TABSTOP,16,185,417,140
+    PUSHBUTTON      "&Save Log...",IDC_SAVELOG,441,275,45,12
+    PUSHBUTTON      "Cle&ar Log",IDC_CLEARLOG,441,293,45,12
+    PUSHBUTTON      "&Close",IDC_CLOSE,439,330,45,12
+    GROUPBOX        " Network Status ",IDC_STATIC,504,7,285,322
+    LTEXT           "Dialog ID",IDC_STATIC,521,16,38,8
+    LTEXT           "Log Status",IDC_STATIC,615,16,89,8
+    LTEXT           "Network ID",IDC_STATIC,523,111,38,8
+    LTEXT           "Connection Status",IDC_STATIC,610,111,95,8
+    GROUPBOX        "Transaction Activity",IDC_STATIC,9,7,484,164
+    LTEXT           "Service Name",IDC_SERVICE_NAME_LABEL,16,17,48,9
+    LTEXT           "Received",IDC_RECEIVED_LABEL,76,17,32,8
+    LTEXT           "Sent",IDC_SENT_LABEL,135,17,23,9
+    LTEXT           "Rate",IDC_RATE_LABEL,181,17,23,9
+    GROUPBOX        "Log Messages",IDC_STATIC,9,172,484,157
+    LTEXT           "Approved",IDC_STATIC,234,17,39,9
+    LTEXT           "Declined",IDC_STATIC,290,17,36,9
+    LTEXT           "Timed Out",IDC_STATIC,341,17,41,9
+    LTEXT           "Reversed",IDC_STATIC,393,17,44,9
+END
+
+IDD_PRIMARYACCOUNT_SELECTION DIALOG 0, 0, 154, 159
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Select Primary Account Number"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,21,132,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,79,132,50,14
+    LISTBOX         IDC_PRIMARYACCOUNT_LIST,21,27,108,94,LBS_SORT | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Select a Primary Account Number",IDC_STATIC,21,15,109,8
+END
+
+IDD_MONITOR_FORM DIALOGEX 0, 0, 963, 484
+STYLE DS_SETFONT | WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    LISTBOX         IDC_DIALOG_CONNECT_STATUS,747,31,205,202,NOT LBS_NOTIFY | LBS_SORT | LBS_MULTIPLESEL | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_USETABSTOPS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | WS_VSCROLL | WS_HSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Log On",IDC_LOGON,677,51,50,14
+    PUSHBUTTON      "Log &Off",IDC_LOGOFF,677,67,50,14
+    PUSHBUTTON      "&Echo Test",IDC_ECHOTEST,677,83,50,14
+    PUSHBUTTON      "Get Ad&vices",IDC_SAF,677,99,50,14
+    PUSHBUTTON      "&Refresh",IDC_REFRESH,677,115,50,14
+    PUSHBUTTON      "P&ing Dialog",IDC_PING_DIALOG_BUTTON1,909,14,44,12
+    LISTBOX         IDC_TRAN_ACTIVITY_LIST,15,115,573,48,NOT LBS_NOTIFY | LBS_SORT | LBS_MULTIPLESEL | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_USETABSTOPS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | NOT WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | WS_TABSTOP,WS_EX_RIGHT
+    PUSHBUTTON      "need to be removed",IDC_PING_BUTTON,458,168,57,17,BS_MULTILINE | NOT WS_VISIBLE
+    PUSHBUTTON      "R&eset Counts",IDC_RESET_COUNTS_BUTTON,677,162,50,14,BS_MULTILINE
+    LISTBOX         IDC_LOG_MESSAGES,15,280,896,177,NOT LBS_NOTIFY | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_USETABSTOPS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | WS_VSCROLL | WS_HSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Save Log...",IDC_SAVELOG,343,256,45,14
+    PUSHBUTTON      "Cle&ar Log",IDC_CLEARLOG,404,256,45,14
+    PUSHBUTTON      "&TEST",IDC_TEST_BUTTON,465,256,45,14
+    CONTROL         "",IDC_TEST_RESULT,"Static",SS_BITMAP | SS_REALSIZEIMAGE | WS_BORDER,526,256,16,14
+    PUSHBUTTON      "&Close",IDC_CLOSE,649,466,45,12
+    GROUPBOX        " Network Status ",IDC_STATIC,740,7,220,230
+    LTEXT           "Dialog ID",IDC_STATIC,747,20,38,8
+    LTEXT           "Log Status",IDC_STATIC,812,19,43,8
+    GROUPBOX        "Transaction Activity",IDC_STATIC,9,8,725,229
+    GROUPBOX        "Log Messages",IDC_STATIC,7,244,953,219
+    LTEXT           "Date",IDC_LOG_DATE_LABEL,17,260,23,9
+    LTEXT           "Service",IDC_LOG_SERVICE_LABEL,89,260,29,9
+    LTEXT           "Type",IDC_LOG_TYPE_LABEL,123,260,24,9
+    LTEXT           "Message",IDC_LOG_MSG_LABEL,178,260,75,9
+    LTEXT           "Time",IDC_LOG_TIME_LABEL,57,260,23,9
+    CONTROL         138,IDC_NC_STATUS,"Static",SS_BITMAP | SS_CENTERIMAGE | SS_REALSIZEIMAGE | SS_SUNKEN,686,19,31,28
+    CONTROL         "Mute",IDC_CHECK1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,678,222,50,14
+    LTEXT           "Name",IDC_STATIC,881,21,43,8
+    PUSHBUTTON      "AC&Q Off",IDC_ACQUIRER_OFF,676,130,50,14,WS_DISABLED
+    CONTROL         "List1",IDC_NET_TRAN_LIST,"SysListView32",LVS_REPORT | WS_BORDER | WS_TABSTOP,17,16,651,217
+    PUSHBUTTON      "&Ping Service",IDC_PING,675,146,50,14
+    LISTBOX         IDC_NETWORK_STATUS,747,206,48,40,LBS_SORT | LBS_NOINTEGRALHEIGHT | NOT WS_VISIBLE | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Key Request",IDC_CUP_KEY_REQ_BUTTON,677,178,50,14,BS_MULTILINE | WS_DISABLED
+    PUSHBUTTON      "Key &Send",IDC_CUP_KEY_UPDATE_BUTTON,677,192,50,14,BS_MULTILINE | WS_DISABLED
+    PUSHBUTTON      "Key &Reload",IDC_CUP_KEY_RELOAD,677,207,50,14,BS_MULTILINE | WS_DISABLED
+END
+
+IDD_ADVICES DIALOG 0, 0, 229, 135
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "ADVICES"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "&Exit",IDC_EXIT,17,96,48,15
+    PUSHBUTTON      "Sta&rt Advices",IDC_START_ADVICES,18,17,47,16
+    PUSHBUTTON      "Sto&p Advices",IDC_STOP_ADVICES,18,40,47,16
+    PUSHBUTTON      "&SAF",IDC_SAF,17,63,48,14
+    LTEXT           "Start Transmission of Advices (Visa SMS)",IDC_STATIC,75,22,139,8
+    LTEXT           "Stop Transmission of Advices (Visa SMS)",IDC_STATIC,75,43,136,8
+    LTEXT           "SAF Session Request (MasterCard)",IDC_STATIC,75,65,116,8
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 11,6,0,0
+ PRODUCTVERSION 11,6,0,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "Comments", "ATP_11.6.0"
+            VALUE "CompanyName", "Hypercom Corp"
+            VALUE "FileDescription", "MONITOR MFC Application"
+            VALUE "FileVersion", "11, 6, 0, 0"
+            VALUE "InternalName", "MONITOR"
+            VALUE "LegalCopyright", "ThoughtFocus Copyright © 2012"
+            VALUE "OriginalFilename", "MONITOR.EXE"
+            VALUE "ProductName", "Ascendent"
+            VALUE "ProductVersion", "11, 6, 0, 0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_ABOUTBOX, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 210
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 48
+    END
+
+    IDD_MONITOR_FORM_Orignial, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 803
+        VERTGUIDE, 439
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 342
+        HORZGUIDE, 52
+    END
+
+    IDD_PRIMARYACCOUNT_SELECTION, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 147
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 152
+    END
+
+    IDD_MONITOR_FORM, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 960
+        TOPMARGIN, 7
+    END
+
+    IDD_ADVICES, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 222
+        TOPMARGIN, 6
+        BOTTOMMARGIN, 128
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// RT_MANIFEST
+//
+
+1                       RT_MANIFEST             "monitor.exe.manifest"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE
+BEGIN
+    IDR_MAINFRAME           "System Monitor\nAscendent\n"
+END
+
+STRINGTABLE
+BEGIN
+    AFX_IDS_APP_TITLE       "Ascendent System Monitor"
+    AFX_IDS_IDLEMESSAGE     "Ready"
+END
+
+STRINGTABLE
+BEGIN
+    ID_INDICATOR_EXT        "EXT"
+    ID_INDICATOR_CAPS       "CAP"
+    ID_INDICATOR_NUM        "NUM"
+    ID_INDICATOR_SCRL       "SCRL"
+    ID_INDICATOR_OVR        "OVR"
+    ID_INDICATOR_REC        "REC"
+END
+
+STRINGTABLE
+BEGIN
+    ID_FILE_NEW             "Create a new document\nNew"
+    ID_FILE_OPEN            "Open an existing document\nOpen"
+    ID_FILE_CLOSE           "Close the active document\nClose"
+    ID_FILE_SAVE            "Save the active document\nSave"
+    ID_FILE_SAVE_AS         "Save the active document with a new name\nSave As"
+END
+
+STRINGTABLE
+BEGIN
+    ID_APP_ABOUT            "Display program information, version number and copyright\nAbout"
+    ID_APP_EXIT             "Quit the application; prompts to save documents\nExit"
+END
+
+STRINGTABLE
+BEGIN
+    ID_FILE_MRU_FILE1       "Open this document"
+    ID_FILE_MRU_FILE2       "Open this document"
+    ID_FILE_MRU_FILE3       "Open this document"
+    ID_FILE_MRU_FILE4       "Open this document"
+    ID_FILE_MRU_FILE5       "Open this document"
+    ID_FILE_MRU_FILE6       "Open this document"
+    ID_FILE_MRU_FILE7       "Open this document"
+    ID_FILE_MRU_FILE8       "Open this document"
+    ID_FILE_MRU_FILE9       "Open this document"
+    ID_FILE_MRU_FILE10      "Open this document"
+    ID_FILE_MRU_FILE11      "Open this document"
+    ID_FILE_MRU_FILE12      "Open this document"
+    ID_FILE_MRU_FILE13      "Open this document"
+    ID_FILE_MRU_FILE14      "Open this document"
+    ID_FILE_MRU_FILE15      "Open this document"
+    ID_FILE_MRU_FILE16      "Open this document"
+END
+
+STRINGTABLE
+BEGIN
+    ID_NEXT_PANE            "Switch to the next window pane\nNext Pane"
+    ID_PREV_PANE            "Switch back to the previous window pane\nPrevious Pane"
+END
+
+STRINGTABLE
+BEGIN
+    ID_WINDOW_SPLIT         "Split the active window into panes\nSplit"
+END
+
+STRINGTABLE
+BEGIN
+    ID_EDIT_CLEAR           "Erase the selection\nErase"
+    ID_EDIT_CLEAR_ALL       "Erase everything\nErase All"
+    ID_EDIT_COPY            "Copy the selection and put it on the Clipboard\nCopy"
+    ID_EDIT_CUT             "Cut the selection and put it on the Clipboard\nCut"
+    ID_EDIT_FIND            "Find the specified text\nFind"
+    ID_EDIT_PASTE           "Insert Clipboard contents\nPaste"
+    ID_EDIT_REPEAT          "Repeat the last action\nRepeat"
+    ID_EDIT_REPLACE         "Replace specific text with different text\nReplace"
+    ID_EDIT_SELECT_ALL      "Select the entire document\nSelect All"
+    ID_EDIT_UNDO            "Undo the last action\nUndo"
+    ID_EDIT_REDO            "Redo the previously undone action\nRedo"
+END
+
+STRINGTABLE
+BEGIN
+    ID_VIEW_TOOLBAR         "Show or hide the toolbar\nToggle ToolBar"
+    ID_VIEW_STATUS_BAR      "Show or hide the status bar\nToggle StatusBar"
+END
+
+STRINGTABLE
+BEGIN
+    AFX_IDS_SCSIZE          "Change the window size"
+    AFX_IDS_SCMOVE          "Change the window position"
+    AFX_IDS_SCMINIMIZE      "Reduce the window to an icon"
+    AFX_IDS_SCMAXIMIZE      "Enlarge the window to full size"
+    AFX_IDS_SCNEXTWINDOW    "Switch to the next document window"
+    AFX_IDS_SCPREVWINDOW    "Switch to the previous document window"
+    AFX_IDS_SCCLOSE         "Close the active window and prompts to save the documents"
+END
+
+STRINGTABLE
+BEGIN
+    AFX_IDS_SCRESTORE       "Restore the window to normal size"
+    AFX_IDS_SCTASKLIST      "Activate Task List"
+    IDS_PRODUCT_VERSION     "ATP_11.6.0"
+END
+
+#endif    // English (United States) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+#define _AFX_NO_SPLITTER_RESOURCES
+#define _AFX_NO_OLE_RESOURCES
+#define _AFX_NO_TRACKER_RESOURCES
+#define _AFX_NO_PROPERTY_RESOURCES
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE 9, 1
+#pragma code_page(1252)
+#endif
+#include "res\monitor.rc2"  // non-Microsoft Visual C++ edited resources
+#include "afxres.rc"         // Standard components
+#endif
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

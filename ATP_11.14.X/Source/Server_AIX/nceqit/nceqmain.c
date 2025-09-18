@@ -1,0 +1,971 @@
+/******************************************************************************
+
+   nceqmain.c
+
+   Copyright (c) 2005, Hypercom, Inc.
+   All Rights Reserved.
+
+   TITLE:  Equitable Host Handler Driver
+
+   This module is the host handler for the Equitable host.  It
+   will process all messages destined to, or originated from,
+   the Equitable host.
+
+   APPLICATION:  Advanced Transaction Processor (ATP)
+
+   REVISION HISTORY
+
+   $Log:   N:\POS\PVCS6.6\EPICPORTZ\PTE\Equitable\nceqit_ncmlnk_iso_format\nceqmain.c  $
+
+		
+			Rev 1.93  Nov 12, 2009 16:10:00  Ajay TF
+    Uodated version to 4.4.1.27
+	Set general status and display error msg on monitor.
+	if original txn not found for reversal 
+	09-76 Void and reversal txn changes for mastercard
+	
+	  
+		Rev 1.92  Oct 08, 2009 17:10:00  Phani TF
+    Uodated version to 4.4.1.26
+	Copy resposne source. ATP needs send CVV result code to VISA host
+	If CVV validate by Eqit host.
+    09-63 CVV result code changes  
+	
+	  Rev 1.91   Mar 31, 2009 00:31:00  Ajay S.T. TF
+    Uodated version to 4.4.1.25
+    09-25 VISA mandate changes  
+	
+	  Rev 1.90   Mar 20, 2009 11:31:00  Ajay S.T. TF
+   Uodated version to 4.4.1.24
+    To support field 28 for all ATM transactions 
+   
+
+	  Rev 1.89   Feb 27, 2009 17:27:00  Girija Y TF
+   Uodated version to 4.4.1.23
+   08-40 ATP-EQIT INTERFACE
+
+	Rev 1.88   Jan 22 2009 16:06:00   Girija Y, TF
+   Updated version to 4.4.1.22
+   08-40, ATP - EQIT Interface.
+
+	Rev 1.87   Jan 22 2009 14:43:00   Girija Y, TF
+   Updated version to 4.4.1.21
+   08-40, ATP - EQIT Interface.
+
+	Rev 1.86   Jan 20 2009 14:10:00   Girija Y, TF
+   Updated version to 4.4.1.20
+   08-40, ATP - EQIT Interface.
+
+	Rev 1.85   Jan 20 2009 19:15:00   Girija Y, TF
+   Updated version to 4.4.1.19
+   08-40, ATP - EQIT Interface.
+
+
+   Rev 1.84   Jan 06 2009 19:47:00   Girija Y, TF
+   Updated version to 4.4.1.14
+   08-40, ATP - EQIT Interface.
+   Changed the code for Fld 63 to log Monitor message in case of invalid length.
+   Changed function move_request_field63() to fix parsing error for Fld 44,63.
+
+	  Rev 1.83   Dec 23 2008 17:00:00   Girija Y, TF
+   Updated version to 4.4.1.11
+   08-40, ATP - EQIT Interface.
+   Changed the code for Fld 63 to log Monitor message in case of data missing.
+   Called move_field_37 in "populate_auth_tx()" for 
+   receiving RRN from EQIT host for 200 and REVERSALS.
+
+      Rev 1.82   Dec 16 2008 11:30:00   Girija Y, TF
+   Updated version to 4.4.1.9
+   08-40, ATP - EQIT Interface.
+   Changed the code to support Fld 63, 48
+
+	  Rev 1.81   Dec 12 2008 10:00:00   Girija Y, TF
+   Updated version to 4.4.1.8
+   08-40, ATP - EQIT Interface.
+   Changed the code to support Fld 37, 52
+
+	  Rev 1.80   Dec 8 2008 15:20:40   Girija Y, TF
+   Updated version to 4.4.1.7
+   08-40, ATP - EQIT Interface.
+   Changed the code to support 0422 message type, Added code to support Fld 37,63,44,48
+   
+      Rev 1.79   Oct 12 2005 14:50:44   dirby
+   Updated version to 4.4.1.4
+   SCR 17660
+   
+      Rev 1.78   Oct 11 2005 16:33:44   dirby
+   Updated version to 4.4.1.3
+   SCR 17660
+   
+      Rev 1.77   Oct 05 2005 12:19:46   dirby
+   Updated version to 4.4.1.2
+   SCR 17660
+   
+      Rev 1.76   Apr 05 2005 15:06:10   dirby
+   Updated version to 4.4.1.1
+   SCR 12785
+   
+      Rev 1.75   Nov 18 2004 17:30:28   dirby
+   Updated version to 4.4.0.8
+   SCR 13181
+   
+      Rev 1.74   Nov 10 2004 15:49:20   dirby
+   Updated version to 4.4.0.7
+   SCR 13065
+   
+      Rev 1.73   Oct 01 2004 15:26:54   dirby
+   Updated version to 4.4.0.6
+   SCR 12626
+   
+      Rev 1.72   Sep 24 2004 10:22:08   dirby
+   Updated version to 4.4.0.5
+   SCR 12503
+   
+      Rev 1.71   Sep 23 2004 16:52:46   dirby
+   Updated version to 4.4.0.4
+   SCR 12503
+   
+      Rev 1.70   Sep 21 2004 11:56:48   dirby
+   Updated version to 4.4.0.3
+   SCR 12505
+   
+      Rev 1.69   Sep 02 2004 17:18:36   dirby
+   Updated version to 4.4.0.2
+   SCR 1471
+   
+      Rev 1.68   Jul 08 2004 17:37:52   dirby
+   Updated to 4.4.0.1
+   SCRs 1287 & 1388
+   
+      Rev 1.67   May 27 2004 17:51:40   dirby
+   Updated version to 4.3.0.1
+   SCR 1380
+   
+      Rev 1.66   Apr 20 2004 14:34:38   dirby
+   Updated version to 4.2.0.22
+   SCR 1352
+   
+      Rev 1.65   Apr 01 2004 15:03:06   dirby
+   Updated version to 4.2.0.21
+   SCR 1352
+   
+      Rev 1.64   Mar 24 2004 15:10:44   dirby
+   Updated version to 4.2.0.20
+   SCR 1352
+   
+      Rev 1.63   Mar 01 2004 08:32:38   dirby
+   Updated version to 4.2.0.19
+   Modified to initialize and use definitions that differentiate between
+   nceqit and ncmlnk.
+   SCR 1352
+   
+      Rev 1.62   Jan 28 2004 11:39:52   dirby
+   Updated version to 4.2.0.18
+   SCR 1327
+   
+      Rev 1.61   Jan 05 2004 17:13:22   dirby
+   Updated version to 4.2.0.17
+   SCR 1296
+   
+      Rev 1.60   Oct 14 2003 01:25:34   dirby
+   Updated version to 4.2.0.16
+   SCR 1083
+   
+      Rev 1.59   Sep 29 2003 14:24:42   dirby
+   Updated version to 4.2.0.15
+   SCR 1083
+   
+      Rev 1.58   Sep 17 2003 09:46:48   dirby
+   Updated version to 4.2.0.14
+   SCR 1083
+   
+      Rev 1.57   Sep 09 2003 17:41:06   svelaga
+   Fixed parsing issue with Field 48 for Back office adjustment.
+   
+      Rev 1.56   Sep 02 2003 16:41:12   svelaga
+   AUTH_ADMINISTRATIVE messages are directly sent to ncvsms.
+   
+      Rev 1.55   Aug 26 2003 16:23:00   svelaga
+   Administrative text message logic fixed.
+   Version bumped to 4.2.0.11
+   
+      Rev 1.54   Aug 25 2003 16:59:48   svelaga
+   Changed the version number to 4.2.0.10
+   
+      Rev 1.53   Aug 25 2003 13:51:32   svelaga
+   Updated version to 4.2.1.0
+   
+      Rev 1.52   Aug 06 2003 10:38:06   svelaga
+   Version 4.2.0.9:  Support for more POSCC added.
+   
+      Rev 1.51   Aug 05 2003 10:35:46   svelaga
+   Version number 4.2.0.8
+   
+      Rev 1.50   Jul 31 2003 16:44:14   svelaga
+   Visa SMS QA bug fixes.
+   
+      Rev 1.49   May 14 2003 14:42:34   lmitchel
+   Version 4.2.0.5 SCR1127:  Modified build_response_field_48 additional data.  First balance field changed to contain acf01.cash_outstanding instead of acf01.cash_available.
+   
+      Rev 1.48   May 07 2003 12:42:40   dirby
+   Updated version to 4.2.0.5
+   SCR 1092
+   
+      Rev 1.47   Apr 23 2003 15:38:32   dirby
+   Updated version to 4.2.0.4
+   SCR 1101
+   
+      Rev 1.46   Apr 08 2003 15:09:46   dirby
+   Updated version to 4.2.0.3
+   SCR 1086
+   
+      Rev 1.45   Apr 03 2003 14:10:20   dirby
+   Updated version to 4.2.0.2
+   SCR 1082
+   
+      Rev 1.44   Feb 17 2003 14:59:12   dirby
+   Updated version to 4.2.0.1
+   SCR 955
+   
+      Rev 1.43   Oct 16 2002 11:48:16   dirby
+   Updated version to 4.1.1.3
+   SCR 820
+   
+      Rev 1.42   Sep 17 2002 15:40:08   dirby
+   Updated version to 4.1.1.2
+   SCR 877
+   
+      Rev 1.41   Aug 22 2002 12:44:32   dirby
+   Updated version to 4.1.1.1
+   SCR 255
+   
+      Rev 1.40   Aug 19 2002 11:07:56   dirby
+   Updated version to 4.0.3.6
+   SCR 876
+   
+      Rev 1.39   Aug 09 2002 16:12:54   dirby
+   Modified to not send a response to a reversal immediately.
+   Instead, send it after we get the original txn from NCF30.  This
+   is so the Merchant ID can be populated from the NCF30 record
+   into TLF01.
+   SCR 871
+   
+      Rev 1.38   Jul 31 2002 06:54:12   dirby
+   Updated version to 4.0.3.4
+   SCR 594
+   
+      Rev 1.37   Jul 26 2002 13:26:02   dirby
+   Modified to allow 0800 echo requests to go out when host
+   state is Offline due to Maximum Time Outs.  Will go back Online
+   when a response to the echo request is received.
+   SCR 594
+   
+      Rev 1.36   Jul 07 2002 02:37:30   dirby
+   Updated version to 4.0.3.2
+   SCR 594
+   
+      Rev 1.35   Jul 05 2002 13:12:56   dirby
+   Updated version to 4.0.3.1
+   SCR's 823 and 621
+   
+      Rev 1.34   Jun 24 2002 11:11:00   dirby
+   Updated version to 4.0.2.21
+   SCR's 790 and 797
+   
+      Rev 1.33   Jun 20 2002 16:06:42   dirby
+   Updated version to 4.0.2.20
+   SCR 794
+   
+      Rev 1.32   Jun 18 2002 16:58:26   dirby
+   Updated version to 4.0.2.19
+   SCR 789
+   
+      Rev 1.31   Jun 18 2002 02:59:44   dirby
+   Updated version to 4.0.2.18
+   SCR 789
+   
+      Rev 1.30   Jun 17 2002 23:14:52   dirby
+   Updated version to 4.0.2.17
+   SCR 789
+   
+      Rev 1.29   Jun 17 2002 22:46:28   dirby
+   Updated version to 4.0.2.16
+   SCR 789
+   
+      Rev 1.28   Jun 17 2002 20:01:22   dirby
+   Updated version to 4.0.2.15
+   SCR 789
+   
+      Rev 1.27   Jun 17 2002 16:09:32   dirby
+   Updated version to 4.0.2.14
+   SCR 789
+   
+      Rev 1.26   Jun 17 2002 13:35:54   dirby
+   Updated version to 4.0.2.13
+   SCR 789
+   
+      Rev 1.25   Jun 14 2002 12:05:38   dirby
+   Updated version to 4.0.2.12
+   SCR 784
+   
+      Rev 1.24   Jun 13 2002 14:38:24   dirby
+   Updated version to 4.0.2.11
+   SCR 780
+   
+      Rev 1.23   May 24 2002 16:14:28   dirby
+   Updated version to 4.0.2.10
+   SCR 745
+   
+      Rev 1.22   May 15 2002 12:10:36   dirby
+   Updated version to 4.0.2.9
+   Added code to display application version when pinged.
+   SCR 725
+   
+      Rev 1.21   Apr 19 2002 11:03:04   dirby
+   Updated version to 4.0.2.8
+   SCR 707
+   
+      Rev 1.20   Apr 15 2002 15:01:42   dirby
+   Updated version to 4.0.2.7
+   SCR 700
+   
+      Rev 1.19   Apr 12 2002 16:43:26   dirby
+   Updated version to 4.0.2.6
+   SCR 699
+   
+      Rev 1.18   Apr 11 2002 11:42:30   dirby
+   Updated version to 4.0.2.5
+   SCR 681
+   
+      Rev 1.17   Apr 04 2002 18:19:20   dirby
+   Updated to version 4.0.2.4
+   Fixed bug where function blank_string is called.  Need to send
+   size of field minus 1, otherwise the trailing null is checked.
+   SCR 681
+   
+      Rev 1.16   Apr 02 2002 16:23:00   dirby
+   Updated version to 4.0.2.3
+   SCR 679
+   
+      Rev 1.15   Mar 08 2002 14:01:30   dirby
+   Updated version to 4.0.2.2
+   SCR 653
+   
+      Rev 1.14   Mar 06 2002 14:55:04   dirby
+   Updated version to 4.0.2.1
+   SCR 650
+   
+      Rev 1.13   Jan 16 2002 12:46:26   dirby
+   Added log messages at start up to indicate if tracing is on or off.
+   SCR 546
+   
+      Rev 1.12   Jan 16 2002 12:31:12   dirby
+   Added transaction tracing capability.     SCR 546
+   
+      Rev 1.11   Jan 14 2002 18:14:50   dirby
+   Modified the transaction statistic functions to keep statistics
+   on number of approved, declined, timed out, and reversed
+   txns.  These stats are displayed on Monitor.
+   SCR 484
+   
+      Rev 1.10   Dec 12 2001 10:35:56   dirby
+   Modified to send host state to Monitor at startup.
+   SCR 488
+   
+      Rev 1.9   Dec 12 2001 08:20:00   dirby
+   Set host state to Down prior to exiting Xipc in order to access
+   shared memory.     SCR 488
+   
+      Rev 1.8   Dec 10 2001 14:08:04   dirby
+   Modified to always forward requests to host, even if offline.
+   Modified to ignore Max Active and Max Timeout counts.
+   SCR 488 and 547
+   
+      Rev 1.7   Nov 03 2001 14:06:36   dirby
+   Updated version to 4.0.0.1
+   
+      Rev 1.6   Oct 10 2001 17:18:48   dirby
+   Updated version to 3.2.3.7
+   SCRs: 510, 511, 512, and 513
+   
+      Rev 1.5   Oct 08 2001 13:06:06   dirby
+   Updated version to 3.2.3.6   SCR 492
+   
+      Rev 1.4   Oct 02 2001 13:29:32   dirby
+   Updated version to 3.2.3.5    SCR 446
+   
+      Rev 1.3   Sep 27 2001 09:56:58   dirby
+   Updated version to 3.2.3.4
+   SCR 447
+   
+      Rev 1.2   Aug 17 2001 12:53:24   dirby
+   Updated version to 3.2.3.3 for SCR 425 - only issue key
+   change if it is enabled in the network definition GUI.
+   
+      Rev 1.1   Aug 13 2001 17:23:44   SYARLAGA
+   Updated version to  3.2.3.2.
+   
+      Rev 1.0   Aug 06 2001 09:48:54   dirby
+   Initial revision.
+   
+ ******************************************************************************/
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "ptemsg.h"
+#include "basictyp.h"
+#include "app_info.h"
+#include "equitdb.h"
+#include "nc_dbstruct.h"
+#include "tx_dbstruct.h"
+#include "pteipc.h"
+#include "ptetimer.h"
+#include "ntutils.h"
+#include "ptestats.h"
+#include "ptesystm.h"
+#include "nceq_constants.h"
+#include "nceq_prototypes.h"
+#include "txutils.h"
+#include "txtrace.h"
+#include "diskio.h"
+
+
+extern INT  EndProcessSignalled;
+extern INT  MainProcessDone;
+extern CHAR ServiceName[12];
+
+
+/************************************************
+    GLOBAL DECLARATIONS
+ ************************************************/
+
+/* QUEUES */
+CHAR  AppName[80];
+CHAR  updateds_que_name[]   = "updatdsA";
+CHAR  trands_que_name []    = "trandsA";
+CHAR  netds_que_name []     = "netdsA";
+CHAR  timerds_que_name []   = "timerdsA";
+CHAR  devds_que_name []     = "devdsA";
+CHAR  nsp_que_name []       = "racalA";
+CHAR  authorizer_que_name[] = "txcntlA";
+CHAR  applnk_que_name []    = "applnkA";
+CHAR  oprmon_que_name[]     = "oprmonI" ;
+CHAR  dialog_que_name []    = "dialogA";
+
+/* VISA SMS QUEUE */
+CHAR  visasms_que_name []    = "ncvsmsA";
+
+/* STRUCTURES */
+AUTH_TX   Auth_Tx;
+NCF01     Ncf01_I;
+NCF01     Ncf01_A;
+NCF30     Ncf30;
+ATM01     Atm01;
+CRF01     Crf01;
+
+/* STRUCTURE SIZES */
+INT  Auth_Tx_Size;
+INT  Ncf01_Size;
+INT  Ncf30_Size;
+INT  Atm01_Size;
+INT  Tlf01_Size;
+INT  Crf01_Size;
+
+/* Network Type: Issuer, Acquirer, or Both */
+INT    NetworkType;
+INT    TranFlow;
+
+/* Network:  nceqit or ncmlnk */
+INT    Network;
+
+/* SHARED MEMORY */
+BYTE   net_consec_tmouts_ctr[4];
+BYTE   active_txns_ctr[4];
+BYTE   current_state[2];
+
+/* Counters */
+INT    MaxActiveTxns;
+INT    MaxConsecTimeouts;
+
+/* Statistics for Monitor */
+TXN_COUNTS     Txn_Counts;
+MONITOR_STATS  Monitor_Stats;
+
+/* Originator Information */
+BYTE   Orig_Queue[17];
+BYTE   Orig_Info[33];
+
+/* Dynamic Key Exchange */
+CHAR   KeyChange[DE48_SIZE+1];
+
+/* Echo Timer Info */
+INT    Echo_Timer_Flag;
+INT    Echo_Timer_Count;
+CHAR   TimerAppData2[MAX_APP_DATA_SIZE];
+
+/* Txn Tracing Info */
+CHAR   DirPath[MAX_APP_NAME_SIZE];
+CHAR   TraceFile[MAX_APP_NAME_SIZE];
+INT    Tracing;
+FILE   TraceFile_fp;
+FILE   *pTraceFile_fp;
+FILE   **ppTraceFile_fp;
+
+CHAR   NMI_Code[4];
+INT    invalid_msg_format;
+CHAR   Version[] = "ATP_11.14.5";
+
+
+//ramya
+CHAR  nceqit_Erro_warning_Filename[256] = {0};
+CHAR  nceqit_module_error_warning_file_name[256] = {0};
+CHAR  nceqit_error_warning_file_path[256] = {0};
+
+
+INT IST_0120_FLAG=0;
+							   
+
+/******************************************************************************
+ *
+ *  NAME:         ascendent_msg_handler
+ *
+ *  DESCRIPTION:  This function acts as a switch for messages coming into this
+ *                host handler.  It will transfer control to the appropriate
+ *                module, based on message type.
+ *
+ *  INPUTS:       p_msg_in - Incoming message
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       Ram Malathkar
+ *
+ ******************************************************************************/
+void ascendent_msg_handler( pPTE_MSG p_msg_in )
+{
+   BYTE            subtype1;
+   BYTE            msgtype;
+   CHAR            buffer[256];      
+   pBYTE           p_data = NULL_PTR;
+
+   ptestats_accumulate_msg_stats(p_msg_in);
+
+   /* Determine message type so we know which module to send it to. */
+   msgtype = ptemsg_get_msg_type(p_msg_in);
+   switch( msgtype )
+   {
+      case MT_AUTH_REQUEST:
+
+         /* Authorization request from txcntl */
+         process_request_for_host( p_msg_in );
+         break;
+
+      case MT_AUTH_RESPONSE: 
+
+         /* Authorization response from txcntl */
+         process_response_for_host( p_msg_in );
+         break;
+
+      case MT_INCOMING: 
+
+         /* Message(request/response) from the Equitable host */
+         process_host_msg( p_msg_in );
+         break;
+
+      case MT_DB_REPLY:
+
+         /* Message coming from the data server */
+         process_db_reply( p_msg_in );
+         break;
+
+      case MT_NSP_TRANSLATE_PIN_RESPONSE: 
+
+         /* Response from the network security processor */
+         process_translate_pin_response( p_msg_in );
+         break;
+
+      case MT_TIMER_REPLY:
+         subtype1 = ptemsg_get_msg_subtype1( p_msg_in );
+         if ( subtype1 == ST1_TIMER_CLEAR )
+         {
+            /* This is a response from timerds to a clear timer request.
+             * Continue processing the transaction.
+             */
+            process_clear_timer_reply( p_msg_in );
+         }
+         break;
+
+      case MT_TIMER_TIMEOUT: 
+
+         /* One of the timers expired. */
+         process_timeout_msg( p_msg_in );
+         break;
+
+      case MT_SYS_MONITOR:
+
+         /* Process a request from Monitor. */
+         process_monitor_request( p_msg_in );
+         break;  
+
+      case MT_GET_STATS:
+
+         /* Send transaction counts to whoever requested them. */
+         (void)send_transaction_statistics( p_msg_in );
+         break;
+
+      case MT_RESET_STATS:
+
+         /* Reset transaction counts to zero. */
+         (void)reset_transaction_statistics( p_msg_in );
+         break;
+
+      case MT_SYSTEM_REQUEST:
+         ptesystm_system_msg_handler( p_msg_in );
+		 process_encryption_flag( p_msg_in );
+         if ( ST1_SYS_PING == ptemsg_get_msg_subtype1(p_msg_in) )
+         {
+            if ( Tracing == TRACE_ON )
+            {
+               /* Flush the trace file buffer when service is pinged. */
+               if ( false == flush_file(ppTraceFile_fp) )
+               {
+                  Tracing = TRACE_OFF;
+                  sprintf( buffer,
+                    "%s: Unable to flush trace file buffer. Turning Trace off.",
+                     AppName );
+                  nceqit_log_message( 1, 1, buffer, "ascendent_msg_handler",0 );
+                  (void)close_trace_file( ppTraceFile_fp );
+               }
+            }
+
+            /* When pinged, display application version on Monitor. */
+            sprintf( buffer,
+                    "Pinged -> Network Controller Service: %s, version %s",
+                     ServiceName, Version );
+            nceqit_log_message( 1, 1, buffer, "ascendent_msg_handler",0 );
+         }
+      break;
+
+      case MT_SYSTEM_REPLY: 
+         PRINT( "MT_SYSTEM_REPLY  \n" );
+      break;
+
+      default :
+         sprintf( buffer, "Unknown msg type received: %d", (INT)msgtype );
+         nceqit_log_message( 1, 2, buffer, "ascendent_msg_handler" ,0);
+      break;
+   }  /* switch msg_type */
+
+   return;
+} /* ascendent_msg_handler */
+
+
+/******************************************************************************
+ *
+ *  NAME:         MainProcessor
+ *
+ *  DESCRIPTION:  This is the driver function for the Equitable host handler.
+ *
+ *  INPUTS:       None
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       D. Irby
+ *
+ ******************************************************************************/
+void MainProcessor()
+{
+   pPTE_MSG  p_msg;
+   LONG      ret_code;
+   CHAR      ErrorMsg[100] = "";
+   CHAR      buffer[256]   = "";
+   CHAR      xipc_instance[30];
+
+   GetAppName( AppName );
+   GetXipcInstanceName( xipc_instance );
+
+   sprintf( buffer,
+           "Starting the Network Controller Service: %s, version %s",
+            ServiceName, Version );
+   nceqit_log_message( 2, 1, buffer, "MainProcessor", 0);
+   PRINT2( "%s\n", buffer );
+   nceqit_get_error_warning_file_name_path();
+   if( !pteipc_init_multiple_instance_app( AppName, ServiceName, xipc_instance ))
+   {
+      nceqit_log_message( 1, 3, "Failed to create XIPC queues.", "MainProcessor" ,0);
+      PRINT( "Failed to create XIPC queues\n" );
+      pteipc_shutdown_multiple_instance_app();
+      MainProcessDone = 1;
+   }
+   else
+   {
+      /* Perform any startup initialization. */
+      if ( false == startup() )
+      {
+         pteipc_shutdown_multiple_instance_app();
+         MainProcessDone = 1;
+      }
+      else
+      {
+         /**************
+          * MAIN  LOOP *
+          **************/
+    	 get_0120_enablingFlag_FromTF_ini();
+         while( !EndProcessSignalled )
+         {
+            /* You are blocked here waiting for a message on either app queue
+             * or control queue. If there is no message on either queue for 5
+             * seconds, the blocking call returns.
+             *
+             * The following line will be used to get messages from the queue.
+             */
+            p_msg = pteipc_receive( application_que_name,
+                                    control_que_name,
+                                    5, &ret_code ); 
+
+            if ( NULL_PTR != p_msg )
+            {
+               ascendent_msg_handler( p_msg );
+               free( p_msg );
+            }
+            else if ( QUE_ER_TIMEOUT != ret_code ) 
+            {
+               pteipc_get_errormsg( ret_code, ErrorMsg );
+               sprintf( buffer, "Error on pteipc_receive %s", ErrorMsg );
+               nceqit_log_message( 1, 3, buffer, "MainProcessor" ,0);
+            }
+         }
+      }
+
+      /* Shutting down, need to change state before exiting Xipc. */
+      (void)set_host_state( DOWN, ErrorMsg );
+      send_network_status_to_monitor();
+
+      /* pteipc_shutdown_single_instance_app(); */
+      pteipc_shutdown_multiple_instance_app();
+      MainProcessDone = 1;
+   }
+}
+
+
+/******************************************************************************
+ *
+ *  NAME:         EndProcess
+ *
+ *  DESCRIPTION:  This is the function used to clean up when the app is
+ *                being exited.  All clean up code goes in here.
+ *
+ *  INPUTS:       None
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       D. Irby
+ *
+ ******************************************************************************/
+void EndProcess()
+{
+   CHAR Buffer[100]  = "";
+
+   if ( Tracing == TRACE_ON )
+   {
+      if ( false == close_trace_file( ppTraceFile_fp ))
+      {
+         sprintf( Buffer, "Unable to close trace file %s", TraceFile );
+         nceqit_log_message( 1, 1, Buffer, "startup",0 );
+      }
+   }
+
+   sprintf( Buffer, "Shutting down the %s Service, version %s",
+            ServiceName, Version );
+   nceqit_log_message( 2, 1, Buffer, "EndProcess", 0);
+   strcat( Buffer, "\n" );
+   PRINT( Buffer );
+}
+
+/******************************************************************************
+ *
+ *  NAME:         STARTUP
+ *
+ *  DESCRIPTION:  This function performs required initialization when the
+ *                service starts up.  It creates the shared memory table, gets
+ *                NCF01, and may perform auto logon.
+ *
+ *  INPUTS:       None
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   True if successful, false if a problem occurred
+ *
+ *  AUTHOR:       Dennis Irby
+ *
+ ******************************************************************************/
+INT startup()
+{
+   INT    ret_val = true;
+   INT    rc;
+   CHAR   Buffer[200]  = "";
+   CHAR   err_buf[100] = "";
+
+   sprintf( Buffer, "Network Controller %s was started.", ServiceName );
+   nceqit_log_message( 1, 1, Buffer, "startup",0 );
+
+   /* Initialize the structure sizes so they
+    * do not have to be recalculated every time.
+    */
+   Auth_Tx_Size = AUTH_TX_SIZE;
+   Ncf01_Size   = NCF01_SIZE;
+   Ncf30_Size   = NCF30_SIZE;
+   Atm01_Size   = ATM01_SIZE;
+   Tlf01_Size   = TLF01_SIZE;
+   Crf01_Size   = CRF01_SIZE;
+
+   Echo_Timer_Flag  = ECHO_TIMER_IS_CLEARED;
+   Echo_Timer_Count = 0;
+
+   memset( TimerAppData2, 0x00, sizeof(TimerAppData2) );
+
+   /* Determine if this application is for NCEQIT or NCMLNK.
+    * This source code is used for both networks.
+    */
+   if ( AppName[2] == 'm' )
+      Network = NCMLNK;
+   else
+      Network = NCEQIT;
+
+   /*  Create a table to be used for shared memory between multiple
+    *  instances of this Network Control Module.  It contains three 
+    *  fields:  # of consecutive timeouts, # of active transactions, 
+    *  and the current state of the host.
+    */
+   ret_val = create_shared_mem_table( err_buf );
+   if ( true == ret_val )
+   {
+      /* Get NCF01 record for switched out transactions. */
+      memset( &Ncf01_I, 0x00, Ncf01_Size );
+      memset( Buffer, 0x00, sizeof(Buffer) );
+      strcpy(Ncf01_I.primary_key.network_id, AppName);
+      Ncf01_I.primary_key.network_type[0] = 'I';
+      ret_val = get_ncf01_with_wait( &Ncf01_I, Buffer );
+      if ( false == ret_val )
+      {
+         strcpy(  err_buf, "Error on select of NCF01 issuer: " );
+         strncat( err_buf,  Buffer, 50 );
+      }
+      else
+      {
+         /* Since this code is used for NCEQIT and NCMLNK,
+          * use the following 'if' to only get acquirer record
+          * for nceqit.
+          */
+         if ( Network == NCEQIT )
+         {
+            /* Get NCF01 record for switched in transactions. */
+            NetworkType = BOTH;
+            memset( &Ncf01_A, 0x00, Ncf01_Size );
+            memset( Buffer, 0x00, sizeof(Buffer) );
+            strcpy(Ncf01_A.primary_key.network_id, AppName);
+            Ncf01_A.primary_key.network_type[0] = 'A';
+            ret_val = get_ncf01_with_wait( &Ncf01_A, Buffer);
+            if ( false == ret_val )
+            {
+               strcpy(  err_buf, "Error on select of NCF01 acquirer: " );
+               strncat( err_buf,  Buffer, 50 );
+            }
+         }
+         else
+            NetworkType = ISSUER;
+      }
+   }
+
+   if ( true == ret_val )
+   {
+      /* Perform some initialization */
+      init_character_code_maps();
+
+      /* Initialize transaction statistics */
+      (void)reset_stats( &Txn_Counts );
+
+      /* Initialize configurable counters. */
+      MaxActiveTxns     = atoi(Ncf01_I.max_active_txns);
+      MaxConsecTimeouts = atoi(Ncf01_I.max_consecutive_timeouts);
+
+      /* Determine if transaction tracing should be turned on. */
+      rc = get_trace_ini_info( AppName, DirPath, err_buf );
+      if ( rc == 0 )
+      {
+         Tracing = TRACE_ON;
+
+         /* Open the transaction trace file. */
+         memset( TraceFile, 0x00, sizeof(TraceFile) );
+
+         pTraceFile_fp  = &TraceFile_fp;
+         ppTraceFile_fp = &pTraceFile_fp;
+
+         if (false == open_trace_file(AppName,DirPath,ppTraceFile_fp,TraceFile))
+         {
+            Tracing = TRACE_OFF;
+            sprintf( err_buf,
+                    "Unable to open trace file %s. Tracing is off",
+                     TraceFile );
+            nceqit_log_message( 1, 1, err_buf, "startup",0 );
+         }
+         else
+            nceqit_log_message( 1, 1, "Tracing is turned ON", "startup" ,0);
+      }
+      else
+      {
+         Tracing = TRACE_OFF;
+         if ( rc == -1 )
+         {
+            nceqit_log_message( 1, 1, err_buf, "startup",0 );
+         }
+         nceqit_log_message( 1, 1, "Tracing is turned off", "startup",0 );
+      }
+
+      /* Check the 'Auto Logon' flag. */
+      if (0 == strcmp(Ncf01_I.auto_logon,"1"))
+      {
+         /* Issue a LOGON request to the host. */
+         issue_0800( LOGON );
+      }
+     (void)send_network_status_to_monitor();
+   }
+   else
+   {
+      sprintf( Buffer, "Unable to startup %s.  %s.", AppName, err_buf );
+      nceqit_log_message( 1, 3, Buffer, "Startup",0 );
+   }
+
+   return( ret_val );
+}
+
+void get_0120_enablingFlag_FromTF_ini()
+{
+		DWORD rc;
+	   CHAR  filename   [80] = {0};
+	   CHAR  tmpstr     [80] = {0};
+	   CHAR  IST_0120_flag   [2]  = {0};
+
+	   /* Get path to the tf.ini file. */
+	   memset( tmpstr, 0x00, sizeof(tmpstr) );
+	   GetPinnacleConfigDirectory(tmpstr);
+	   sprintf(filename, "%s%s", tmpstr, "tf.ini" );
+	   /*Read path for creating file in order to log db statics and db oracle error messages */
+
+	   rc = GetPrivateProfileString(  "IST_0120_ENABLING_FLAG",   /* points to section name         */
+									  "IST_0120_FLAG",       				/* points to key name             */
+									   "0",  						/* Default string                 */
+									   IST_0120_flag,              		/* points to destination buffer   */
+									   sizeof(IST_0120_flag)-1,   	 	/* size of destination buffer     */
+									   filename                  	/* points to ini filename         */
+							 	   );
+	   IST_0120_FLAG = atoi(IST_0120_flag);
+
+
+
+}

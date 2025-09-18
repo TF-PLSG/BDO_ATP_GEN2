@@ -1,0 +1,24 @@
+serverHost=10.1.5.75
+serverPort=2809
+#serverPort=9043
+connectionFactory=jms/queueConnectionFactory
+contextFactory=com.ibm.websphere.naming.WsnInitialContextFactory
+writeToQueue=jms/faiInputQ
+readFromQueue=jms/faiOutputQ
+queueCheckDelay=0
+msgLength=1023
+continueIfLibVersionGreater=true
+displayTransactionMsg=1
+context.initialize.timeout=1000
+
+#LIBPATH=$HOME/ascendent/lib
+
+#apacheRestUrl = http://10.1.5.181:22/home/nalina/ATP_9.5.0/Source/Server_AIX/boss/archive
+
+#serverHost=172.22.52.109
+#serverPort=9810
+#connectionFactory=jms/queueConnectionFactory
+#contextFactory=com.ibm.websphere.naming.WsnInitialContextFactory
+#writeToQueue=jms/faiInputQ
+#readFromQueue=jms/faiOutputQ
+#queueCheckDelay=2000

@@ -1,0 +1,592 @@
+# Microsoft Developer Studio Generated NMAKE File, Format Version 4.20
+# ** DO NOT EDIT **
+
+# TARGTYPE "Win32 (x86) Application" 0x0101
+
+!IF "$(CFG)" == ""
+CFG=hostsim - Win32 Debug
+!MESSAGE No configuration specified.  Defaulting to hostsim - Win32 Debug.
+!ENDIF 
+
+!IF "$(CFG)" != "hostsim - Win32 Release" && "$(CFG)" !=\
+ "hostsim - Win32 Debug"
+!MESSAGE Invalid configuration "$(CFG)" specified.
+!MESSAGE You can specify a configuration when running NMAKE on this makefile
+!MESSAGE by defining the macro CFG on the command line.  For example:
+!MESSAGE 
+!MESSAGE NMAKE /f "HOSTSIM.MAK" CFG="hostsim - Win32 Debug"
+!MESSAGE 
+!MESSAGE Possible choices for configuration are:
+!MESSAGE 
+!MESSAGE "hostsim - Win32 Release" (based on "Win32 (x86) Application")
+!MESSAGE "hostsim - Win32 Debug" (based on "Win32 (x86) Application")
+!MESSAGE 
+!ERROR An invalid configuration is specified.
+!ENDIF 
+
+!IF "$(OS)" == "Windows_NT"
+NULL=
+!ELSE 
+NULL=nul
+!ENDIF 
+################################################################################
+# Begin Project
+# PROP Target_Last_Scanned "hostsim - Win32 Debug"
+CPP=cl.exe
+RSC=rc.exe
+MTL=mktyplib.exe
+
+!IF  "$(CFG)" == "hostsim - Win32 Release"
+
+# PROP BASE Use_MFC 6
+# PROP BASE Use_Debug_Libraries 0
+# PROP BASE Output_Dir "Release"
+# PROP BASE Intermediate_Dir "Release"
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 6
+# PROP Use_Debug_Libraries 0
+# PROP Output_Dir "Release"
+# PROP Intermediate_Dir "Release"
+# PROP Target_Dir ""
+OUTDIR=.\Release
+INTDIR=.\Release
+
+ALL : "$(OUTDIR)\HOSTSIM.exe" "$(OUTDIR)\HOSTSIM.pch"
+
+CLEAN : 
+	-@erase "$(INTDIR)\convert.obj"
+	-@erase "$(INTDIR)\hostsim.obj"
+	-@erase "$(INTDIR)\HOSTSIM.pch"
+	-@erase "$(INTDIR)\hostsim.res"
+	-@erase "$(INTDIR)\hostsimDlg.obj"
+	-@erase "$(INTDIR)\hostsimn.obj"
+	-@erase "$(INTDIR)\response.obj"
+	-@erase "$(INTDIR)\serialc.obj"
+	-@erase "$(INTDIR)\StdAfx.obj"
+	-@erase "$(INTDIR)\tcpip.obj"
+	-@erase "$(INTDIR)\trace.obj"
+	-@erase "$(OUTDIR)\HOSTSIM.exe"
+
+"$(OUTDIR)" :
+    if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
+
+# ADD BASE CPP /nologo /MD /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_AFXDLL" /D "_MBCS" /Yu"stdafx.h" /c
+# ADD CPP /nologo /MD /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_AFXDLL" /D "_MBCS" /c
+# SUBTRACT CPP /YX /Yc /Yu
+CPP_PROJ=/nologo /MD /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D\
+ "_AFXDLL" /D "_MBCS" /Fo"$(INTDIR)/" /c 
+CPP_OBJS=.\Release/
+CPP_SBRS=.\.
+# ADD BASE MTL /nologo /D "NDEBUG" /win32
+# ADD MTL /nologo /D "NDEBUG" /win32
+MTL_PROJ=/nologo /D "NDEBUG" /win32 
+# ADD BASE RSC /l 0x409 /d "NDEBUG" /d "_AFXDLL"
+# ADD RSC /l 0x409 /d "NDEBUG" /d "_AFXDLL"
+RSC_PROJ=/l 0x409 /fo"$(INTDIR)/hostsim.res" /d "NDEBUG" /d "_AFXDLL" 
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+BSC32_FLAGS=/nologo /o"$(OUTDIR)/HOSTSIM.bsc" 
+BSC32_SBRS= \
+	
+LINK32=link.exe
+# ADD BASE LINK32 /nologo /subsystem:windows /machine:I386
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib pte.lib ptecom.lib pteipc.lib /nologo /subsystem:windows /pdb:none /machine:I386 /nodefaultlib:"libcmt" /nodefaultlib:"libcmtd" /nodefaultlib:"nafxcw"
+# SUBTRACT LINK32 /nodefaultlib
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib\
+ advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib\
+ odbccp32.lib wsock32.lib pte.lib ptecom.lib pteipc.lib /nologo\
+ /subsystem:windows /pdb:none /machine:I386 /nodefaultlib:"libcmt"\
+ /nodefaultlib:"libcmtd" /nodefaultlib:"nafxcw" /out:"$(OUTDIR)/HOSTSIM.exe" 
+LINK32_OBJS= \
+	"$(INTDIR)\convert.obj" \
+	"$(INTDIR)\hostsim.obj" \
+	"$(INTDIR)\hostsim.res" \
+	"$(INTDIR)\hostsimDlg.obj" \
+	"$(INTDIR)\hostsimn.obj" \
+	"$(INTDIR)\response.obj" \
+	"$(INTDIR)\serialc.obj" \
+	"$(INTDIR)\StdAfx.obj" \
+	"$(INTDIR)\tcpip.obj" \
+	"$(INTDIR)\trace.obj"
+
+"$(OUTDIR)\HOSTSIM.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
+    $(LINK32) @<<
+  $(LINK32_FLAGS) $(LINK32_OBJS)
+<<
+
+!ELSEIF  "$(CFG)" == "hostsim - Win32 Debug"
+
+# PROP BASE Use_MFC 6
+# PROP BASE Use_Debug_Libraries 1
+# PROP BASE Output_Dir "Debug"
+# PROP BASE Intermediate_Dir "Debug"
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 6
+# PROP Use_Debug_Libraries 1
+# PROP Output_Dir "Debug"
+# PROP Intermediate_Dir "Debug"
+# PROP Target_Dir ""
+OUTDIR=.\Debug
+INTDIR=.\Debug
+
+ALL : "$(OUTDIR)\HOSTSIM.exe" "$(OUTDIR)\HOSTSIM.pch" "$(OUTDIR)\HOSTSIM.bsc"
+
+CLEAN : 
+	-@erase "$(INTDIR)\convert.obj"
+	-@erase "$(INTDIR)\convert.sbr"
+	-@erase "$(INTDIR)\hostsim.obj"
+	-@erase "$(INTDIR)\HOSTSIM.pch"
+	-@erase "$(INTDIR)\hostsim.res"
+	-@erase "$(INTDIR)\hostsim.sbr"
+	-@erase "$(INTDIR)\hostsimDlg.obj"
+	-@erase "$(INTDIR)\hostsimDlg.sbr"
+	-@erase "$(INTDIR)\hostsimn.obj"
+	-@erase "$(INTDIR)\hostsimn.sbr"
+	-@erase "$(INTDIR)\response.obj"
+	-@erase "$(INTDIR)\response.sbr"
+	-@erase "$(INTDIR)\serialc.obj"
+	-@erase "$(INTDIR)\serialc.sbr"
+	-@erase "$(INTDIR)\StdAfx.obj"
+	-@erase "$(INTDIR)\StdAfx.sbr"
+	-@erase "$(INTDIR)\tcpip.obj"
+	-@erase "$(INTDIR)\tcpip.sbr"
+	-@erase "$(INTDIR)\trace.obj"
+	-@erase "$(INTDIR)\trace.sbr"
+	-@erase "$(OUTDIR)\HOSTSIM.bsc"
+	-@erase "$(OUTDIR)\HOSTSIM.exe"
+
+"$(OUTDIR)" :
+    if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
+
+# ADD BASE CPP /nologo /MDd /W3 /Gm /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_AFXDLL" /D "_MBCS" /Yu"stdafx.h" /c
+# ADD CPP /nologo /MDd /W3 /GX /Z7 /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_AFXDLL" /D "_MBCS" /FR /c
+# SUBTRACT CPP /YX /Yc /Yu
+CPP_PROJ=/nologo /MDd /W3 /GX /Z7 /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D\
+ "_AFXDLL" /D "_MBCS" /FR"$(INTDIR)/" /Fo"$(INTDIR)/" /c 
+CPP_OBJS=.\Debug/
+CPP_SBRS=.\Debug/
+# ADD BASE MTL /nologo /D "_DEBUG" /win32
+# ADD MTL /nologo /D "_DEBUG" /win32
+MTL_PROJ=/nologo /D "_DEBUG" /win32 
+# ADD BASE RSC /l 0x409 /d "_DEBUG" /d "_AFXDLL"
+# ADD RSC /l 0x409 /d "_DEBUG" /d "_AFXDLL"
+RSC_PROJ=/l 0x409 /fo"$(INTDIR)/hostsim.res" /d "_DEBUG" /d "_AFXDLL" 
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+BSC32_FLAGS=/nologo /o"$(OUTDIR)/HOSTSIM.bsc" 
+BSC32_SBRS= \
+	"$(INTDIR)\convert.sbr" \
+	"$(INTDIR)\hostsim.sbr" \
+	"$(INTDIR)\hostsimDlg.sbr" \
+	"$(INTDIR)\hostsimn.sbr" \
+	"$(INTDIR)\response.sbr" \
+	"$(INTDIR)\serialc.sbr" \
+	"$(INTDIR)\StdAfx.sbr" \
+	"$(INTDIR)\tcpip.sbr" \
+	"$(INTDIR)\trace.sbr"
+
+"$(OUTDIR)\HOSTSIM.bsc" : "$(OUTDIR)" $(BSC32_SBRS)
+    $(BSC32) @<<
+  $(BSC32_FLAGS) $(BSC32_SBRS)
+<<
+
+LINK32=link.exe
+# ADD BASE LINK32 /nologo /subsystem:windows /debug /machine:I386
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib pte.lib ptecom.lib pteipc.lib /nologo /subsystem:windows /pdb:none /debug /machine:I386 /nodefaultlib:"libcmt" /nodefaultlib:"nafxcw"
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib\
+ advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib\
+ odbccp32.lib wsock32.lib pte.lib ptecom.lib pteipc.lib /nologo\
+ /subsystem:windows /pdb:none /debug /machine:I386 /nodefaultlib:"libcmt"\
+ /nodefaultlib:"nafxcw" /out:"$(OUTDIR)/HOSTSIM.exe" 
+LINK32_OBJS= \
+	"$(INTDIR)\convert.obj" \
+	"$(INTDIR)\hostsim.obj" \
+	"$(INTDIR)\hostsim.res" \
+	"$(INTDIR)\hostsimDlg.obj" \
+	"$(INTDIR)\hostsimn.obj" \
+	"$(INTDIR)\response.obj" \
+	"$(INTDIR)\serialc.obj" \
+	"$(INTDIR)\StdAfx.obj" \
+	"$(INTDIR)\tcpip.obj" \
+	"$(INTDIR)\trace.obj"
+
+"$(OUTDIR)\HOSTSIM.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
+    $(LINK32) @<<
+  $(LINK32_FLAGS) $(LINK32_OBJS)
+<<
+
+!ENDIF 
+
+.c{$(CPP_OBJS)}.obj:
+   $(CPP) $(CPP_PROJ) $<  
+
+.cpp{$(CPP_OBJS)}.obj:
+   $(CPP) $(CPP_PROJ) $<  
+
+.cxx{$(CPP_OBJS)}.obj:
+   $(CPP) $(CPP_PROJ) $<  
+
+.c{$(CPP_SBRS)}.sbr:
+   $(CPP) $(CPP_PROJ) $<  
+
+.cpp{$(CPP_SBRS)}.sbr:
+   $(CPP) $(CPP_PROJ) $<  
+
+.cxx{$(CPP_SBRS)}.sbr:
+   $(CPP) $(CPP_PROJ) $<  
+
+################################################################################
+# Begin Target
+
+# Name "hostsim - Win32 Release"
+# Name "hostsim - Win32 Debug"
+
+!IF  "$(CFG)" == "hostsim - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "hostsim - Win32 Debug"
+
+!ENDIF 
+
+################################################################################
+# Begin Source File
+
+SOURCE=.\hostsim.cpp
+DEP_CPP_HOSTS=\
+	".\hostsimc.h"\
+	".\hostsimDlg.h"\
+	".\StdAfx.h"\
+	
+
+!IF  "$(CFG)" == "hostsim - Win32 Release"
+
+
+"$(INTDIR)\hostsim.obj" : $(SOURCE) $(DEP_CPP_HOSTS) "$(INTDIR)"
+
+
+!ELSEIF  "$(CFG)" == "hostsim - Win32 Debug"
+
+
+"$(INTDIR)\hostsim.obj" : $(SOURCE) $(DEP_CPP_HOSTS) "$(INTDIR)"
+
+"$(INTDIR)\hostsim.sbr" : $(SOURCE) $(DEP_CPP_HOSTS) "$(INTDIR)"
+
+
+!ENDIF 
+
+# End Source File
+################################################################################
+# Begin Source File
+
+SOURCE=.\hostsimDlg.cpp
+
+!IF  "$(CFG)" == "hostsim - Win32 Release"
+
+DEP_CPP_HOSTSI=\
+	".\hostsimc.h"\
+	".\hostsimDlg.h"\
+	".\SERIALC.H"\
+	".\StdAfx.h"\
+	".\TCPIP.H"\
+	{$(INCLUDE)}"\BASICTYP.H"\
+	{$(INCLUDE)}"\COMMON.H"\
+	{$(INCLUDE)}"\PTECOM.H"\
+	{$(INCLUDE)}"\SERIAL.H"\
+	{$(INCLUDE)}"\TCP.H"\
+	
+
+"$(INTDIR)\hostsimDlg.obj" : $(SOURCE) $(DEP_CPP_HOSTSI) "$(INTDIR)"
+
+
+!ELSEIF  "$(CFG)" == "hostsim - Win32 Debug"
+
+DEP_CPP_HOSTSI=\
+	".\hostsimc.h"\
+	".\hostsimDlg.h"\
+	".\SERIALC.H"\
+	".\StdAfx.h"\
+	".\TCPIP.H"\
+	{$(INCLUDE)}"\BASICTYP.H"\
+	{$(INCLUDE)}"\COMMON.H"\
+	{$(INCLUDE)}"\PTECOM.H"\
+	{$(INCLUDE)}"\SERIAL.H"\
+	{$(INCLUDE)}"\TCP.H"\
+	
+
+"$(INTDIR)\hostsimDlg.obj" : $(SOURCE) $(DEP_CPP_HOSTSI) "$(INTDIR)"
+
+"$(INTDIR)\hostsimDlg.sbr" : $(SOURCE) $(DEP_CPP_HOSTSI) "$(INTDIR)"
+
+
+!ENDIF 
+
+# End Source File
+################################################################################
+# Begin Source File
+
+SOURCE=.\StdAfx.cpp
+DEP_CPP_STDAF=\
+	".\StdAfx.h"\
+	
+
+!IF  "$(CFG)" == "hostsim - Win32 Release"
+
+# ADD CPP /Yc"stdafx.h"
+
+BuildCmds= \
+	$(CPP) /nologo /MD /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D\
+ "_AFXDLL" /D "_MBCS" /Fp"$(INTDIR)/HOSTSIM.pch" /Yc"stdafx.h" /Fo"$(INTDIR)/"\
+ /c $(SOURCE) \
+	
+
+"$(INTDIR)\StdAfx.obj" : $(SOURCE) $(DEP_CPP_STDAF) "$(INTDIR)"
+   $(BuildCmds)
+
+"$(INTDIR)\HOSTSIM.pch" : $(SOURCE) $(DEP_CPP_STDAF) "$(INTDIR)"
+   $(BuildCmds)
+
+!ELSEIF  "$(CFG)" == "hostsim - Win32 Debug"
+
+# ADD CPP /Yc"stdafx.h"
+
+BuildCmds= \
+	$(CPP) /nologo /MDd /W3 /GX /Z7 /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D\
+ "_AFXDLL" /D "_MBCS" /FR"$(INTDIR)/" /Fp"$(INTDIR)/HOSTSIM.pch" /Yc"stdafx.h"\
+ /Fo"$(INTDIR)/" /c $(SOURCE) \
+	
+
+"$(INTDIR)\StdAfx.obj" : $(SOURCE) $(DEP_CPP_STDAF) "$(INTDIR)"
+   $(BuildCmds)
+
+"$(INTDIR)\StdAfx.sbr" : $(SOURCE) $(DEP_CPP_STDAF) "$(INTDIR)"
+   $(BuildCmds)
+
+"$(INTDIR)\HOSTSIM.pch" : $(SOURCE) $(DEP_CPP_STDAF) "$(INTDIR)"
+   $(BuildCmds)
+
+!ENDIF 
+
+# End Source File
+################################################################################
+# Begin Source File
+
+SOURCE=.\hostsim.rc
+DEP_RSC_HOSTSIM=\
+	".\res\hostsim.ico"\
+	".\res\hostsim.rc2"\
+	
+
+"$(INTDIR)\hostsim.res" : $(SOURCE) $(DEP_RSC_HOSTSIM) "$(INTDIR)"
+   $(RSC) $(RSC_PROJ) $(SOURCE)
+
+
+# End Source File
+################################################################################
+# Begin Source File
+
+SOURCE=.\tcpip.cpp
+DEP_CPP_TCPIP=\
+	".\hostsimc.h"\
+	".\StdAfx.h"\
+	".\TCPIP.H"\
+	
+
+!IF  "$(CFG)" == "hostsim - Win32 Release"
+
+
+"$(INTDIR)\tcpip.obj" : $(SOURCE) $(DEP_CPP_TCPIP) "$(INTDIR)"
+
+
+!ELSEIF  "$(CFG)" == "hostsim - Win32 Debug"
+
+
+"$(INTDIR)\tcpip.obj" : $(SOURCE) $(DEP_CPP_TCPIP) "$(INTDIR)"
+
+"$(INTDIR)\tcpip.sbr" : $(SOURCE) $(DEP_CPP_TCPIP) "$(INTDIR)"
+
+
+!ENDIF 
+
+# End Source File
+################################################################################
+# Begin Source File
+
+SOURCE=.\serialc.cpp
+DEP_CPP_SERIA=\
+	".\hostsimc.h"\
+	".\SERIALC.H"\
+	".\StdAfx.h"\
+	{$(INCLUDE)}"\BASICTYP.H"\
+	{$(INCLUDE)}"\COMMON.H"\
+	{$(INCLUDE)}"\PTECOM.H"\
+	{$(INCLUDE)}"\SERIAL.H"\
+	{$(INCLUDE)}"\TCP.H"\
+	
+
+!IF  "$(CFG)" == "hostsim - Win32 Release"
+
+
+"$(INTDIR)\serialc.obj" : $(SOURCE) $(DEP_CPP_SERIA) "$(INTDIR)"
+
+
+!ELSEIF  "$(CFG)" == "hostsim - Win32 Debug"
+
+
+"$(INTDIR)\serialc.obj" : $(SOURCE) $(DEP_CPP_SERIA) "$(INTDIR)"
+
+"$(INTDIR)\serialc.sbr" : $(SOURCE) $(DEP_CPP_SERIA) "$(INTDIR)"
+
+
+!ENDIF 
+
+# End Source File
+################################################################################
+# Begin Source File
+
+SOURCE=.\response.c
+DEP_CPP_RESPO=\
+	".\RESPONSE.H"\
+	{$(INCLUDE)}"\BASICTYP.H"\
+	{$(INCLUDE)}"\COMMON.H"\
+	{$(INCLUDE)}"\PTE.H"\
+	{$(INCLUDE)}"\PTECOM.H"\
+	{$(INCLUDE)}"\SERIAL.H"\
+	{$(INCLUDE)}"\sys\TIMEB.H"\
+	{$(INCLUDE)}"\TCP.H"\
+	
+
+!IF  "$(CFG)" == "hostsim - Win32 Release"
+
+
+"$(INTDIR)\response.obj" : $(SOURCE) $(DEP_CPP_RESPO) "$(INTDIR)"
+
+
+!ELSEIF  "$(CFG)" == "hostsim - Win32 Debug"
+
+
+"$(INTDIR)\response.obj" : $(SOURCE) $(DEP_CPP_RESPO) "$(INTDIR)"
+
+"$(INTDIR)\response.sbr" : $(SOURCE) $(DEP_CPP_RESPO) "$(INTDIR)"
+
+
+!ENDIF 
+
+# End Source File
+################################################################################
+# Begin Source File
+
+SOURCE=.\hostsimn.c
+DEP_CPP_HOSTSIMN=\
+	{$(INCLUDE)}"\BASICTYP.H"\
+	{$(INCLUDE)}"\COMMON.H"\
+	{$(INCLUDE)}"\ntutils.h"\
+	{$(INCLUDE)}"\PTE.H"\
+	{$(INCLUDE)}"\PTECOM.H"\
+	{$(INCLUDE)}"\SERIAL.H"\
+	{$(INCLUDE)}"\TCP.H"\
+	
+
+!IF  "$(CFG)" == "hostsim - Win32 Release"
+
+
+"$(INTDIR)\hostsimn.obj" : $(SOURCE) $(DEP_CPP_HOSTSIMN) "$(INTDIR)"
+
+
+!ELSEIF  "$(CFG)" == "hostsim - Win32 Debug"
+
+
+"$(INTDIR)\hostsimn.obj" : $(SOURCE) $(DEP_CPP_HOSTSIMN) "$(INTDIR)"
+
+"$(INTDIR)\hostsimn.sbr" : $(SOURCE) $(DEP_CPP_HOSTSIMN) "$(INTDIR)"
+
+
+!ENDIF 
+
+# End Source File
+################################################################################
+# Begin Source File
+
+SOURCE=.\convert.c
+DEP_CPP_CONVE=\
+	{$(INCLUDE)}"\BASICTYP.H"\
+	{$(INCLUDE)}"\COMMON.H"\
+	{$(INCLUDE)}"\PTE.H"\
+	{$(INCLUDE)}"\PTECOM.H"\
+	{$(INCLUDE)}"\SERIAL.H"\
+	{$(INCLUDE)}"\TCP.H"\
+	
+
+!IF  "$(CFG)" == "hostsim - Win32 Release"
+
+
+"$(INTDIR)\convert.obj" : $(SOURCE) $(DEP_CPP_CONVE) "$(INTDIR)"
+
+
+!ELSEIF  "$(CFG)" == "hostsim - Win32 Debug"
+
+
+"$(INTDIR)\convert.obj" : $(SOURCE) $(DEP_CPP_CONVE) "$(INTDIR)"
+
+"$(INTDIR)\convert.sbr" : $(SOURCE) $(DEP_CPP_CONVE) "$(INTDIR)"
+
+
+!ENDIF 
+
+# End Source File
+################################################################################
+# Begin Source File
+
+SOURCE=.\trace.c
+DEP_CPP_TRACE=\
+	{$(INCLUDE)}"\BASICTYP.H"\
+	{$(INCLUDE)}"\coreinfo.h"\
+	{$(INCLUDE)}"\memdata.h"\
+	{$(INCLUDE)}"\memerr.h"\
+	{$(INCLUDE)}"\mempubd.h"\
+	{$(INCLUDE)}"\mempubp.h"\
+	{$(INCLUDE)}"\mmcos.h"\
+	{$(INCLUDE)}"\mmopsys.h"\
+	{$(INCLUDE)}"\mmxos.h"\
+	{$(INCLUDE)}"\mmxosoff.h"\
+	{$(INCLUDE)}"\momerr.h"\
+	{$(INCLUDE)}"\mompubd.h"\
+	{$(INCLUDE)}"\ntutils.h"\
+	{$(INCLUDE)}"\PTE.H"\
+	{$(INCLUDE)}"\pteipc.h"\
+	{$(INCLUDE)}"\ptemsg.h"\
+	{$(INCLUDE)}"\queerr.h"\
+	{$(INCLUDE)}"\quepubd.h"\
+	{$(INCLUDE)}"\quepubp.h"\
+	{$(INCLUDE)}"\semerr.h"\
+	{$(INCLUDE)}"\sempubd.h"\
+	{$(INCLUDE)}"\sempubp.h"\
+	{$(INCLUDE)}"\xipc.h"\
+	{$(INCLUDE)}"\xipcasyn.h"\
+	{$(INCLUDE)}"\xipcerr.h"\
+	{$(INCLUDE)}"\xipcpubd.h"\
+	{$(INCLUDE)}"\xipcpubp.h"\
+	{$(INCLUDE)}"\xipcpuxd.h"\
+	{$(INCLUDE)}"\xneterr.h"\
+	
+
+!IF  "$(CFG)" == "hostsim - Win32 Release"
+
+
+"$(INTDIR)\trace.obj" : $(SOURCE) $(DEP_CPP_TRACE) "$(INTDIR)"
+
+
+!ELSEIF  "$(CFG)" == "hostsim - Win32 Debug"
+
+
+"$(INTDIR)\trace.obj" : $(SOURCE) $(DEP_CPP_TRACE) "$(INTDIR)"
+
+"$(INTDIR)\trace.sbr" : $(SOURCE) $(DEP_CPP_TRACE) "$(INTDIR)"
+
+
+!ENDIF 
+
+# End Source File
+# End Target
+# End Project
+################################################################################

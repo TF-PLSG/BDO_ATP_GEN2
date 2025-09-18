@@ -1,0 +1,42 @@
+####################################################
+#Response Code for DINERS is 3 bytes
+#Response Code for AMEX is 3 bytes
+#Response Code for VISA is 2 bytes
+#Response Code for JCB is 2 bytes
+#Response Code for MC is 2 bytes
+#Response Code for NCIFTR is 2 bytes
+#Response Code for RACAL is 2 bytes
+#####################################################
+[RESPONSE_CODE]
+DINERSRC=002
+AMEXRC=100
+VISARC=05
+JCBRC=03
+MCRC=08
+NCIFTRRC=07
+RACALRC=06
+-
+####################################################
+#AUTH Code is 6 bytes
+#####################################################
+[AUTH_CODE]
+DINERSAC=000001
+AMEXAC=000002
+VISAAC=000003
+JCBAC=000004
+MCAC=000005
+NCIFTRAC=000006
+RACALAC=000007
+-
+####################################################
+#RRN is 12 bytes
+#####################################################
+[RRN]
+DINERSRRN=000000000001
+AMEXRRN=000000000002
+VISARRN=000000000003
+JCBRRN=000000000004
+MCRRN=000000000005
+NCIFTRRRN=000000000006
+RACALRRN=000000000007
+-

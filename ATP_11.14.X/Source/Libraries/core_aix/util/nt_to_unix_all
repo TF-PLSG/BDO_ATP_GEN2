@@ -1,0 +1,25 @@
+# nt_to_unix_all
+# This script will convert ALL ".c", ".h", and ".pc" source files
+# in the current directory with trailing CTRL-M's to a UNIX format
+# that has the CTRL-M's removed.
+# This script takes no arguments.
+# Each file will be replaced with its edited version.
+for i in `ls -1 *.c`
+  do
+    echo converting $i
+    awk '{ gsub("\r", "", $0); print }' $i > temp
+    mv temp $i
+  done
+for i in `ls -1 *.h`
+  do
+    echo converting $i
+    awk '{ gsub("\r", "", $0); print }' $i > temp
+    mv temp $i
+  done
+for i in `ls -1 *.pc`
+  do
+    echo converting $i
+    awk '{ gsub("\r", "", $0); print }' $i > temp
+    mv temp $i
+  done
+echo "Conversions complete!"

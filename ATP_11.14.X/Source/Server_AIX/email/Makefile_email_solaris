@@ -1,0 +1,18 @@
+BINDIR=../bin
+LIBDIR=../lib
+CORELIBDIR=../../Libraries/core_aix/lib
+CFLAGS = -c -g -I../include -I$(XIPCROOT)/include -I../../Libraries/core_aix/include -DTRUE=1 -DFALSE=0
+LFLAGS = -L$(LIBDIR) -L$(CORELIBDIR) -L$(XIPCROOT)/lib/threads
+CC=cc
+
+email: email.o notify.o
+	$(CC) -o $(BINDIR)/email email.o notify.o $(CORELIBDIR)/daemon.o $(LFLAGS) -lptecom -lpte -lpteipc -lequit -lxipc_r -lnxipctcp_r -lthread -lsocket -lnsl -lposix4 -lm
+
+email.o: email.c
+	$(CC) $(CFLAGS) email.c
+
+notify.o: notify.c
+	$(CC) $(CFLAGS) notify.c
+
+clean:
+	-@rm -f *.o

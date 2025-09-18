@@ -1,0 +1,859 @@
+/******************************************************************************
+ *  
+ * MODULE:      nega.c
+ *
+ * TITLE:       Ascendent Negative File Import Processor
+ *  
+ * DESCRIPTION: This application takes a file in ASCII format.  It parses it
+ *              and populates the negative (Hot Card) table NEG01.  It first
+ *              backs up the table to NEG02.
+ *
+ *              Here is the sequence of events:
+ *              1.  Connect to database
+ *              2.  Open import file
+ *              3.  Open dump file for logging problems
+ *              4.  Delete database table NEG02
+ *              5.  Copy NEG01 into NEG02
+ *              6.  Loop through import file
+ *              7.     Read a record
+ *              8.     Determine Card Type
+ *              9.     Delete all records of that card type from NEG01 if
+ *                        not already done
+ *              10.    Insert record into NEG01
+ *              11. End Loop after all records are processed
+ *              12. Log totals
+ *
+ * APPLICATION: ATP
+ *
+ * AUTHOR:  Faramarz Arad  1/28/1999.
+ *
+ * REVISION HISTORY:
+ *
+ * $Log:   N:\POS\PVCS6.6\EPICPORTZ\PTE\Equitable\Negative\nega.c  $
+   
+      Rev 1.18   Apr 05 2005 15:29:38   dirby
+   Updated version to 4.4.1.1
+   SCR 12785
+   
+      Rev 1.17   Jul 08 2004 17:29:34   dirby
+   Updated to 4.4.0.1
+   SCRs 1287 & 1388
+   
+      Rev 1.16   May 27 2004 17:38:38   dirby
+   Updated version to 4.3.0.1
+   SCR 1380
+   
+      Rev 1.15   Feb 19 2003 16:38:06   dirby
+   Updated version to 4_2_0
+   SCR 955
+   
+      Rev 1.14   Aug 22 2002 12:55:54   dirby
+   Updated version to 4.1.1.1
+   SCR 255
+   
+      Rev 1.13   Jan 10 2002 18:18:38   dirby
+   Modified to only print individual card totals if there has not
+   been rollback.
+   SCR 567
+   
+      Rev 1.12   Jan 10 2002 17:32:44   dirby
+   Modified to support JCB and Amex cards and to allow for the
+   cards in the file to be in any order.  Also modified the summary
+   to show number of records of each type inserted.
+   SCR 567
+   
+      Rev 1.11   Dec 17 2001 14:59:12   dirby
+   1.  Updated version to 4.0.0.2
+   2.  Straightened out some indentation issues.
+   3.  Enhanced error messages to log Oracle errors.
+   SCR 564
+   
+      Rev 1.10   Apr 23 2001 09:14:04   SYARLAGA
+   Changed  the database connection from pollux to equitable.and trimmed  the spaces for card number
+   
+      Rev 1.9   Jan 09 2001 13:45:42   dirby
+    
+   
+      Rev 1.8   Jul 31 2000 09:52:18   dirby
+   Modified to display version number at startup and shutdown.
+   
+   
+      Rev 1.7   Jun 29 1999 15:09:42   farad
+   1)  Modified the application such that it is a data server.  
+   2)  This app now backs every thing to the neg02 table (bug # 642).
+   
+   
+      Rev 1.6   May 18 1999 13:33:36   farad
+   Added a fix for bug #635.  
+   
+      Rev 1.5   May 17 1999 16:38:10   farad
+   Worked on bug 635.  Modified the xipc logout to xipcshutdown.  
+   
+      Rev 1.4   Apr 15 1999 14:39:30   farad
+   Made some enhancements.
+   
+      Rev 1.3   Apr 08 1999 16:28:38   farad
+   Added the "?" command line.  Took out the @ for the AIX machine.
+   
+      Rev 1.2   Mar 18 1999 14:30:52   farad
+   Fixed the code such that the memory over ride error message would not occure.
+   
+      Rev 1.1   Mar 09 1999 16:24:04   farad
+   Fixed the memory error bug.  Ran a test to make sure it populates the DS.
+   
+      Rev 1.0   Feb 22 1999 16:44:52   farad
+   Initial Release
+ ******************************************************************************/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#include "ntutils.h"
+#include "pteipc.h"
+
+#include "ptetimer.h"
+#include "ptetime.h"
+#include "dbcommon.h"
+#include "app_info.h"
+#include "equitdb.h"
+
+#include "tx_dbstruct.h"
+#include "nc_dbstruct.h"
+#include "nc_database.h"
+#include "dc_dbstruct.h"
+
+#include "txutils.h"
+#include "txdsapi.h"
+#include "nega.h"
+
+
+//////////////////////////////////////farad 01/10/1999////////////////////////
+FILE *fptr;
+FILE *dumpPtr;
+
+CHAR  infile[100] ="";
+CHAR  dmpfile[100]="";
+
+typedef struct 
+{
+   CHAR cardNumber      [17];
+   CHAR cardExten       [4];
+   CHAR cardStatus      [2];
+   CHAR cardType        [2];
+} recordFormat;
+
+
+
+//**************************************************************************
+//*********************** GLOBAL VARIABLES *********************************
+
+/* Record Counts */
+LONG    CardRecordCounts[NUM_CARD_TYPES];
+LONG    recordCnt;
+LONG    recordProcessCnt;
+
+/* Card Type & Status */
+INT     CardStatus[NUM_CARD_TYPES];
+INT     CardType;
+
+/* File Processing Status Flags */
+INT     File_Open;
+INT     Dump_Open;
+INT     Connected;
+INT     Rollback;
+
+/* Keep these in same order of 'Supported Card Types' in nega.h */
+CHAR  Card_Struct[NUM_CARD_TYPES][5] = 
+{
+   "VISA",
+   "MC",
+   "JCB",
+   "AMEX"
+};
+
+
+CHAR    Version[] = "ATP_11.1.0";
+
+
+/******************************************************************************
+   NAME:               delete_record_from_neg01
+
+   DESCRIPTION:        Delete all records for a particular card type
+                       from NEG01.
+
+   INPUTS:             CardType   - (Global) Card type to be removed from NEG01
+                       CardStruct - (Global) Structure of card names
+
+   OUTPUTS:            ResultMsg - Textual message containing the DB results
+
+   RETURNS:            1 on success.
+                       0 on failure.
+
+   AUTHOR:             Faramarz Arad
+*******************************************************************************/
+INT delete_record_from_neg01( pCHAR ResultMsg )
+{
+   CHAR        Buffer[300]  ="";
+   INT         ret_val;
+   NEG01       neg01;
+
+   memset( &neg01,0, sizeof(NEG01) );
+   neg01.card_type[0] = Card_Struct[CardType][0];
+
+   if ( PTEMSG_OK == db_delete_neg01( &neg01, Buffer) )
+   {
+      ret_val = 1;
+      sprintf( ResultMsg,
+              "NEGA: Deleted %s records from NEG01.",
+               Card_Struct[CardType] );
+   }
+   else 
+   {
+      memcpy( ResultMsg, Buffer, 99 );
+      ret_val = 0;
+   }
+   return( ret_val );
+}
+
+
+/******************************************************************************
+   NAME:               delete_record_from_neg02
+
+   DESCRIPTION:        Delete all records for a particular card type
+                       from NEG02.
+
+   INPUTS:             CardType   - (Global) Card type to be removed from NEG02
+                       CardStruct - (Global) Structure of card names
+
+   OUTPUTS:            ResultMsg - Textual message containing the DB results
+
+   RETURNS:            1 on success.
+                       0 on failure.
+
+   AUTHOR:             Faramarz Arad
+*******************************************************************************/
+INT delete_record_from_neg02( pCHAR ResultMsg )
+{
+   CHAR        Buffer[300]  ="";
+   INT         ret_val;
+   NEG02       neg02;
+
+   memset( &neg02,0, sizeof(NEG02) );
+   neg02.card_type[0] = Card_Struct[CardType][0];
+
+   if ( PTEMSG_OK == db_delete_neg02( &neg02, Buffer) )
+   {
+      ret_val = 1;
+      sprintf( ResultMsg,
+              "NEGA: Deleted %s records from NEG02.",
+               Card_Struct[CardType] );
+   }
+   else 
+   {
+      memcpy( ResultMsg, Buffer, 99 );
+      ret_val = 0;
+   }
+   return( ret_val );
+}
+
+
+/******************************************************************************
+   NAME:               COPY_NEG01_NEG02
+
+   DESCRIPTION:        Copy all records of type CardType from NEG01 into NEG02.
+                       This is for backup purposes prior to doing the import.
+
+   INPUTS:             CardType   - (Global) Card type to be copied
+                       CardStruct - (Global) Structure of card names
+
+   OUTPUTS:            ResultMsg - Textual message containing the DB results
+
+   RETURNS:            1 on success.
+                       0 on failure.
+
+   AUTHOR:             Faramarz Arad
+*******************************************************************************/
+INT copy_neg01_neg02( pCHAR ResultMsg )
+{
+   INT         ret_val;
+   CHAR        Buffer[300]   ="";
+   NEG01       neg01;
+
+   memset( &neg01,0,sizeof(NEG01) );
+   neg01.card_type[0] = Card_Struct[CardType][0];
+
+
+   if ( PTEMSG_OK == db_copy_neg01_neg02( &neg01, Buffer) )
+   {
+      ret_val = 1;
+      sprintf( ResultMsg,
+              "NEGA: Backed NEG01 to NEG02 for %s records.",
+               Card_Struct[CardType] );
+   }
+   else 
+   {
+      memcpy( ResultMsg, Buffer, 99 );
+      ret_val = 0;
+   }
+   return( ret_val );
+}
+
+/*************************************************************************************
+       NAME:           main
+
+       DESCRIPTION:    This module is the entry point for the application.
+                       
+       INPUTS:         argv[1] is the name of the ascii file which would get parsed.
+			   None.
+       OUTPUTS:
+            None.       
+       RETURNS:        
+		      None.                       
+                               
+      AUTHOR:         Faramarz Arad 
+      MODIFIED BY:    None.
+*************************************************************************************/
+void main( int argc, char *argv[] )
+{
+#define BUF_SIZE  300
+
+   CHAR  dataRecord[RECORD_LENGTH + 10];
+   CHAR  tempMsg[MSG_SIZE+1] = {0};
+   CHAR  Ora_Err[BUF_SIZE] = {0};
+   CHAR  Log_Msg[BUF_SIZE];
+   NEG01 neg01;
+   INT   EndProcessImport = 0;
+   BYTE  ret=0;
+
+
+   if ( argc != 2 )
+   {
+      printf("\nNEGA requires one parameter, the filename.\n" );
+      printf("nega <filename>\n");
+      printf("Example: nega nega.txt\n \n \n \n");
+   }
+   else if ( 0 == strcmp(argv[1], "?") )
+   {
+      printf("\nnega <filename>\n");
+      printf("Example: nega nega.txt\n \n \n \n");
+   }
+   else
+   {
+      initialize();  
+      sprintf( tempMsg,
+              "Ascendent Negative Processor was started, version %s", Version );
+      log_message( tempMsg, INFO_MSG );
+
+      /* Try to connect to the database */
+      memset( tempMsg, 0x00, sizeof(tempMsg) );
+      if (PTEMSG_OK != dbcommon_connect ("equitable", "equitable", "equitable",
+                                         "ORCL", tempMsg) )
+      {
+         prepare_for_shutdown( tempMsg );
+      }
+      else
+      {
+         Connected = YES;
+         strcpy( tempMsg, "Connected to ORACLE" );
+         log_message( tempMsg, INFO_MSG );
+
+         /* Open the Import file. */
+         strcpy( infile, argv[1] );
+         if ( NULL == (fptr = fopen(infile,"r")) )
+         {
+            sprintf( tempMsg, "Unable to open import file: %s", infile );
+            prepare_for_shutdown( tempMsg );
+         }
+         else
+         {
+            File_Open = YES;
+            sprintf( tempMsg, "Opened import file: %s", infile );
+            log_message( tempMsg, INFO_MSG );
+
+            /* Open the dump file, used for logging problems. */
+            strcpy( dmpfile, "dump.txt" );
+            if ( NULL == (dumpPtr = fopen(dmpfile,"w")) )
+            {
+               sprintf( tempMsg, "Unable to open import file: %s", infile );
+               prepare_for_shutdown( tempMsg );
+            }
+            else
+            {
+               Dump_Open = YES;
+               sprintf( tempMsg, "Opened dump file: %s", dmpfile );
+               log_message( tempMsg, INFO_MSG );
+
+               /*This is the main loop.  Read a record at a time to parse. */
+               while(!EndProcessImport)
+               {
+                  /* Read a record. */
+                  memset (&dataRecord,0,sizeof(dataRecord));
+                  if (NULL == fgets(dataRecord,RECORD_LENGTH+1 ,fptr))
+                  {
+                     /* All Done */
+                     EndProcessImport = 1;
+                     if ( recordCnt > 1 )
+                        Rollback = NO;
+                     prepare_for_shutdown( NULL );
+                  }
+                  else
+                  {
+                     ++recordCnt;
+                     CardType = DetermineCardType( dataRecord );
+                     if ( CardType == INVALID_CARD )
+                     {
+                        memset( tempMsg, 0x00, sizeof(tempMsg) );
+                        memcpy( tempMsg, dataRecord, RECORD_LENGTH-1 );
+                        strcat( tempMsg, "  -->  Unsupported card type!\n" );
+                        fputs(tempMsg,dumpPtr);
+                        //fputs("\n",dumpPtr);
+                     }
+                     else
+                     {
+                        /* Is this the first record of this card type? */
+                        if ( CardStatus[CardType] == INIT )
+                        {
+                           /* Yes.
+                            * Delete from NEG02
+                            * Copy from NEG01 into NEG02
+                            * Delete from NEG01
+                            */
+                           if ( false == backup_cardtype_in_db() )
+                           {
+                              EndProcessImport = 1;
+                              prepare_for_shutdown( NULL );
+                           }
+                           else
+                              CardStatus[CardType] = WORKING;
+                        }
+
+                        if ( CardStatus[CardType] == WORKING )
+                        {
+                           /* Insert record into database. */
+                           neg01 = populateNeg01Table(dataRecord);
+                           ret = db_insert_neg01(&neg01, Ora_Err);
+                           if (PTEMSG_OK == ret)
+                           {
+                              /* Record was successfully inserted.
+                               * Increment the counts.
+                               */
+                              ++recordProcessCnt;
+                              ++CardRecordCounts[CardType];
+                           }
+                           else if ( UNIQUE_CONSTRAINT == ret )
+                           {
+                              /* Log record to dump file. */
+                              memset( Log_Msg, 0x00, BUF_SIZE );
+                              memcpy( Log_Msg, dataRecord, RECORD_LENGTH-1 );
+                              strcat( Log_Msg,
+                                     "  -->  Unique constraint violation.\n" );
+
+                              fputs(Log_Msg,dumpPtr);
+                              memset( Ora_Err, 0x00, BUF_SIZE );
+                           }
+                           else
+                           {
+                              /* A serious error occurred. */
+                              Rollback = YES;
+                              EndProcessImport = 1;
+                              sprintf(tempMsg,
+                                     "Insert failed for card %s",
+                                      neg01.card_nbr );
+                              log_message( tempMsg, WARN_MSG );
+
+                              /* Log the reason for the failure. */
+                              memcpy( tempMsg, Ora_Err, MSG_SIZE );
+
+                              prepare_for_shutdown( tempMsg );
+                           }
+                        }
+                     }
+                  }
+               } /* End of main loop */
+            }
+         }
+      }
+   }
+   exit(0);
+}  //end of main.
+
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+NEG01 populateNeg01Table(char dataRecord[])
+{
+   NEG01 neg01;
+   INT   dummy = 0;
+   CHAR  temp[17]="";
+   INT   size = 0;
+   INT   i;
+
+   memset(&neg01,0,sizeof(NEG01));
+
+   dummy = 0;
+   size = sizeof(neg01.card_nbr)-1 ;
+   strncpy( temp ,dataRecord + dummy, size );
+
+   for(i = 0;i < size;i++)
+   {
+   	if(temp[i] == ' ')
+         break;
+   }
+
+   strncpy( neg01.card_nbr, temp, i );
+
+   dummy = dummy + sizeof(neg01.card_nbr   )-1;
+   strncpy(neg01.card_exten      ,dataRecord + dummy  ,sizeof(neg01.card_exten  )-1 );
+   dummy = dummy + sizeof(neg01.card_exten  )-1;
+   strncpy(neg01.card_status     ,dataRecord + dummy  ,sizeof(neg01.card_status )-1);
+
+   neg01.card_type[0] = Card_Struct[CardType][0];
+
+   return(neg01);
+}
+
+
+
+
+/******************************************************************************
+ *
+ *  NAME:         INITIALIZE
+ *
+ *  DESCRIPTION:  This function sets global variables to their initial values.
+ *
+ *  INPUTS:       None
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       D. Irby
+ *
+ ******************************************************************************/
+void initialize()
+{
+   INT  i;
+
+   for( i=0; i<NUM_CARD_TYPES; i++ )
+   {
+      CardRecordCounts[i] = 0;
+      CardStatus[i]       = INIT;
+   }
+   recordProcessCnt = 0;
+   recordCnt        = 0;
+
+   File_Open = NO;
+   Dump_Open = NO;
+   Connected = NO;
+   Rollback  = NO;
+
+   InitEventLogging();
+
+   return;
+}
+
+
+/******************************************************************************
+ *
+ *  NAME:         PREPARE_FOR_SHUTDOWN
+ *
+ *  DESCRIPTION:  This function prepares the program for exiting.
+ *                If connected to the database, it disconnects.
+ *                It closes files that are open (import and dump files)
+ *                It will rollback the database if necessary.
+ *                It logs an error message that is input into it.
+ *                It logs a summary of record counts
+ *
+ *  INPUTS:       InMsg - Message to be logged to syslog and screen
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       D. Irby
+ *
+ ******************************************************************************/
+void prepare_for_shutdown( pCHAR InMsg )
+{
+   INT   i;
+   BYTE  ret_code;
+   CHAR  errbuf[300];
+   CHAR  ErrorMsg[MSG_SIZE+1] = "";
+
+   /* Log a message if there is one. */
+   if ( InMsg != NULL )
+   {
+      log_message( InMsg, WARN_MSG );
+   }
+
+   /* Rollback database if necessary. */
+   if ( Rollback == YES )
+   {
+      strcpy( ErrorMsg, "Nega: Rolling back all database activity." );
+      log_message( ErrorMsg, WARN_MSG );
+      dbcommon_rollback() ;
+   }
+   else
+      dbcommon_commit();
+
+   /* Disconnect from database. */
+   if ( Connected == YES )
+   {
+      strcpy( ErrorMsg, "Nega: Disconnecting from database." );
+      log_message( ErrorMsg, INFO_MSG );
+
+      memset( errbuf, 0x00, sizeof(errbuf) );
+      ret_code = dbcommon_disconnect( errbuf );
+      if ( ret_code != PTEMSG_OK )
+      {
+         sprintf( ErrorMsg,
+                 "Nega: Unable to disconnect from database. Oracle code = %c",
+                  ret_code );
+         log_message( ErrorMsg, WARN_MSG );
+
+         log_message( errbuf, WARN_MSG );
+      }
+      else
+      {
+         strcpy( ErrorMsg, "Nega: Disconnected from database." );
+         log_message( ErrorMsg, INFO_MSG );
+      }
+   }
+
+   /* Close the import file. */
+   if ( File_Open == YES )
+   {
+      if ( fclose( fptr ) == 0 )
+      {
+         sprintf( ErrorMsg, "Nega: Closed import file %s", infile );
+         log_message( ErrorMsg, INFO_MSG );
+      }
+      else
+      {
+         sprintf( ErrorMsg, "Nega: unable to close import file %s", infile );
+         log_message( ErrorMsg, WARN_MSG );
+      }
+   }
+
+   /* Close the dump file. */
+   if ( Dump_Open == YES )
+   {
+      if ( fclose( dumpPtr ) == 0 )
+      {
+         sprintf( ErrorMsg, "Nega: Closed dump file %s", dmpfile );
+         log_message( ErrorMsg, INFO_MSG );
+      }
+      else
+      {
+         sprintf( ErrorMsg, "Nega: unable to close dump file %s", dmpfile );
+         log_message( ErrorMsg, WARN_MSG );
+      }
+   }
+
+   /* Display the count totals. */
+   if ( Rollback == YES )
+      recordProcessCnt = 0;
+
+   sprintf( ErrorMsg,
+           "\nNega: Records inserted = %ld out of %ld records read from file",
+            recordProcessCnt, recordCnt );
+   log_message( ErrorMsg, INFO_MSG );
+
+   if ( Rollback == NO )
+   {
+      for( i=0; i<NUM_CARD_TYPES; i++ )
+      {
+         if ( CardRecordCounts[i] > 0 )
+         {
+            sprintf( ErrorMsg,
+                    "Nega: Imported %ld %s records.",
+                     CardRecordCounts[i], Card_Struct[i] );
+            log_message( ErrorMsg, INFO_MSG );
+         }
+      }
+   }
+
+   sprintf( ErrorMsg,
+           "\nAscendent Negative Processor complete, version %s",
+            Version );
+   log_message( ErrorMsg, INFO_MSG );
+
+   ShutDownEventLogging();
+
+   return;
+}
+
+/******************************************************************************
+ *
+ *  NAME:         DetermineCardType
+ *
+ *  DESCRIPTION:  This function determines if a card number is either Visa,
+ *                MasterCard, JCB, or Amex.  If it is not a supported card
+ *                number, then the type is invalid.
+ *
+ *  INPUTS:       card_record - Import record containing card number
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   Card Type:  AMEX_CARD, JCB_CARD, MC_CARD, VISA_CARD,
+ *                            or INVALID_CARD
+ *
+ *  AUTHOR:       D. Irby
+ *
+ ******************************************************************************/
+INT DetermineCardType( pCHAR card_record )
+{
+   INT  card_type;
+
+   /* Determine card type based on first or second digit of card number. */
+   if ( card_record[0] == '4' )
+      card_type = VISA_CARD;
+
+   else if ( card_record[0] == '5' )
+      card_type = MC_CARD;
+
+   else if ( 0 == strncmp(card_record, "35", 2) )
+      card_type = JCB_CARD;
+
+   else if ( 0 == strncmp(card_record, "37", 2) )
+      card_type = AMEX_CARD;
+
+   else
+      card_type = INVALID_CARD;
+
+   return( card_type );
+}
+
+
+/******************************************************************************
+ *
+ *  NAME:         BACKUP_CARDTYPE_IN_DB
+ *
+ *  DESCRIPTION:  This function does the following for a single card type:
+ *                1.  Deletes all records (of type) in NEG02
+ *                2.  Copies all records (of type) from NEG01 into NEG02
+ *                3.  Deletes all records (of type) in NEG01
+ *
+ *  INPUTS:       CardType - (Global) Type of card, e.g. VISA or MC
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   True if successful, else false
+ *
+ *  AUTHOR:       D. Irby
+ *
+ ******************************************************************************/
+INT backup_cardtype_in_db()
+{
+   INT  ret_val = true;
+   CHAR status_msg[MSG_SIZE+1]="";
+
+   /* Delete records of type CardType from NEG02. */
+   sprintf( status_msg, "NEGA: Deleting %s records from NEG02 . . .",
+            Card_Struct[CardType] );
+   log_message( status_msg, INFO_MSG );
+   if ( !delete_record_from_neg02(status_msg) )
+   {
+      Rollback = YES;
+      ret_val  = false;
+      log_message( status_msg, WARN_MSG );
+
+      sprintf( status_msg,
+              "NEGA: Unable to delete %s records from NEG02.",
+               Card_Struct[CardType] );
+      log_message( status_msg, WARN_MSG );
+   }
+   else
+   {
+      /* Log the successful status. */
+      log_message( status_msg, INFO_MSG );
+
+      /* Copy records of type CardType from NEG01 into NEG02. */
+      sprintf( status_msg,
+              "NEGA: Copying %s records from NEG01 into NEG02 . . .",
+               Card_Struct[CardType] );
+      log_message( status_msg, INFO_MSG );
+
+      memset( status_msg, 0x00, MSG_SIZE );
+      if ( !copy_neg01_neg02(status_msg) )
+      {
+         Rollback = YES;
+         ret_val  = false;
+         log_message( status_msg, WARN_MSG );
+
+         sprintf( status_msg,
+                 "NEGA: Unable to copy %s records from NEG01 into NEG02.",
+                  Card_Struct[CardType] );
+         log_message( status_msg, WARN_MSG );
+      }
+      else
+      {
+         /* Log the successful status. */
+         log_message( status_msg, INFO_MSG );
+
+         /* Delete records of type CardType from NEG01. */
+         sprintf( status_msg,
+                 "NEGA: Deleting %s records from NEG01 . . .",
+                  Card_Struct[CardType] );
+         log_message( status_msg, INFO_MSG );
+
+         memset( status_msg, 0x00, MSG_SIZE );
+         if ( !delete_record_from_neg01(status_msg) )
+         {
+            Rollback = YES;
+            ret_val  = false;
+            log_message( status_msg, WARN_MSG );
+
+            sprintf( status_msg,
+                    "NEGA: Unable to delete %s records from NEG01.",
+                     Card_Struct[CardType] );
+            log_message( status_msg, WARN_MSG );
+         }
+         else
+         {
+            /* Log the successful status. */
+            log_message( status_msg, INFO_MSG );
+         }
+      }
+   }
+   return( ret_val );
+}
+
+
+/******************************************************************************
+ *
+ *  NAME:         LOG_MESSAGE
+ *
+ *  DESCRIPTION:  This function logs a message to the event log, then also
+ *                sends it to standard output.
+ *
+ *  INPUTS:       msg - Message to be logged and displayed
+ *                sev - Severity of the message
+ *
+ *  OUTPUTS:      None
+ *
+ *  RTRN VALUE:   None
+ *
+ *  AUTHOR:       D. Irby
+ *
+ ******************************************************************************/
+void log_message( pCHAR msg, INT sev )
+{
+   INT  len;
+
+   len = strlen( msg );
+   if ( len > MSG_SIZE )
+   {
+      msg[len] = 0x00;
+   }
+
+   if ( msg[0] == '\n' )
+      LogEvent( msg+1, sev );
+   else
+      LogEvent( msg, sev );
+   MYPRINT( msg );
+
+   return;
+}

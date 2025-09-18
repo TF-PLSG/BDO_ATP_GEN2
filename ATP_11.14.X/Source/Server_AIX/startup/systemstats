@@ -1,0 +1,52 @@
+# systemstats - Gather unix system statistics
+# This utility will gather system statistics and log results
+# to systemstatsyymmddHHMM file which can then be viewed with the sar -A
+# command. The use of this utility is logged to systemstats.log at LOGDIR
+# Takes 2 arguments - INTERVAL=sample period in seconds
+# and COUNT=number of samples to take.
+# The process runs in the background, so this utility will return immediately.
+# Release 1.0 - 8/9/02 - JMG
+#
+echo "Usage: systemstats [interval] [count]"
+echo "You must be super user to run this utility."
+echo "Are you super user to continue? \c"
+read ANS
+if [ "Y" = "$ANS" -o "y" = "$ANS" ]
+then
+  echo "*** Gathering system statistics ***" | tee -a systemstats.log
+  echo `date` | tee -a systemstats.log
+else
+  echo "Statistics aborted!"
+  exit 1
+fi
+if [ "" = "$1" ]
+then
+  INTERVAL=10
+  echo "Default interval=10 seconds"
+else
+  INTERVAL=$1
+fi
+if [ "" = "$2" ]
+then
+  COUNT=60
+  echo "Default count=60 samples"
+#  echo "Using default 60 samples."
+else
+  COUNT=$2
+fi
+TIMESTAMP=`date +%y%m%d%H%M`
+FILENAME=systemstats$TIMESTAMP
+sar -A -o $FILENAME $INTERVAL $COUNT > /dev/null &
+SAROK=`ps -ef | grep sar | grep -v grep | wc -l`
+if [ 0 -eq $SAROK ]
+then
+  echo "sar command generated an error!" | tee -a systemstats.log
+  echo "Statistics aborted." | tee -a systemstats.log
+  exit 1
+fi
+echo "System stats will be gathered every $INTERVAL seconds for $COUNT samples." | tee -a systemstats.log
+echo "Statistics saved in $FILENAME (yymmddHHMM)" | tee -a systemstats.log
+PERIOD=`expr \( $INTERVAL \* $COUNT \) \/ 60`
+echo "To view results type \"sar -A -f $FILENAME\" after $PERIOD minutes." \
+                                                    | tee -a systemstats.log
+echo "***********************************" | tee -a systemstats.log

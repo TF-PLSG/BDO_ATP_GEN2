@@ -1,0 +1,183 @@
+#!/usr/bin/ksh
+# 	atpservicerestart	 Stop an ATP service and then restart it
+#                                making sure to get a clean start
+#
+# Name: atpservicerestart
+# Ascendent run-script to stop an ATP service and then restart it
+# Hypercom Corporation
+#
+# Initial release: 7/3/02 V1
+# 7/12/02 JMG - Added logic to start a selected service if it is not running.
+# 10/23/02 JMG - Added 3 second sleep after service starts before we check if
+# it is still running.
+# 12/3/03 JMG - Corrected script logig that generates SXLIST to cut out the
+# second field of each line in startup.ini instead of the first field. This
+# will allow multiple instances of a service to be restarted.
+#
+#  ***** START of user configuration parameters ********
+
+# Set up time to wait for a process to die with a regular "kill" before forcing
+# it to die with a "kill -9"
+WAIT_STOP=5
+
+# Set EB production or HYPERCOM (pollux) environment here
+#ENV=EQUITABLE
+ENV=`uname -n`
+
+#  Set the name of the log file here. Path is computed below.
+LOGFILE=atplog
+
+#  ***** END of user configuration parameters ********
+
+if [ $ENV != "pollux" ]
+then
+  export INSTALLATION_ROOT=/Ascendent
+else
+  export INSTALLATION_ROOT=/prog
+fi
+
+# Compute final path to log file.
+LOGFILE=$INSTALLATION_ROOT/$LOGFILE
+
+# Export Ascendent variables:
+export ASCENDENTROOT=$INSTALLATION_ROOT/ascendent
+export LOGGER_QUENAME=L_AP_S1
+export PATH=$PATH:$ASCENDENTROOT/bin
+
+echo " ****** This utility will shut down and restart an ATP service *******"
+echo "Shutting down an ATP service may adversely affect transaction processing!"
+echo
+echo "Services are normally started as atp user. If you are not atp user then"
+echo "rerun as atp user. If you need to restart a service that was previously"
+echo "started as root user, first stop it as root user and then restart as atp."
+echo
+echo "  The Ascendent root path is $ASCENDENTROOT"
+echo "  The environment is $ENV" 
+echo "  Progressing will be reported to the screen and the log file at:"
+echo "  $LOGFILE"
+echo
+SXLIST="`cut -d: -f2 $ASCENDENTROOT/config/startup.ini`"
+RTN=`echo`
+SXLIST=`echo $SXLIST$RTN`
+echo "ATP list of configured services:"
+echo "$SXLIST"
+echo
+
+while test -z "$SERVICE"
+do
+  echo "Please specify the ATP service name to restart: \c"
+  read ANS
+  for ITEM in [ $SXLIST ]
+    do
+      if [ "$ITEM" = "$ANS" ]
+        then
+          SERVICE=$ITEM
+      fi
+    done
+  if [ -z "$SERVICE" ]
+  then
+    echo "$ANS is not a valid ATP configured service!"
+  else
+    echo
+  fi
+done
+
+echo "Restart $SERVICE service? Are you sure? (Y/N) \c"
+read ANS
+if [ "Y" = "$ANS" -o "y" = "$ANS" ]
+  then
+    echo "`date` atpservicerestart --> Restarting $SERVICE service !" \
+                                                | tee -a $LOGFILE
+  else
+    echo "Restart procedure aborted!"
+    exit
+fi
+
+# Now stop and restart the selected SERVICE
+echo "Current $SERVICE service status is: \c"
+if ps -ef | grep $SERVICE | grep -v grep > /dev/null
+then
+  echo $SERVICE ATP service is running. | tee -a $LOGFILE
+  SXUP="true"
+else
+  echo $SERVICE ATP service is not running. | tee -a $LOGFILE
+  SXUP="false"
+fi
+
+if [ "true" = "$SXUP" ]
+then
+# Start of shutdown process
+
+echo
+echo "Shutting down an ATP service may adversely affect transaction processing!"
+echo "Are you sure you want to stop and restart the $SERVICE service? \c"
+read ANSWER
+if [ "Y" = $ANSWER -o "y" = $ANSWER ]
+then
+  echo "`date` atpservicerestart-Restarting $SERVICE service!" \
+                                                 | tee -a $LOGFILE
+else
+  echo "`date` atpservicerestart-Restart procedure aborted on $SERVICE!" \
+                                                 | tee -a $LOGFILE
+  exit
+fi
+
+# Now stop SERVICE
+#   Kill SERVICE and then wait for SERVICE service to stop.
+#   If it does not stop within WAIT_STOP seconds
+#   then force it to die and continue when it does
+if ps -ef | fgrep $SERVICE | fgrep -v grep > /dev/null
+  then
+    PID=`ps -ef | fgrep $SERVICE | fgrep -v grep \
+         | awk '{ while( sub(/^[ ]/,"") );while (gsub(/[ ]{2,}/," ",$0));\
+         ;split($0,a,/[ ]/); print a[2] }'`
+    echo "--->Stopping process $SERVICE=$PID" | tee -a $LOGFILE
+    kill $PID
+    echo "Waiting for ATP process $SERVICE=$PID to stop\c" | tee -a $LOGFILE
+    sleep 1
+    DELAY=$WAIT_STOP
+    while ps -ef | fgrep $PID | fgrep -v fgrep > /dev/null
+      do
+        if [ $DELAY -gt 0 ]
+          then
+            echo ".\c" | tee -a $LOGFILE
+            DELAY=`expr $DELAY - 1`
+            sleep 1
+          else
+            echo | tee -a $LOGFILE
+            echo ATP process $SERVICE did not stop. | tee -a $LOGFILE
+            echo "Killing process $SERVICE=$PID" | tee -a $LOGFILE
+            kill -9 $PID >> $LOGFILE
+            DELAY=$WAIT_STOP
+            echo "Waiting for process $SERVICE=$PID to die \c" | tee -a $LOGFILE
+            sleep 1
+        fi
+      done
+    echo | tee -a $LOGFILE
+    echo "---> ATP process $SERVICE=$PID is stopped" | tee -a $LOGFILE
+  else
+    echo "ATP process $SERVICE is not running" | tee -a $LOGFILE
+fi
+
+echo "`date` atpservicerestart ---> $SERVICE service is down!" \
+                                                      | tee -a $LOGFILE
+# End of shutdown process
+fi
+
+# Now start SERVICE cleanly
+echo "Starting $SERVICE service" | tee -a $LOGFILE
+nohup $ASCENDENTROOT/bin/$SERVICE > $ASCENDENTROOT/bin/$SERVICE.out &
+until ps -ef | fgrep $SERVICE | fgrep -v grep > /dev/null
+   do
+     sleep 1
+   done
+# Wait to see if it will keep running
+sleep 3
+if ps -ef | grep $SERVICE | grep -v grep > /dev/null
+then
+  echo "`date` atpservicerestart ---> $SERVICE service is up!" \
+                                                | tee -a $LOGFILE
+else
+  echo "`date` atpservicerestart ---> $SERVICE IS NOT UP - retry!" \
+                                                | tee -a $LOGFILE
+fi

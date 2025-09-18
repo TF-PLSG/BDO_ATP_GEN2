@@ -1,0 +1,51 @@
+# qcheckloop
+# USAGE: qcheckloop <msglimit>
+# Calls qcheck program in a continuous loop until any queue
+# exceeds a configured message limit
+# Single argument is message limit and polling interval is set to 10 seconds
+# Modifications:
+#     11/14/2002 JMG: V2 - Added logic to check loop timing for correctness and
+#                     log an error if timing is incorrect
+#     11/15/2002 JMG: V3 - Fixed bug on line 28
+#
+MSGLIMIT=$1
+INTERVAL=10
+echo `date` | tee -a qcheck.log
+echo "qcheckloop monitoring for msglimit=$1 every $INTERVAL seconds" | \
+                                                            tee -a qcheck.log
+################################################################
+# Do following loop until program terminated manually
+FIRST_PASS="true"
+while [ 1 -eq 1 ]
+do
+  if [ $FIRST_PASS != "true" ]
+    then
+      NOW=`date +"%S"`
+#echo NOW=$NOW >> qcheck.log
+      TIME_DIFF=`expr $NOW  - $NEXT_START`
+#echo TIME_DIFF=$TIME_DIFF >> qcheck.log
+      if [ $TIME_DIFF -lt 0 ]
+        then
+        TIME_DIFF=`expr 0 - $TIME_DIFF`
+      fi
+      if [ $TIME_DIFF -gt 1 ]
+        then
+          echo Interval timing error of $TIME_DIFF seconds at `date` \
+                                                                 >> qcheck.log
+          echo NOW=$NOW, NEXT_START=$NEXT_START \
+                                                                 >> qcheck.log
+      fi
+  fi
+  FIRST_PASS="false"
+  $ASCENDENTROOT/bin/qcheck > qdata
+  cat qdata | nawk -v msglim=$MSGLIMIT ' \
+   BEGIN { idx=0; FS=/[:space:]/; getline; } \
+   { msgcount[idx]=$1; qname[idx++]=$2; } \
+   END { --idx; while (msgcount[--idx]) { if (msgcount[idx] > msglim) \
+          { system("date >> qcheck.log; cat qdata >> qcheck.log; cat qdata"); exit; } } }'
+  END_SECONDS=`date +"%S"`
+  NEXT_START=`expr $END_SECONDS + $INTERVAL`
+  NEXT_START=`expr $NEXT_START % 60`
+#echo NEXT_START=$NEXT_START >> qcheck.log
+  sleep $INTERVAL
+done

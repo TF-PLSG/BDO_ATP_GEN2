@@ -1,0 +1,1249 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#ifdef WIN32
+   #include <sqlproto.h>
+#endif
+
+#include <math.h>
+#include <time.h>
+#include <sys/timeb.h>
+#include <ctype.h>
+
+#include "basictyp.h"
+#include "pte.h"
+#include "pteipc.h"
+#include "ptemsg.h"
+#include "ptetimer.h"
+#include "app_info.h"
+#include "equitdb.h"
+#include "dc_dbstruct.h"
+#include "dc_database.h"
+#include "nc_dbstruct.h"
+#include "tx_dbstruct.h"
+#include "dbcommon.h"
+#include "txutils.h"
+#include "ptetime.h"
+#include "timings.h"
+#include "ntutils.h"
+#include "memmnger.h"
+
+/* Function prototypes */
+extern void format_date(pCHAR temp);
+void genutil_bin_to_ascii (BYTE bstring[], INT blen, pCHAR astr, INT astr_len);
+
+/* For DB statics added by raghu */
+extern BYTE DB_MsgSubtype2 ;
+extern BYTE DB_MsgSubtype1 ;
+char DB_Tmr_Lgng_Buf[512];
+double start_time;
+double end_time  ;
+double duration  ; 
+extern INT db_error_statics_flag;
+extern double db_error_statics_value;
+char er_buf[512];
+BYTE DB_rcode;
+extern CHAR  DB_Logging_Filename[256];
+extern CHAR  DB_module_file_name[256];
+extern CHAR  DB_file_path[256];
+extern CHAR  app_name   [MAX_APP_NAME_SIZE];
+
+/* End   */
+
+/* Oracle error codes */
+#define NULL_COLUMN_DATA                -1405
+#define NO_DATA_FOUND                   1403
+#define NOT_CONNECTED_TO_DB             -3114
+#define NOT_LOGGED_INTO_DB              -1012
+#define TNS_PACKET_WRITER_FAILED        -12571
+#define SHUTDOWN_OR_STARTUP_IN_PROGRESS -1033
+#define VIEW_ERRORS  			-4063
+#define UNIQUE_CONSTRAINT    5
+#define PROFILE_ID_SIZE 8
+extern  INT CashBonusWinner;
+
+#ifdef _DEBUG
+   #define PRINT( X ) printf( X )
+#else
+   #define PRINT( X )
+#endif
+
+extern CHAR app_name[];
+SQL01  Sql01;
+INT    rtnval;
+
+EXEC SQL INCLUDE sqlca;
+
+typedef struct
+{
+   WORD len;
+   BYTE pin_data[100];
+}RAWPINDATA;
+
+typedef struct
+{
+   WORD len;
+   BYTE pin_data[300];
+
+}RAWEMVDATA;
+
+/* Database Timing Measurements */
+extern TIMINGS_LIST  TimingStats;
+extern INT           DB_Timing_Flag; /* True = Do DB Timing Stats, False = don't do */
+
+
+EXEC SQL BEGIN DECLARE SECTION;
+
+   /* error code variable */
+   long    SQLCODE;
+   long    SQL_CODE;
+
+
+EXEC SQL TYPE RAWPINDATA is VARRAW(5000);
+EXEC SQL TYPE RAWEMVDATA is VARRAW(5000);
+/*********/
+/* CAF01 */
+/*********/
+struct
+   {
+      char  caf_profile_id                            [5];
+      char  type                                      [2];
+      char  authorization_location                    [2];
+      char  authorization_method                      [2];
+      char  destination_name                          [11];
+      char  iso_nbr                                   [10];
+      char  iso_length                                [2];
+      char  aba_nbr                                   [9];
+      char  name                                      [31];
+      char  contact                                   [21];
+      char  phone                                     [18];
+      char  date_added                                [9];
+      char  last_maint                                [9];
+      char  changed_by                                [21];
+      char  status                                    [3];
+      char  max_pin_retries                           [2];
+      char  pin_capture_ind                           [2];
+      char  track_offset                              [3];
+      char  pin_offset_location                       [2];
+      char  nsp_process                               [16];
+      char  expiration_date_check                     [2];
+      char  expiration_date_location                  [2];
+      char  merchant_same                             [3];
+      char  day_period1                               [3];
+      char  velocity1_nbr_usage_1                     [4];
+      char  velocity1_nbr_usage_2                     [4];
+      char  velocity1_amt_usage_1                     [13];
+      char  velocity1_amt_usage_2                     [13];
+      char  day_period2                               [3];
+      char  velocity2_nbr_usage_1                     [4];
+      char  velocity2_nbr_usage_2                     [4];
+      char  velocity2_amt_usage_1                     [13];
+      char  velocity2_amt_usage_2                     [13];
+      char  day_period3                               [3];
+      char  velocity3_nbr_usage_1                     [4];
+      char  velocity3_nbr_usage_2                     [4];
+      char  velocity3_amt_usage_1                     [13];
+      char  velocity3_amt_usage_2                     [13];
+      char  pin_verification_method                   [2]; 
+      char  pin                                       [100];
+      char  cvv_processing                            [2] ;
+      char  cvkA_1                                    [17] ;
+      char  cvkB_1                                    [17] ;
+      char  cvkA_2                                    [17] ;
+      char  cvkB_2                                    [17] ;
+      char  cvkA_3                                    [17] ;
+      char  cvkB_3                                    [17] ;
+      char  cvkA_4                                    [17] ;
+      char  cvkB_4                                    [17] ;
+      char  cvkA_5                                    [17] ;
+      char  cvkB_5                                    [17] ;
+      char  cvkA_6                                    [17] ;
+      char  cvkB_6                                    [17] ;
+      char  service_code_offset_tr1                   [3] ;
+      char  service_code_offset_tr2                   [3] ; 
+      char  cvv_offset_tr1                            [3] ;
+      char  cvv_offset_tr2                            [3] ;
+      char  cvv_length                                [3] ;
+      char  csck                                      [33] ;
+      char  floor_limit                               [13] ;
+	  char  country_limits_flag                       [2]; 
+   }pte_caf01;
+   
+   struct
+   {
+      varchar  caf_profile_id                            [5];
+      varchar  type                                      [2];
+      varchar  authorization_location                    [2];
+      varchar  authorization_method                      [2];
+      varchar  destination_name                          [11];
+      varchar  iso_nbr                                   [10];
+      varchar  iso_length                                [2];
+      varchar  aba_nbr                                   [9];
+      varchar  name                                      [31];
+      varchar  contact                                   [21];
+      varchar  phone                                     [18];
+      varchar  date_added                                [9];
+      varchar  last_maint                                [9];
+      varchar  changed_by                                [21];
+      varchar  status                                    [3];
+      varchar  max_pin_retries                           [2];
+      varchar  pin_capture_ind                           [2];
+      varchar  track_offset                              [3];
+      varchar  pin_offset_location                       [2];
+      varchar  nsp_process	                             [16];
+      varchar  expiration_date_check                     [2];
+      varchar  expiration_date_location                  [2];
+      varchar  merchant_same                             [3];
+      varchar  day_period1                               [3];
+      varchar  velocity1_nbr_usage_1                     [4];
+      varchar  velocity1_nbr_usage_2                     [4];
+      varchar  velocity1_amt_usage_1                     [13];
+      varchar  velocity1_amt_usage_2                     [13];
+      varchar  day_period2                               [3];
+      varchar  velocity2_nbr_usage_1                     [4];
+      varchar  velocity2_nbr_usage_2                     [4];
+      varchar  velocity2_amt_usage_1                     [13];
+      varchar  velocity2_amt_usage_2                     [13];
+      varchar  day_period3                               [3];
+      varchar  velocity3_nbr_usage_1                     [4];
+      varchar  velocity3_nbr_usage_2                     [4];
+      varchar  velocity3_amt_usage_1                     [13];
+      varchar  velocity3_amt_usage_2                     [13];
+      varchar  pin_verification_method                   [2];  
+      RAWPINDATA  pin                                    ;
+      varchar	cvv_processing                           [2] ;
+      varchar	cvkA_1                                   [17] ;
+      varchar	cvkB_1                                   [17] ;
+      varchar	cvkA_2                                   [17] ;
+      varchar	cvkB_2                                   [17] ;
+      varchar	cvkA_3                                   [17] ;
+      varchar	cvkB_3                                   [17] ;
+      varchar	cvkA_4                                   [17] ;
+      varchar	cvkB_4                                   [17] ;
+      varchar	cvkA_5                                   [17] ;
+      varchar	cvkB_5                                   [17] ;
+      varchar	cvkA_6                                   [17] ;
+      varchar	cvkB_6                                   [17] ;
+      varchar	service_code_offset_tr1                  [3] ;
+      varchar	service_code_offset_tr2                  [3] ; 
+      varchar	cvv_offset_tr1                           [3] ;
+      varchar	cvv_offset_tr2                           [3] ;
+      varchar	cvv_length                               [3] ;
+      varchar   csck                                     [33] ;
+      varchar	floor_limit                              [13] ;
+	  varchar   country_limits_flag						 [2];
+   }db_caf01;
+
+ struct
+ {
+   char network_id                                 [11];
+   char network_type                               [2];
+
+   char  name                                      [30];
+   char  status                                    [2];
+   char  totals_ind                                [2];
+   char  statistics_ind                            [2];
+   char  acquirer_inst_id_code                     [12];
+   char  forwarding_inst_id_code                   [12];
+   char  receiving_inst_id_code                    [12];
+   char  remote_nsp_type                           [2];
+   char  pin_type                                  [2];
+   char  encr_type                                 [2];
+   char  pad_char                                  [2];
+   char  cwk                                       [49];
+   char  kek                                       [17];
+   char  retired_cwk                               [49];
+   char  auto_logon                                [2];
+   char  echo_interval                             [4];
+   char  max_consecutive_timeouts                  [4];
+   char  max_active_txns                           [4];
+   char  que_name                                  [12];
+   char  local_nsp_type                            [8];
+   char  request_timer                             [4];
+   char  idle_line_timer                           [4];
+   char  advice_repeat_counter                     [3];
+   char  admin_message_timer                       [4];
+   char  store_forward_processing                  [2];
+   char  currency_code_purchase                    [4];
+   char  currency_code_cash                        [4];
+   char  country_code                              [4];
+   char  station_id1                               [7];
+   char  station_id2                               [7];
+   char  prev_src_station                          [7];
+   char  tpdu_id                                   [16];
+   
+   char  identifier1                               [7];
+   char  identifier2                               [7];
+   char  identifier3                               [7];
+   char  identifier4                               [7];
+   char  identifier5                               [7];
+   char  identifier6                               [7];
+   char  identifier7                               [7];
+   char  identifier8                               [7];
+   char  identifier9                               [7];
+   char  identifier10                              [7];
+   
+   char  processing_code1                          [7];
+   char  processing_code2                          [7];
+   char  processing_code3                          [7];
+   char  processing_code4                          [7];
+   char  processing_code5                          [7];
+   char  processing_code6                          [7];
+   char  processing_code7                          [7];
+   char  processing_code8                          [7];
+   char  processing_code9                          [7];
+   char  processing_code10                         [7];
+   char  processing_code11                         [7];
+   char  processing_code12                         [7];
+   char  processing_code13                         [7];
+   char  processing_code14                         [7];
+   char  processing_code15                         [7];
+   char  processing_code16                         [7];
+   char  processing_code17                         [7];
+   char  processing_code18                         [7];
+   char  processing_code19                         [7];
+   char  processing_code20                         [7];
+   char  zmk                                       [49];
+   char  neg_access_code                           [7];
+      
+} pte_ncf01;
+
+struct
+ {
+   varchar network_id                              [11];
+   varchar network_type                            [2];
+
+   varchar  name                                   [30];
+   varchar  status                                 [2];
+   varchar  totals_ind                             [2];
+   varchar  statistics_ind                         [2];
+   varchar  acquirer_inst_id_code                  [12];
+   varchar  forwarding_inst_id_code                [12];
+   varchar  receiving_inst_id_code                 [12];
+   varchar  remote_nsp_type                        [2];
+   varchar  pin_type                               [2];
+   varchar  encr_type                              [2];
+   varchar  pad_char                               [2];
+   varchar  cwk                                    [49];
+   varchar  kek                                    [17];
+   varchar  retired_cwk                            [49];
+   varchar  auto_logon                             [2];
+   varchar  echo_interval                          [4];
+   varchar  max_consecutive_timeouts               [4];
+   varchar  max_active_txns                        [4];
+   varchar  que_name                               [12];
+   varchar  local_nsp_type                         [8];
+   varchar  request_timer                          [4];
+   varchar  idle_line_timer                        [4];
+   varchar  advice_repeat_counter                  [3];
+   varchar  admin_message_timer                    [4];
+   varchar  store_forward_processing               [2];
+   varchar  currency_code_purchase                 [4];
+   varchar  currency_code_cash                     [4];
+   varchar  country_code                           [4];
+   varchar  station_id1                            [7];
+   varchar  station_id2                            [7];
+   varchar  prev_src_station                       [7];
+   varchar  tpdu_id                                [16];
+   
+   varchar  identifier1                            [7];
+   varchar  identifier2                            [7];
+   varchar  identifier3                            [7];
+   varchar  identifier4                            [7];
+   varchar  identifier5                            [7];
+   varchar  identifier6                            [7];
+   varchar  identifier7                            [7];
+   varchar  identifier8                            [7];
+   varchar  identifier9                            [7];
+   varchar  identifier10                           [7];
+   
+   varchar  processing_code1                       [7];
+   varchar  processing_code2                       [7];
+   varchar  processing_code3                       [7];
+   varchar  processing_code4                       [7];
+   varchar  processing_code5                       [7];
+   varchar  processing_code6                       [7];
+   varchar  processing_code7                       [7];
+   varchar  processing_code8                       [7];
+   varchar  processing_code9                       [7];
+   varchar  processing_code10                      [7];
+   varchar  processing_code11                      [7];
+   varchar  processing_code12                      [7];
+   varchar  processing_code13                      [7];
+   varchar  processing_code14                      [7];
+   varchar  processing_code15                      [7];
+   varchar  processing_code16                      [7];
+   varchar  processing_code17                      [7];
+   varchar  processing_code18                      [7];
+   varchar  processing_code19                      [7];
+   varchar  processing_code20                      [7];
+   varchar  zmk                                    [49];
+   varchar  neg_access_code                        [7];
+
+} db_ncf01;
+struct
+{
+   char  caf_profile_id                            [5];
+   char  type                                      [2];
+   char  cvk_mag_keyblock                          [129];
+   char  cvk_acq_3ds_keyblock                      [129];
+   char  cvk_pin_verification                      [129];
+   char  cvk_mkac_keyblock                         [129];
+   char  csck_iss_3ds_keyblock                     [129];
+   char  csck_mag_keyblock                         [129];
+   char  dci_3ds_keyblock                          [129];
+   char  cvk_3ds_cak_keyblock                      [129];
+   char  future_field_1                            [129];
+   char  future_field_2                            [129];
+   char  future_field_3                            [129];
+   char  future_field_4                            [129];
+   char  future_field_5                            [129];
+
+}pte_caf01_keyblock;
+struct
+{
+   varchar  caf_profile_id                            [4];
+   varchar  type                                      [1];
+   varchar  cvk_mag_keyblock                          [128];
+   varchar  cvk_acq_3ds_keyblock                      [128];
+   varchar  cvk_pin_verification                      [128];
+   varchar  cvk_mkac_keyblock                         [128];
+   varchar  csck_iss_3ds_keyblock                     [128];
+   varchar  csck_mag_keyblock                         [128];
+   varchar  dci_3ds_keyblock                          [128];
+   varchar  cvk_3ds_cak_keyblock                      [128];
+   varchar  future_field_1                            [128];
+   varchar  future_field_2                            [128];
+   varchar  future_field_3                            [128];
+   varchar  future_field_4                            [128];
+   varchar  future_field_5                            [128];
+}db_caf01_keyblock;
+struct
+{
+	char 	network_id            [11];
+	char 	iss_cwk_keyblock	  [129];
+	char 	iss_zmk_keyblock      [129];
+	char 	iss_rtdcwk_keyblock   [129];
+	char 	iss_kek_keyblock      [129];
+	char 	acq_cwk_keyblock	  [129];
+	char 	acq_zmk_keyblock      [129];
+	char 	acq_kek_keyblock      [129];
+	char 	iss_prev_src_station  [129];
+	char 	future_field1		  [129];
+	char 	future_field2		  [129];
+	char 	future_field3		  [129];
+	char 	future_field4		  [129];
+	char 	future_field5		  [129];
+
+}pte_ncf01_keyblock;
+
+ struct
+{
+	varchar 	network_id            	[10];
+	varchar 	iss_cwk_keyblock	 	[128];
+	varchar 	iss_zmk_keyblock       	[128];
+	varchar 	iss_rtdcwk_keyblock    	[128];
+	varchar 	iss_kek_keyblock       	[128];
+	varchar 	acq_cwk_keyblock	 	[128];
+	varchar 	acq_zmk_keyblock       	[128];
+	varchar 	acq_kek_keyblock       	[128];
+	varchar 	iss_prev_src_station 	[128];
+	varchar 	future_field1			[128];
+	varchar 	future_field2			[128];
+	varchar 	future_field3			[128];
+	varchar 	future_field4			[128];
+	varchar 	future_field5			[128];
+
+}db_ncf01_keyblock;
+EXEC SQL END DECLARE SECTION;
+/*************************************************************************************/
+/*************************************************************************************/
+void caf01_to_db( pCAF01 caf01_ptr )
+{
+   memcpy (&pte_caf01, caf01_ptr, sizeof(pte_caf01));
+}
+
+void db_to_caf01 ( pCAF01 caf01_ptr )
+{
+   memset(caf01_ptr, 0, sizeof(CAF01));
+
+   memcpy(caf01_ptr->primary_key.caf_profile_id, db_caf01.caf_profile_id.arr, db_caf01.caf_profile_id.len);
+   printf("\nProfile ID:%s\n",caf01_ptr->primary_key.caf_profile_id);
+   memcpy(caf01_ptr->primary_key.type, db_caf01.type.arr, db_caf01.type.len);
+   //printf("key.type:%s\n",caf01_ptr->primary_key.type);
+   memcpy(caf01_ptr->authorization_location, db_caf01.authorization_location.arr, db_caf01.authorization_location.len);
+   memcpy(caf01_ptr->authorization_method, db_caf01.authorization_method.arr, db_caf01.authorization_method.len);
+   memcpy(caf01_ptr->destination_name, db_caf01.destination_name.arr, db_caf01.destination_name.len);
+   memcpy(caf01_ptr->iso_nbr, db_caf01.iso_nbr.arr, db_caf01.iso_nbr.len);
+   memcpy(caf01_ptr->iso_length, db_caf01.iso_length.arr, db_caf01.iso_length.len);
+   memcpy(caf01_ptr->aba_nbr, db_caf01.aba_nbr.arr, db_caf01.aba_nbr.len);
+   memcpy(caf01_ptr->name, db_caf01.name.arr, db_caf01.name.len);
+   memcpy(caf01_ptr->contact, db_caf01.contact.arr, db_caf01.contact.len);
+   memcpy(caf01_ptr->phone, db_caf01.phone.arr, db_caf01.phone.len);
+   memcpy(caf01_ptr->date_added, db_caf01.date_added.arr, db_caf01.date_added.len);
+   memcpy(caf01_ptr->last_maint, db_caf01.last_maint.arr, db_caf01.last_maint.len);
+   memcpy(caf01_ptr->changed_by, db_caf01.changed_by.arr, db_caf01.changed_by.len);
+   memcpy(caf01_ptr->status, db_caf01.status.arr, db_caf01.status.len);
+   memcpy(caf01_ptr->max_pin_retries, db_caf01.max_pin_retries.arr, db_caf01.max_pin_retries.len);
+   memcpy(caf01_ptr->pin_capture_ind, db_caf01.pin_capture_ind.arr, db_caf01.pin_capture_ind.len);
+   memcpy(caf01_ptr->track_offset, db_caf01.track_offset.arr, db_caf01.track_offset.len);
+   memcpy(caf01_ptr->pin_offset_location, db_caf01.pin_offset_location.arr, db_caf01.pin_offset_location.len);
+   memcpy(caf01_ptr->nsp_process, db_caf01.nsp_process.arr, db_caf01.nsp_process.len);
+   memcpy(caf01_ptr->expiration_date_check, db_caf01.expiration_date_check.arr, db_caf01.expiration_date_check.len);
+   memcpy(caf01_ptr->expiration_date_location, db_caf01.expiration_date_location.arr, db_caf01.expiration_date_location.len);
+   memcpy(caf01_ptr->merchant_same, db_caf01.merchant_same.arr, db_caf01.merchant_same.len);
+   memcpy(caf01_ptr->velocity[0].day_period, db_caf01.day_period1.arr, db_caf01.day_period1.len);
+   memcpy(caf01_ptr->velocity[0].nbr_usage[0], db_caf01.velocity1_nbr_usage_1.arr, db_caf01.velocity1_nbr_usage_1.len);
+   memcpy(caf01_ptr->velocity[0].nbr_usage[1], db_caf01.velocity1_nbr_usage_2.arr, db_caf01.velocity1_nbr_usage_2.len);
+   memcpy(caf01_ptr->velocity[0].amt_usage[0], db_caf01.velocity1_amt_usage_1.arr, db_caf01.velocity1_amt_usage_1.len);
+   memcpy(caf01_ptr->velocity[0].amt_usage[1], db_caf01.velocity1_amt_usage_2.arr, db_caf01.velocity1_amt_usage_2.len);
+   memcpy(caf01_ptr->velocity[1].day_period, db_caf01.day_period2.arr, db_caf01.day_period2.len);
+   memcpy(caf01_ptr->velocity[1].nbr_usage[0], db_caf01.velocity2_nbr_usage_1.arr, db_caf01.velocity2_nbr_usage_1.len);
+   memcpy(caf01_ptr->velocity[1].nbr_usage[1], db_caf01.velocity2_nbr_usage_2.arr, db_caf01.velocity2_nbr_usage_2.len);
+   memcpy(caf01_ptr->velocity[1].amt_usage[0], db_caf01.velocity2_amt_usage_1.arr, db_caf01.velocity2_amt_usage_1.len);
+   memcpy(caf01_ptr->velocity[1].amt_usage[1], db_caf01.velocity2_amt_usage_2.arr, db_caf01.velocity2_amt_usage_2.len);
+   memcpy(caf01_ptr->velocity[2].day_period, db_caf01.day_period3.arr, db_caf01.day_period3.len);
+   memcpy(caf01_ptr->velocity[2].nbr_usage[0], db_caf01.velocity3_nbr_usage_1.arr, db_caf01.velocity3_nbr_usage_1.len);
+   memcpy(caf01_ptr->velocity[2].nbr_usage[1], db_caf01.velocity3_nbr_usage_2.arr, db_caf01.velocity3_nbr_usage_2.len);
+   memcpy(caf01_ptr->velocity[2].amt_usage[0], db_caf01.velocity3_amt_usage_1.arr, db_caf01.velocity3_amt_usage_1.len);
+   memcpy(caf01_ptr->velocity[2].amt_usage[1], db_caf01.velocity3_amt_usage_2.arr, db_caf01.velocity3_amt_usage_2.len);
+   memcpy(caf01_ptr->pin_verification_method, db_caf01.pin_verification_method.arr, db_caf01.pin_verification_method.len);
+   memcpy(&caf01_ptr->pin, db_caf01.pin.pin_data, db_caf01.pin.len);
+   memcpy(&caf01_ptr->cvk[0].cvkA			, db_caf01.cvkA_1.arr						, db_caf01.cvkA_1						.len);
+   //printf("cvkA_1-%s:\n",caf01_ptr->cvk[0].cvkA);
+   memcpy(&caf01_ptr->cvk[0].cvkB			, db_caf01.cvkB_1.arr						, db_caf01.cvkB_1						.len);
+   //printf("cvkB_1-%s:\n",caf01_ptr->cvk[0].cvkB);
+   memcpy(&caf01_ptr->cvk[1].cvkA			, db_caf01.cvkA_2.arr						, db_caf01.cvkA_2						.len);
+   memcpy(&caf01_ptr->cvk[1].cvkB			, db_caf01.cvkB_2.arr						, db_caf01.cvkB_2						.len);
+   memcpy(&caf01_ptr->cvk[2].cvkA			, db_caf01.cvkA_3.arr						, db_caf01.cvkA_3						.len);
+   memcpy(&caf01_ptr->cvk[2].cvkB			, db_caf01.cvkB_3.arr						, db_caf01.cvkB_3						.len);
+   memcpy(&caf01_ptr->cvk[3].cvkA			, db_caf01.cvkA_4.arr						, db_caf01.cvkA_4						.len);
+   memcpy(&caf01_ptr->cvk[3].cvkB			, db_caf01.cvkB_4.arr						, db_caf01.cvkB_4						.len);
+   memcpy(&caf01_ptr->cvk[4].cvkA			, db_caf01.cvkA_5.arr						, db_caf01.cvkA_5						.len);
+   memcpy(&caf01_ptr->cvk[4].cvkB			, db_caf01.cvkB_5.arr						, db_caf01.cvkB_5						.len);
+   memcpy(&caf01_ptr->cvk[5].cvkA			, db_caf01.cvkA_6.arr						, db_caf01.cvkA_6						.len);
+   //printf("CVKA_6-%s:\n",caf01_ptr->cvk[5].cvkA);
+   memcpy(&caf01_ptr->cvk[5].cvkB			, db_caf01.cvkB_6.arr						, db_caf01.cvkB_6						.len);
+   //printf("CVKB_6-%s:\n",caf01_ptr->cvk[5].cvkB);
+   memcpy(&caf01_ptr->cvv_processing        , db_caf01.cvv_processing.arr				, db_caf01.cvv_processing						.len);
+   memcpy(&caf01_ptr->service_code_offset_tr1	, db_caf01.service_code_offset_tr1.arr	, db_caf01.service_code_offset_tr1	.len);
+   memcpy(&caf01_ptr->service_code_offset_tr2	, db_caf01.service_code_offset_tr2.arr	, db_caf01.service_code_offset_tr2	.len);
+   memcpy(&caf01_ptr->cvv_offset_tr1			, db_caf01.cvv_offset_tr1.arr			, db_caf01.cvv_offset_tr1			.len);
+   memcpy(&caf01_ptr->cvv_offset_tr2			, db_caf01.cvv_offset_tr2.arr			, db_caf01.cvv_offset_tr2			.len);
+   memcpy(&caf01_ptr->cvv_length				, db_caf01.cvv_length.arr				, db_caf01.cvv_length				.len);
+   memcpy(&caf01_ptr->csck, db_caf01.csck.arr, db_caf01.csck.len) ;
+   //printf("CSCK Code:%s:\n",caf01_ptr->csck);
+   memcpy(&caf01_ptr->floor_limit, db_caf01.floor_limit.arr, db_caf01.floor_limit.len) ;
+   memcpy(&caf01_ptr->country_limits_flag, db_caf01.country_limits_flag.arr, db_caf01.country_limits_flag.len);
+   return;
+}
+
+/*************************************************************************************/
+
+
+
+/*************************************************************************************/
+
+
+/*************************************************************************************/
+/* convert oracle return codes to  pte result codes                                  */
+/*************************************************************************************/
+BYTE DBTest_oracle_to_pte_rcode ( LONG oracle_rcode, pCHAR ErrorMsg )
+{
+   switch (oracle_rcode)
+   {
+      case NO_DATA_FOUND:
+         sprintf(ErrorMsg,"Errorcode:- %l -The Specified row was not found",oracle_rcode);
+         return (PTEMSG_NOT_FOUND);
+
+      case NOT_CONNECTED_TO_DB:
+      case NOT_LOGGED_INTO_DB:
+      case TNS_PACKET_WRITER_FAILED:
+      case SHUTDOWN_OR_STARTUP_IN_PROGRESS:
+         sprintf (ErrorMsg,"Errorcode:- %l -Not Connected to Database",oracle_rcode);
+         return (PTEMSG_NOT_CONNECTED_TO_DB);
+	   case VIEW_ERRORS: /* View errors, Enc /DEC due to fuction not exist*/
+		 sprintf (ErrorMsg, "ErrCode- %l- Encryption key not set!! Pl generate ENC key using 'Dual Control' user Menu",oracle_rcode);
+		 return (PTEMSG_DATABASE_ERROR);
+      default:
+         sprintf(ErrorMsg, "Errorcode:- %l- % .70s",oracle_rcode,sqlca.sqlerrm.sqlerrmc);
+         return (PTEMSG_DATABASE_ERROR);
+   }
+}
+
+
+
+/*************************************************************************************/
+BYTE DBTEST_connect ( pCHAR username, 
+                        pCHAR password,
+                        pCHAR alias,    
+                        pCHAR database,
+                        pCHAR ErrorMsg )
+{
+   EXEC SQL BEGIN DECLARE SECTION;
+      /* login values */
+      char  db_username[21];
+      char  db_password[21];
+      char  db_alias[21];
+      char  db_database[21];
+   EXEC SQL END DECLARE SECTION;
+
+
+   /* Connect to ORACLE. */
+   strcpy( db_username, username);
+   strcpy( db_password, password);
+   strcpy( db_alias,    alias   );
+   strcpy( db_database, database);
+   /* Read from TF.ini*/
+
+#ifdef WIN32
+   if (stricmp("core", username) == 0)
+#else
+   if (strcasecmp("core", username) == 0)
+#endif
+   {
+    GetCoreServiceName(db_alias );
+    GetCorePassword   (db_password);
+    GetCoreUserId     (db_username);
+   }
+   else
+   {
+    GetAppServiceName(db_alias );
+    GetAppPassword   (db_password);
+    GetAppUserId     (db_username);
+   }
+   
+   /* EXEC SQL CONNECT :db_username IDENTIFIED BY :db_password  AT :db_alias using :db_database; */
+   EXEC SQL CONNECT :db_username  IDENTIFIED BY :db_password  USING :db_alias;
+   
+   if (SQLCODE != 0)
+      return (DBTest_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+
+   return (PTEMSG_OK);
+}
+/*************************************************************************************/
+/*************************************************************************************/
+BYTE DBTEST_disconnect( pCHAR ErrorMsg )
+{
+   /* Disconnect from ORACLE. */   
+   EXEC SQL ROLLBACK WORK;   
+   if (SQLCODE < 0)
+      return (DBTest_oracle_to_pte_rcode (SQLCODE, ErrorMsg));
+   return PTEMSG_OK;
+}
+
+/************************************************************************/
+
+/*************************************************************************************/
+BYTE db_select_caf01_for_keyblock( pCAF01 caf01_ptr, pCHAR caf01_page, pCHAR ErrorMsg )
+{
+	char temp_profile_id[5];
+	
+	caf01_to_db( caf01_ptr );
+	if(caf01_page!='\0')
+	{
+		strncpy(temp_profile_id, caf01_page, 4);
+    }
+	temp_profile_id[4]='\0';
+	if ( db_error_statics_flag == true )
+	{
+	   start_time = ptetime_get_time();
+	}
+
+	EXEC SQL SELECT
+       caf_profile_id,
+       type,               
+       authorization_location,
+       authorization_method,
+       destination_name,
+       iso_nbr,
+       iso_length,
+       aba_nbr,
+       name,
+       contact,
+       phone,
+       date_added,
+       last_maint,
+       changed_by,
+       status,
+       max_pin_retries,
+       pin_capture_ind,
+       track_offset,
+       pin_offset_location,
+       nsp_process,
+       expiration_date_check,
+       expiration_date_location,
+       merchant_same,
+       day_period1,
+       velocity1_nbr_usage_1,
+       velocity1_nbr_usage_2,
+       velocity1_amt_usage_1,
+       velocity1_amt_usage_2,
+       day_period2,
+       velocity2_nbr_usage_1,
+       velocity2_nbr_usage_2,
+       velocity2_amt_usage_1,
+       velocity2_amt_usage_2,
+       day_period3,
+       velocity3_nbr_usage_1,
+       velocity3_nbr_usage_2,
+       velocity3_amt_usage_1,
+       velocity3_amt_usage_2,
+       pin_verification_method,
+       pin,
+		cvkA_1,
+		cvkB_1,
+		cvkA_2,
+		cvkB_2,
+		cvkA_3,
+		cvkB_3,
+		cvkA_4,
+		cvkB_4,
+		cvkA_5,
+		cvkB_5,
+		cvkA_6,
+		cvkB_6,
+		cvv_processing,
+		service_code_offset_tr1,
+		service_code_offset_tr2,
+		cvv_offset_tr1,
+		cvv_offset_tr2,
+		cvv_length,
+		csck,
+		floor_limit,
+		country_limits_flag
+
+INTO   :db_caf01.caf_profile_id,
+       :db_caf01.type,               
+       :db_caf01.authorization_location,
+       :db_caf01.authorization_method,
+       :db_caf01.destination_name,
+       :db_caf01.iso_nbr,
+       :db_caf01.iso_length,
+       :db_caf01.aba_nbr,
+       :db_caf01.name,
+       :db_caf01.contact,
+       :db_caf01.phone,
+       :db_caf01.date_added,
+       :db_caf01.last_maint,
+       :db_caf01.changed_by,
+       :db_caf01.status,
+       :db_caf01.max_pin_retries,
+       :db_caf01.pin_capture_ind,
+       :db_caf01.track_offset,
+       :db_caf01.pin_offset_location,
+       :db_caf01.nsp_process,
+       :db_caf01.expiration_date_check,
+       :db_caf01.expiration_date_location,
+       :db_caf01.merchant_same,
+       :db_caf01.day_period1,
+       :db_caf01.velocity1_nbr_usage_1,
+       :db_caf01.velocity1_nbr_usage_2,
+       :db_caf01.velocity1_amt_usage_1,
+       :db_caf01.velocity1_amt_usage_2,
+       :db_caf01.day_period2,
+       :db_caf01.velocity2_nbr_usage_1,
+       :db_caf01.velocity2_nbr_usage_2,
+       :db_caf01.velocity2_amt_usage_1,
+       :db_caf01.velocity2_amt_usage_2,
+       :db_caf01.day_period3,
+       :db_caf01.velocity3_nbr_usage_1,
+       :db_caf01.velocity3_nbr_usage_2,
+       :db_caf01.velocity3_amt_usage_1,
+       :db_caf01.velocity3_amt_usage_2,
+       :db_caf01.pin_verification_method,
+       :db_caf01.pin,
+		:db_caf01.cvkA_1,
+		:db_caf01.cvkB_1,
+		:db_caf01.cvkA_2,
+		:db_caf01.cvkB_2,
+		:db_caf01.cvkA_3,
+		:db_caf01.cvkB_3,
+		:db_caf01.cvkA_4,
+		:db_caf01.cvkB_4,
+		:db_caf01.cvkA_5,
+		:db_caf01.cvkB_5,
+		:db_caf01.cvkA_6,
+		:db_caf01.cvkB_6,
+		:db_caf01.cvv_processing,
+		:db_caf01.service_code_offset_tr1,
+		:db_caf01.service_code_offset_tr2,
+		:db_caf01.cvv_offset_tr1,
+		:db_caf01.cvv_offset_tr2,
+		:db_caf01.cvv_length,
+		:db_caf01.csck,
+		:db_caf01.floor_limit,
+		:db_caf01.country_limits_flag
+
+   FROM caf01
+   WHERE caf_profile_id = :temp_profile_id ORDER BY caf_profile_id ASC;
+      
+	if ( db_error_statics_flag == true )
+    {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      if(duration >= db_error_statics_value)
+	  {
+	  	memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+		sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: tr31keyblock, ST1:%d,ST2:%d ,Data_Type : CAF01 ,Fun_Name : db_select_caf01_for_keyblock , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+	  }
+    }
+   if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+   {
+		memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_select_caf01 ,ST1:%d,ST2:%d",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+   }
+
+   db_to_caf01 (caf01_ptr);
+   return PTEMSG_OK;
+}/* End of db_select_caf01*/
+
+
+void caf01_keyblock_to_db( pCAF01_KEYBLOCK caf01_keyblock_ptr )
+{
+   memcpy (&pte_caf01_keyblock, caf01_keyblock_ptr, sizeof(pte_caf01_keyblock));
+}
+
+
+BYTE db_insert_caf01_keyblock( pCAF01_KEYBLOCK caf01_keyblock_ptr, pCHAR ErrorMsg)
+{
+	caf01_keyblock_to_db(caf01_keyblock_ptr);
+	if ( db_error_statics_flag == true )
+   {
+      start_time = ptetime_get_time();
+   }
+   /* Make sure we can access the record before attempting to update it. */
+   EXEC SQL
+      SELECT *
+      INTO  :db_caf01_keyblock
+      FROM   CAF01_KEYBLOCK
+      WHERE  caf_profile_id = :pte_caf01_keyblock.caf_profile_id AND rownum=1
+      For Update NOWAIT;
+
+   if (SQLCODE != 0 && SQLCODE == NO_DATA_FOUND )
+   {
+      /* Record is No data Found and Insert it  */
+      if ( db_error_statics_flag == true )
+    {
+      start_time = ptetime_get_time();
+    }
+   
+    EXEC SQL INSERT INTO caf01_keyblock
+    (
+        caf_profile_id,
+        type,
+        cvk_mag_keyblock,		
+		cvk_acq_3ds_keyblock,			
+		cvk_pin_verification,			
+		cvk_mkac_keyblock,				
+		csck_iss_3ds_keyblock,			
+		csck_mag_keyblock,				
+		dci_3ds_keyblock,				
+		cvk_3ds_cak_keyblock,			
+		future_field_1,					
+		future_field_2,			
+        future_field_3,
+        future_field_4,
+        future_field_5
+    )
+    VALUES
+    (       :pte_caf01_keyblock.caf_profile_id,
+       		:pte_caf01_keyblock.type,
+       		:pte_caf01_keyblock.cvk_mag_keyblock,
+       		:pte_caf01_keyblock.cvk_acq_3ds_keyblock,
+       		:pte_caf01_keyblock.cvk_pin_verification,
+       		:pte_caf01_keyblock.cvk_mkac_keyblock,
+       		:pte_caf01_keyblock.csck_iss_3ds_keyblock,
+       		:pte_caf01_keyblock.csck_mag_keyblock,
+       		:pte_caf01_keyblock.dci_3ds_keyblock,
+       		:pte_caf01_keyblock.cvk_3ds_cak_keyblock,
+       		:pte_caf01_keyblock.future_field_1,
+       		:pte_caf01_keyblock.future_field_2,
+       		:pte_caf01_keyblock.future_field_3,
+       		:pte_caf01_keyblock.future_field_4,
+       		:pte_caf01_keyblock.future_field_5 
+    );
+    if ( db_error_statics_flag == true )
+   {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      if(duration >= db_error_statics_value)
+	  {
+	  	memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+		sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: tr31keyblock, ST1:%d,ST2:%d ,Data_Type : CAF01_KEYBLOCK ,Fun_Name : db_insert_caf01_keyblock , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+	  }
+   }
+   if ( SQLCODE != 0 )
+   {
+		memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_insert_caf01_keyblock ,ST1:%d,ST2:%d",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+    }
+    if ( SQLCODE == 0 )
+   {
+   		printf("\n\nDB caf01_keyblock: Keyblock INSERT Successful\n");
+    }
+
+   return PTEMSG_OK;
+		    
+   }
+
+	if ( db_error_statics_flag == true )
+   {
+      start_time = ptetime_get_time();
+   }
+   EXEC SQL UPDATE caf01_keyblock 
+   SET caf_profile_id               = :pte_caf01_keyblock.caf_profile_id,
+       type                         = :pte_caf01_keyblock.type,
+       cvk_mag_keyblock             = :pte_caf01_keyblock.cvk_mag_keyblock,
+       cvk_acq_3ds_keyblock         = :pte_caf01_keyblock.cvk_acq_3ds_keyblock,
+       cvk_pin_verification         = :pte_caf01_keyblock.cvk_pin_verification,
+       cvk_mkac_keyblock            = :pte_caf01_keyblock.cvk_mkac_keyblock,
+       csck_iss_3ds_keyblock        = :pte_caf01_keyblock.csck_iss_3ds_keyblock,
+       csck_mag_keyblock            = :pte_caf01_keyblock.csck_mag_keyblock,
+       dci_3ds_keyblock             = :pte_caf01_keyblock.dci_3ds_keyblock,
+       cvk_3ds_cak_keyblock         = :pte_caf01_keyblock.cvk_3ds_cak_keyblock,
+       future_field_1               = :pte_caf01_keyblock.future_field_1,
+       future_field_2               = :pte_caf01_keyblock.future_field_2,
+       future_field_3               = :pte_caf01_keyblock.future_field_3,
+       future_field_4               = :pte_caf01_keyblock.future_field_4,
+       future_field_5               = :pte_caf01_keyblock.future_field_5
+    WHERE caf_profile_id = :pte_caf01_keyblock.caf_profile_id;
+    if ( db_error_statics_flag == true )
+   {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      if(duration >= db_error_statics_value)
+	  {
+	  	memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+		sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: tr31keyblock, ST1:%d,ST2:%d ,Data_Type : CAF01 ,Fun_Name : db_update_caf01_U , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+	  }
+   }
+   if ( SQLCODE == 0 )
+   {
+		printf("\n\nDB caf01_keyblock: Keyblock UPDATE Successful!\n");
+    }
+   if ( SQLCODE != 0 )
+   {
+		memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_update_caf01 ,ST1:%d,ST2:%d_2",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+    }
+
+   return PTEMSG_OK;
+}
+
+void db_to_ncf01 ( pNCF01 ncf01_ptr )
+{
+   memset( ncf01_ptr, 0, sizeof(NCF01) );
+   memcpy( ncf01_ptr->primary_key.network_id, db_ncf01.network_id.arr, db_ncf01.network_id.len );
+   memcpy( ncf01_ptr->primary_key.network_type, db_ncf01.network_type.arr, db_ncf01.network_type.len);
+
+   memcpy(ncf01_ptr->name, db_ncf01.name.arr, db_ncf01.name.len);
+   memcpy(ncf01_ptr->status, db_ncf01.status.arr, db_ncf01.status.len);
+   memcpy(ncf01_ptr->totals_ind, db_ncf01.totals_ind.arr, db_ncf01.totals_ind.len);
+   memcpy(ncf01_ptr->statistics_ind, db_ncf01.statistics_ind.arr, db_ncf01.statistics_ind.len);
+   memcpy(ncf01_ptr->acquirer_inst_id_code, db_ncf01.acquirer_inst_id_code.arr, db_ncf01.acquirer_inst_id_code.len);
+   memcpy(ncf01_ptr->forwarding_inst_id_code, db_ncf01.forwarding_inst_id_code.arr, db_ncf01.forwarding_inst_id_code.len);
+   memcpy(ncf01_ptr->receiving_inst_id_code, db_ncf01.receiving_inst_id_code.arr, db_ncf01.receiving_inst_id_code.len);
+   memcpy(ncf01_ptr->remote_nsp_type, db_ncf01.remote_nsp_type.arr, db_ncf01.remote_nsp_type.len);
+   memcpy(ncf01_ptr->pin_type, db_ncf01.pin_type.arr, db_ncf01.pin_type.len);
+   memcpy(ncf01_ptr->encr_type, db_ncf01.encr_type.arr, db_ncf01.encr_type.len);
+   memcpy(ncf01_ptr->pad_char, db_ncf01.pad_char.arr, db_ncf01.pad_char.len);
+   memcpy(ncf01_ptr->cwk, db_ncf01.cwk.arr, db_ncf01.cwk.len);
+   //printf("NCF01 CWK:%s\n",ncf01_ptr->cwk);
+   memcpy(ncf01_ptr->kek, db_ncf01.kek.arr, db_ncf01.kek.len);
+   memcpy(ncf01_ptr->retired_cwk, db_ncf01.retired_cwk.arr, db_ncf01.retired_cwk.len);
+   memcpy(ncf01_ptr->auto_logon, db_ncf01.auto_logon.arr, db_ncf01.auto_logon.len);
+   memcpy(ncf01_ptr->echo_interval, db_ncf01.echo_interval.arr, db_ncf01.echo_interval.len);
+   memcpy(ncf01_ptr->max_consecutive_timeouts, db_ncf01.max_consecutive_timeouts.arr, db_ncf01.max_consecutive_timeouts.len);
+   memcpy(ncf01_ptr->max_active_txns, db_ncf01.max_active_txns.arr, db_ncf01.max_active_txns.len);
+   memcpy(ncf01_ptr->que_name, db_ncf01.que_name.arr, db_ncf01.que_name.len);
+  
+   memcpy(ncf01_ptr->local_nsp_type, db_ncf01.local_nsp_type.arr, db_ncf01.local_nsp_type.len);
+   memcpy(ncf01_ptr->request_timer, db_ncf01.request_timer.arr, db_ncf01.request_timer.len);
+   memcpy(ncf01_ptr->idle_line_timer, db_ncf01.idle_line_timer.arr, db_ncf01.idle_line_timer.len);
+   memcpy(ncf01_ptr->advice_repeat_counter, db_ncf01.advice_repeat_counter.arr, db_ncf01.advice_repeat_counter.len);
+   memcpy(ncf01_ptr->admin_message_timer, db_ncf01.admin_message_timer.arr, db_ncf01.admin_message_timer.len);
+   memcpy(ncf01_ptr->store_forward_processing, db_ncf01.store_forward_processing.arr, db_ncf01.store_forward_processing.len);
+   memcpy(ncf01_ptr->currency_code_purchase, db_ncf01.currency_code_purchase.arr, db_ncf01.currency_code_purchase.len);
+   memcpy(ncf01_ptr->currency_code_cash, db_ncf01.currency_code_cash.arr, db_ncf01.currency_code_cash.len);
+   memcpy(ncf01_ptr->country_code, db_ncf01.country_code.arr, db_ncf01.country_code.len);
+  
+   memcpy(ncf01_ptr->station_id1, db_ncf01.station_id1.arr, db_ncf01.station_id1.len);
+   memcpy(ncf01_ptr->station_id2, db_ncf01.station_id2.arr, db_ncf01.station_id2.len);
+   memcpy(ncf01_ptr->prev_src_station, db_ncf01.prev_src_station.arr, db_ncf01.prev_src_station.len);
+   memcpy(ncf01_ptr->tpdu_id, db_ncf01.tpdu_id.arr, db_ncf01.tpdu_id.len);
+   memcpy(ncf01_ptr->logon_bin[0].identifier, db_ncf01.identifier1.arr,  db_ncf01.identifier1.len);
+   memcpy(ncf01_ptr->logon_bin[1].identifier, db_ncf01.identifier2.arr,  db_ncf01.identifier2.len);
+   memcpy(ncf01_ptr->logon_bin[2].identifier, db_ncf01.identifier3.arr,  db_ncf01.identifier3.len);
+   memcpy(ncf01_ptr->logon_bin[3].identifier, db_ncf01.identifier4.arr,  db_ncf01.identifier4.len);
+   memcpy(ncf01_ptr->logon_bin[4].identifier, db_ncf01.identifier5.arr,  db_ncf01.identifier5.len);
+   memcpy(ncf01_ptr->logon_bin[5].identifier, db_ncf01.identifier6.arr,  db_ncf01.identifier6.len);
+   memcpy(ncf01_ptr->logon_bin[6].identifier, db_ncf01.identifier7.arr,  db_ncf01.identifier7.len);
+   memcpy(ncf01_ptr->logon_bin[7].identifier, db_ncf01.identifier8.arr,  db_ncf01.identifier8.len);
+   memcpy(ncf01_ptr->logon_bin[8].identifier, db_ncf01.identifier9.arr,  db_ncf01.identifier9.len);
+   memcpy(ncf01_ptr->logon_bin[9].identifier, db_ncf01.identifier10.arr, db_ncf01.identifier10.len);
+   memcpy(ncf01_ptr->allowed[0].processing_code,  db_ncf01.processing_code1.arr,  db_ncf01.processing_code1.len);
+   memcpy(ncf01_ptr->allowed[1].processing_code,  db_ncf01.processing_code2.arr,  db_ncf01.processing_code2.len);
+   memcpy(ncf01_ptr->allowed[2].processing_code,  db_ncf01.processing_code3.arr,  db_ncf01.processing_code3.len);
+   memcpy(ncf01_ptr->allowed[3].processing_code,  db_ncf01.processing_code4.arr,  db_ncf01.processing_code4.len);
+   memcpy(ncf01_ptr->allowed[4].processing_code,  db_ncf01.processing_code5.arr,  db_ncf01.processing_code5.len);
+   memcpy(ncf01_ptr->allowed[5].processing_code,  db_ncf01.processing_code6.arr,  db_ncf01.processing_code6.len);
+   memcpy(ncf01_ptr->allowed[6].processing_code,  db_ncf01.processing_code7.arr,  db_ncf01.processing_code7.len);
+   memcpy(ncf01_ptr->allowed[7].processing_code,  db_ncf01.processing_code8.arr,  db_ncf01.processing_code8.len);
+   memcpy(ncf01_ptr->allowed[8].processing_code,  db_ncf01.processing_code9.arr,  db_ncf01.processing_code9.len);
+   memcpy(ncf01_ptr->allowed[9].processing_code,  db_ncf01.processing_code10.arr, db_ncf01.processing_code10.len);
+   memcpy(ncf01_ptr->allowed[10].processing_code, db_ncf01.processing_code11.arr, db_ncf01.processing_code11.len);
+   memcpy(ncf01_ptr->allowed[11].processing_code, db_ncf01.processing_code12.arr, db_ncf01.processing_code12.len);
+   memcpy(ncf01_ptr->allowed[12].processing_code, db_ncf01.processing_code13.arr, db_ncf01.processing_code13.len);
+   memcpy(ncf01_ptr->allowed[13].processing_code, db_ncf01.processing_code14.arr, db_ncf01.processing_code14.len);
+   memcpy(ncf01_ptr->allowed[14].processing_code, db_ncf01.processing_code15.arr, db_ncf01.processing_code15.len);
+   memcpy(ncf01_ptr->allowed[15].processing_code, db_ncf01.processing_code16.arr, db_ncf01.processing_code16.len);
+   memcpy(ncf01_ptr->allowed[16].processing_code, db_ncf01.processing_code17.arr, db_ncf01.processing_code17.len);
+   memcpy(ncf01_ptr->allowed[17].processing_code, db_ncf01.processing_code18.arr, db_ncf01.processing_code18.len);
+   memcpy(ncf01_ptr->allowed[18].processing_code, db_ncf01.processing_code19.arr, db_ncf01.processing_code19.len);
+   memcpy(ncf01_ptr->allowed[19].processing_code, db_ncf01.processing_code20.arr, db_ncf01.processing_code20.len);
+   memcpy(ncf01_ptr->zmk,                         db_ncf01.zmk.arr,               db_ncf01.zmk.len);
+   memcpy(ncf01_ptr->neg_access_code,             db_ncf01.neg_access_code.arr,   db_ncf01.neg_access_code.len);
+   
+}
+void ncf01_to_db( pNCF01 ncf01_ptr )
+{
+  memcpy (&pte_ncf01, ncf01_ptr, sizeof(pte_ncf01));
+}
+BYTE db_select_ncf01_for_keyblock (  pNCF01 ncf01_ptr, pCHAR ncf01_network_id, pCHAR ncf01_network_type, pCHAR ErrorMsg )
+{
+	
+   char temp_network_id[10];
+   char temp_network_type;
+	
+	ncf01_to_db( ncf01_ptr );
+	if(ncf01_network_id!='\0')
+	{
+		memcpy(temp_network_id, ncf01_network_id, sizeof(temp_network_id));
+		temp_network_id[sizeof(temp_network_id)-1]='\0';
+		memcpy(&temp_network_type, ncf01_network_type, sizeof(temp_network_type));
+    }
+	if ( db_error_statics_flag == true )
+	{
+	   start_time = ptetime_get_time();
+	}
+
+	EXEC SQL SELECT network_id, network_type, name, status, totals_ind,
+               statistics_ind, acquirer_inst_id_code, forwarding_inst_id_code, 
+               receiving_inst_id_code, 
+               remote_nsp_type, pin_type, encr_type, pad_char, cwk, kek, 
+               retired_cwk, auto_logon, echo_interval, max_consecutive_timeouts,
+               max_active_txns,que_name, local_nsp_type, request_timer,
+               idle_line_timer, advice_repeat_counter, admin_message_timer,
+               store_forward_processing, currency_code_purchase,
+               currency_code_cash, country_code, station_id1 ,station_id2,
+               prev_src_station,tpdu_id, identifier1 ,identifier2, identifier3,
+               identifier4, identifier5 ,identifier6, identifier7, identifier8,
+               identifier9 ,identifier10,processing_code1, processing_code2,
+               processing_code3,  processing_code4,  processing_code5,
+               processing_code6,  processing_code7,  processing_code8,
+               processing_code9,  processing_code10, processing_code11,
+               processing_code12, processing_code13, processing_code14,
+               processing_code15, processing_code16,processing_code17,
+               processing_code18, processing_code19, processing_code20, zmk,
+               neg_access_code 
+   INTO :db_ncf01
+   
+   FROM ncf01
+   WHERE network_type = :temp_network_type   AND 
+         network_id   = :temp_network_id ;
+   
+	if ( db_error_statics_flag == true )
+    {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      if(duration >= db_error_statics_value)
+	  {
+	  	memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+		sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: tr31keyblock, ST1:%d,ST2:%d ,Data_Type : CAF01 ,Fun_Name : db_select_ncf01_for_keyblock , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+	  }
+    }
+   if ( SQLCODE != 0 && SQLCODE != NULL_COLUMN_DATA )
+   {
+		memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_select_ncf01 ,ST1:%d,ST2:%d",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+   }
+
+   db_to_ncf01 (ncf01_ptr);
+
+   return PTEMSG_OK;
+
+}
+
+void ncf01_keyblock_to_db( pNCF01_KEYBLOCK ncf01_keyblock_ptr )
+{
+  memcpy (&pte_ncf01_keyblock, ncf01_keyblock_ptr, sizeof(pte_ncf01_keyblock));
+}
+
+BYTE db_insert_ncf01_keyblock( pNCF01_KEYBLOCK ncf01_keyblock_ptr, pCHAR ErrorMsg )
+{
+   ncf01_keyblock_to_db( ncf01_keyblock_ptr );
+
+   if ( db_error_statics_flag == true )
+   {
+      start_time = ptetime_get_time();
+   }
+   
+   /* Make sure we can access the record before attempting to update it. */
+   EXEC SQL
+      SELECT *
+      INTO  :db_ncf01_keyblock
+      FROM   NCF01_KEYBLOCK
+   WHERE  network_id        =   :pte_ncf01_keyblock.network_id    AND   
+          rownum			=   1
+      For Update NOWAIT;
+   
+   if ( db_error_statics_flag == true )
+   {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      if(duration >= db_error_statics_value)
+	  {
+	  	memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+		sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Netds, ST1:%d,ST2:%d ,Data_Type : NCF01_KEYBLOCK ,Fun_Name : db_update_ncf01_keyblock_S , Duration = %f,network id:%s",DB_MsgSubtype1,DB_MsgSubtype2,duration, pte_ncf01_keyblock.network_id);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+	  }
+   }
+   if (SQLCODE != 0 && SQLCODE == NO_DATA_FOUND )
+   {
+      /* Record Data not found. Insert it!. */
+      if ( db_error_statics_flag == true )
+   {
+      start_time = ptetime_get_time();
+   }
+   
+    EXEC SQL INSERT INTO ncf01_keyblock
+    (
+        network_id,
+        iss_cwk_keyblock,		
+		iss_zmk_keyblock,			
+		iss_rtdcwk_keyblock,			
+		iss_kek_keyblock,				
+		acq_cwk_keyblock,			
+		acq_zmk_keyblock,				
+		acq_kek_keyblock,
+		iss_prev_src_station,							
+		future_field1,					
+		future_field2,			
+        future_field3,
+        future_field4,
+        future_field5
+    )
+    VALUES
+    (       :pte_ncf01_keyblock.network_id,
+       		:pte_ncf01_keyblock.iss_cwk_keyblock,
+       		:pte_ncf01_keyblock.iss_zmk_keyblock,
+       		:pte_ncf01_keyblock.iss_rtdcwk_keyblock,
+       		:pte_ncf01_keyblock.iss_kek_keyblock,
+       		:pte_ncf01_keyblock.acq_cwk_keyblock,
+       		:pte_ncf01_keyblock.acq_zmk_keyblock,
+       		:pte_ncf01_keyblock.acq_kek_keyblock,
+       		:pte_ncf01_keyblock.iss_prev_src_station,
+       		:pte_ncf01_keyblock.future_field1,
+       		:pte_ncf01_keyblock.future_field2,
+       		:pte_ncf01_keyblock.future_field3,
+       		:pte_ncf01_keyblock.future_field4,
+       		:pte_ncf01_keyblock.future_field5 
+    );
+    
+    if ( db_error_statics_flag == true )
+   {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      if(duration >= db_error_statics_value)
+	  {
+	  	memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+		sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: tr31keyblock, ST1:%d,ST2:%d ,Data_Type : NCF01_KEYBLOCK ,Fun_Name : db_insert_ncf01_keyblock , Duration = %f",DB_MsgSubtype1,DB_MsgSubtype2,duration);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+	  }
+   }
+   if ( SQLCODE != 0 )
+   {
+		memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In  db_insert_ncf01_keyblock ,ST1:%d,ST2:%d",DB_MsgSubtype1,DB_MsgSubtype2);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+    }
+    if ( SQLCODE == 0 )
+   {
+		printf("\n\nDB ncf01_keyblock: Keyblock INSERT Successful!\n");
+    }
+
+   return PTEMSG_OK;  
+		
+   }
+   
+   if ( db_error_statics_flag == true )
+   {
+      start_time = ptetime_get_time();
+   }
+   EXEC SQL UPDATE ncf01_keyblock
+   SET   network_id                          =   :pte_ncf01_keyblock.network_id,            
+
+     iss_cwk_keyblock                        =   :pte_ncf01_keyblock.iss_cwk_keyblock,          
+     iss_zmk_keyblock                        =   :pte_ncf01_keyblock.iss_zmk_keyblock, 
+     iss_rtdcwk_keyblock                     =   :pte_ncf01_keyblock.iss_rtdcwk_keyblock,           
+     iss_kek_keyblock                        =   :pte_ncf01_keyblock.iss_kek_keyblock,  
+     acq_cwk_keyblock                        =   :pte_ncf01_keyblock.acq_cwk_keyblock,        
+     acq_zmk_keyblock                        =   :pte_ncf01_keyblock.acq_zmk_keyblock,
+     acq_kek_keyblock                        =   :pte_ncf01_keyblock.acq_kek_keyblock,        
+     iss_prev_src_station                    =   :pte_ncf01_keyblock.iss_prev_src_station   
+          
+
+   WHERE  network_id        =   :pte_ncf01_keyblock.network_id;
+                 
+   if ( db_error_statics_flag == true )
+   {
+      end_time = ptetime_get_time();
+      duration = end_time - start_time;
+      if(duration >= db_error_statics_value)
+	  {
+	  	memset(DB_Tmr_Lgng_Buf,0x00,sizeof(DB_Tmr_Lgng_Buf));
+		sprintf(DB_Tmr_Lgng_Buf,"Exceeded Query: Netds, ST1:%d,ST2:%d ,Data_Type : NCF01_KEYBLOCK ,Fun_Name : db_update_ncf01_keyblock_U , Duration = %f,network id:%s ",DB_MsgSubtype1,DB_MsgSubtype2,duration, pte_ncf01_keyblock.network_id);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(DB_Tmr_Lgng_Buf);
+	  }
+   }
+   if ( SQLCODE == 0 )
+   {
+		printf("\n\nDB ncf01_keyblock: Keyblock UPDATE Successful!\n");
+    }
+   if ( SQLCODE != 0 )
+   {
+		memset(er_buf,0x00,sizeof(er_buf));
+		DB_rcode = dbcommon_oracle_to_pte_rcode( SQLCODE, ErrorMsg ) ;
+		sprintf(er_buf,"In db_update_ncf01_keyblock ,ST1:%d,ST2: %d_2, network id:%s",DB_MsgSubtype1,DB_MsgSubtype2, pte_ncf01_keyblock.network_id);
+		strcat(er_buf,ErrorMsg);
+		Log_Db_Statics_And_Oracle_Db_Error_To_File(er_buf);
+		return DB_rcode;
+   }
+
+   return PTEMSG_OK;
+}

@@ -1,0 +1,267 @@
+/*******************************************************************************
+*
+*  Copyright (c) 2011, TF, Inc. All Rights Reserved.
+*
+*  MODULE:           LogDecryptor.c
+*
+*  TITLE:            Credit/Debit LogDecryptor TLF Files
+*
+*  DESCRIPTION:      This module creates
+*
+*
+*  APPLICATION:      BDO
+*
+*  AUTHOR:           Phani
+*
+*  REVISION HISTORY:
+*
+* $   initial version release
+*
+*******************************************************************************/
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <time.h>
+#include <memory.h>
+#include <math.h>
+
+#include "basictyp.h"
+#include "pte.h"
+#include "ptemsg.h"
+#include "pteipc.h"
+#include "ptestats.h"
+#include "ptesystm.h"
+#include "ntutils.h"
+
+#include "app_info.h"
+#include "equitdb.h"
+#include "dc_dbstruct.h"
+#include "LogDecryptor.h"
+#include "txutils.h"
+#include "dc_database.h"
+#include "memmnger.h"
+#include "ptetimer.h"
+#include "ptetime.h"
+#include "dbcommon.h"
+#include "timings.h"
+
+#define MAX_FIELDS		66
+#define MAX_FIELDS_SIZE	2112	/*66 * 32*/
+#define MAX_HEADER_SIZE	32		/* 32*/
+
+/***** External variables */
+
+extern volatile INT  EndProcessSignalled;
+extern volatile INT  MainProcessDone;
+extern int           Start();
+extern void          Stop ();
+
+/***** Global variables *****/
+static CHAR		trands_que_name[] = "devdsA";
+
+TLF01			auth_tx_total;
+
+static CHAR		cutoff_date[9];
+static CHAR		path[30] = "";  /*hold root directory path*/
+
+static CHAR		dbf_filename[256] = "";    /* dump file name */
+FILE			*dbfFilePtr = 0;	         /* dump file ptr */
+
+
+static CHAR		dir_str  [128];
+extern CHAR		ExeName[100];
+
+CHAR			EndProcessFlag;
+CHAR			AppName[12];
+CHAR			lError_Msg[300];
+CHAR			Version[] = "ATP_11.1.0"; /* TF_Veena Update version*/
+
+/* Globals used in the Exception File processing = records over 45 days old */
+INT   ExceptionFlag = true;  /* Default so old records DO get processed */
+
+INT   TempExRecCnt;
+INT   ExceptRecCnt;
+INT   ExceptFile = false;
+INT   ExceptError;
+CHAR  ExceptDate[9];
+CHAR  CurrentDate[9];
+
+
+/* Database Timing Measurements */
+TIMINGS_LIST  TimingStats;
+INT           DB_Timing_Flag; /* True = Do DB Timing Stats, False = don't do */
+INT           ForceReport;
+CHAR          ReportTime[5];
+
+PRIVATE CHAR   global_err_str[100];
+PRIVATE INT    global_err_code;
+BYTE	des_key[200];
+BYTE	cur_key[200];
+BYTE	recs[4];
+
+
+int main(int argc, char *argv[])
+{
+	WORD key[] = {0x13A7, 0x6135, 0x9CDF, 0xA852};
+						CHAR msgbuf[100] = "";
+
+	CHAR correct_hours [24] [3] = {"00", "01", "02", "03", "04", "05",
+		"06", "07", "08", "09", "10", "11",
+		"12", "13", "14", "15", "16", "17",
+		"18", "19", "20", "21", "22", "23"};
+
+	CHAR correct_files [16] [7] = {"ALL", "all", "CREDIT", "credit",
+		"DEBIT", "debit", "RAFFLE", "raffle",
+		"A", "a", "C", "c", "D", "d", "R", "r"};
+
+	CHAR correct_codes [16] [2] = {"A", "A", "C", "C", "D", "D", "R", "R",
+		"A", "A", "C", "C", "D", "D", "R", "R"};
+
+	int               hour_index;
+	int               file_index;
+
+	/*** Initialize global variables ***/
+	memset(cutoff_date,  0, sizeof(cutoff_date));
+
+	EndProcessFlag = false;
+#ifndef WIN32
+	strcpy(ExeName, argv[0]);
+#endif
+
+	/*** 1st Parameter - base file name ***/
+	if(argc < 2 || argc > 3)
+	{
+		printf("Invalid arguments!\nSyntax:\n");
+		printf("LogDecryptor <encrypted filename> [<decrypted filename>]\n");
+		return 0;
+	}
+	if(argc == 2)
+	{
+		dbf_decrypt_file(argv[1], NULL);
+	}
+	if(argc == 3)
+	{
+		dbf_decrypt_file(argv[1], argv[2]);
+	}
+} /* main */
+
+
+BOOLEAN dbf_decrypt_file(char *filename, char *newfile)
+{
+	WORKING_DBF_TLF01 w_dbf_tlf01;
+	char header[128] = {0};
+	BOOLEAN bRet = 0;
+	WORD key[] = {0x13A7, 0x6135, 0x9CDF, 0xA852};
+	char line[50000] = {0};
+	if(filename == NULL)
+		return 0;
+	FILE *newptr = NULL;
+	if(newfile == NULL)
+	{
+		strcpy(header, filename);
+		strcat(header, "_decrypted");
+	}
+	else
+	{
+		strcpy(header, newfile);
+	}
+	newptr = fopen(header, "w");
+	if(newptr == NULL)
+	{
+		printf("Cannot open the file to write\n");
+	}
+	FILE *fptr = fopen(filename, "r");
+	if(fptr == NULL)
+	{
+		printf("Cannot open the file to read\n");
+		return 0;
+	}
+	int i = 0;
+	while(fgets(line, 50000, fptr) != NULL)
+	{
+		i++;
+		char *tmp = line + 12;
+		tmp[strlen(tmp)-1] = '\0';
+		des_decryption_ex1(tmp, strlen(tmp), key, 1 );
+		//line[strlen(line)] = 10;
+		fputs(line, newptr);
+		fprintf(newptr,"\n");
+	}
+	fclose(fptr);
+	fclose(newptr);
+
+	printf("Decryption completed. check the file %s\n",header);
+
+}
+ /*****************************************************************************
+  *                                                                            *
+  *  Except for main and MainProcessor, functions are in alphabetical order.   *
+  *                                                                            *
+  *****************************************************************************/
+  void ascii_to_bin (pBYTE src, pBYTE dst, INT len)
+  {
+	  INT  i, j, k;
+	  for (i = 0; i < (len*2); i+=2)
+	  {
+		  /* if I hit a null terminator, quit.  */
+		  if (src[i] == '\0')
+			  break;
+		  /* if these are leading blanks, leave the bcd zero.  */
+		  if (src[i] != ' ')
+		  {
+			  if (src[i] <= '9')
+				  dst[i/2] = ((src[i]-'0')*16);
+			  else
+				  dst[i/2] = ((src[i]-'A')+0x0A)*16;   /* handle 0a-0f */
+		  }
+		  if (((i+1) < (len*2)) && (src[i+1] != ' '))
+		  {
+			  if (src[i+1] <= '9')
+				  dst[i/2] += (src[i+1]-'0');
+			  else
+			  {
+				  j         = (toupper(src[i+1]) - 'A');
+				  k         = j + 0x0A;
+				  dst[i/2] += k;
+			  }
+		  }
+	  }
+  } /* ascii_to_bin */
+
+
+
+
+	/*******************************************************************************
+	*
+	*  FUNCTION:         EndProcess
+	*
+	*  DESCRIPTION:      This function does shutdown and clean up functionalities.
+	*
+	*  INPUTS:           None
+	*
+	*  OUTPUTS:          None
+	*
+	*  RETURN VALUE:     BOOLEAN true for success or false for failure.
+	*
+	*  AUTHOR:           Irene Goldfild
+	*
+  *******************************************************************************/
+  void EndProcess(void)
+  {
+	  CHAR Buffer[100] = "";
+
+	  if ( EndProcessFlag == true )
+	  {
+		  //      sprintf( Buffer, "Shutting down the %s Service, version %s",
+		  //               AppName, Version );
+		  //      LogEvent( Buffer, INFO_MSG );
+		  //      strcat( Buffer, "\n" );
+		  //      PRINT( Buffer );
+	  }
+	  else
+	  {
+		  EndProcessFlag = true;
+	  }
+	  return;
+
+  } /* EndProcess */

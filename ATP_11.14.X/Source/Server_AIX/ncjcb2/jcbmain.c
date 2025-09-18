@@ -1,0 +1,686 @@
+/*******************************************************************
+*
+* Copyright (c) 2007, Hypercom, Inc.
+* All Rights Reserved.
+*
+* MODULE:      jcbmain.c
+*  
+* TITLE:       Main function for the JCB network handler      
+*  
+* DESCRIPTION: This module will handle all incoming messages from
+*               the terminal and the host.
+*
+* APPLICATION: 
+*
+* AUTHOR:      B Gable
+REVISION HISTORY:
+
+$Log:svn://192.168.1.229/EpicPortz/ECN/Trunk/Source/Server_AIX/ncjcb2/jcbmain.c$
+
+	Rev 1.8  Dec 22 2009	TF-Ajay
+	While comparing sbatch queu reduce to comapre 4 characters
+	don't pass fld 50 if txn comes from the DCPISO or voice 
+	pass fld 39 as F0F0
+	Updated version 1.0.0.16
+	
+	  
+		Rev 1.7   Aug 18 2009	TF-Ajay
+	don't pass fld 50 if txn comes from the DCPISO or voice 
+	pass fld 39 as F0F0
+	Updated version 1.0.0.15
+
+	Rev 1.6   Aug 13 2009	TF-Ajay
+	don't pass fld 6,10, if txn comes from the DCPISO or voice 
+	Updated version 1.0.0.14
+
+	Rev 1.5   Aug 10 2009	TF-Phani 
+	ATP should not be doing any PIN TRANSALATION during offline mode. since during STIP,
+	ATP will be the one validating the cards.  Directly validates the PIN. 
+	Updated version 1.0.0.13
+	
+	Rev 1.4   Jul 13 2009   TF-Ajay 
+   Txn process as a STIP and After process if it gets the reversal
+   It should go to host as a 0420 msg
+   Updated version 1.0.0.12
+   
+	Rev 1.3   Dec 31 2008  Girija Y, TF Bangalore
+   Updated version to 1.0.0.9
+   Added code for Fld 11.In case of TIME-OUT Reversals use STAN from original request.
+
+   Rev 1.2 Nov 11, 2008 Girija Y @ThoughtFocus
+   Updated version to 1.0.0.8
+   Changed the condition for STIP Automatic Resend
+   Rel 08-11
+
+   Rev 1.1 Aug 14, 2008 Girija Y @ThoughtFocus
+   Updated version to 1.0.0.2
+   Dont insert into TLF01 Table if the transaction is Originating from STIP Manager
+   Rel 08-16
+
+   REV 1.0 July 28, 2008 - Cadience standin changes to support 0120, 0121, 
+               131 message types. Updated the version to 1.0.0.1
+   Ravikumar K N @ThoughtFocus, Cadience standin processing changes TFrel 08-16
+
+********************************************************************/
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <time.h>
+
+#include "basictyp.h"
+#include "pte.h"
+#include "ptemsg.h"
+#include "pteipc.h"
+#include "ptestats.h"
+#include "ptesystm.h"
+#include "ptetime.h"
+#include "ntutils.h"
+
+#include "app_info.h"
+#include "equitdb.h"
+#include "nc_dbstruct.h"
+#include "tx_dbstruct.h"
+#include "jcbmain.h"
+#include "jcbutil.h"
+#include "jcbtran.h"
+#include "jcb0302.h"
+#include "memmnger.h"
+#include "txutils.h"
+#include "diskio.h"
+#include "txtrace.h"
+
+
+extern CHAR          ServiceName[12];
+extern INT  volatile EndProcessSignalled;
+extern INT  volatile MainProcessDone;
+
+extern CHAR  LOGON_REQUEST[];    
+extern CHAR  LOGOFF_REQUEST[];  
+extern CHAR  ECHO_REQUEST[]; 
+
+extern CHAR        applnk_que_name[];
+extern INT rvrsl_attmpts_value_fr_laterspns_jcb;
+extern INT rvrsl_attmpts_value_fr_timeout_jcb;
+CHAR  AppName[8] = "";
+
+CHAR  ncjcb2_Error_warning_Filename[256]={0};
+CHAR  ncjcb2_module_error_warning_file_name[256]={0};
+CHAR  ncjcb2_error_warning_file_path[256]={0};
+CHAR  Log_Bufr[512]; /* used to copy term id, card num and merch id to error msg
+	   	   	   	   	   	   	   	   and passed it to print in File and monitor */
+
+//echo timer length
+WORD  echo_timer_length = 0;
+
+
+/************************************************
+    GLOBAL DECLARATIONS
+ ************************************************/
+
+NCF01               ncf01_i;
+NCF01               ncf01_a;
+JCB_ONLINE_UPDATES  Online_Updates;
+
+/* Database structure sizes */
+INT    Tlf01_Size;
+INT    Ncf01_Size;
+INT    Ncf30_Size;
+INT    Crf01_Size;
+INT    Auth_Tx_Size;
+
+CHAR     cur_app_name    [MAX_APP_NAME_SIZE];
+CHAR     oprmon_que_name []           = "oprmonI" ;
+CHAR     dialog_que_name []           = "dialogA" ;
+CHAR     authorizer_que_name[]        = "txcntlA";
+CHAR     SHARED_MEMORY_TBL[12];
+CHAR     Version[] = "ATP_11.10.5";
+
+time_t   start_time;
+
+/* Statistics for Monitor */
+TXN_COUNTS     Txn_Counts;
+MONITOR_STATS  Monitor_Stats;
+
+/* Txn Tracing Info */
+CHAR   DirPath[MAX_APP_NAME_SIZE];
+CHAR   TraceFile[MAX_APP_NAME_SIZE];
+INT    Tracing;
+FILE   TraceFile_fp;
+FILE   *pTraceFile_fp;
+FILE   **ppTraceFile_fp;
+
+/* Counters */
+INT    MaxActiveTxns;
+INT    MaxConsecTimeouts;
+
+/* Define direction of transaction flow - switched in or switched out. */
+INT  Tran_Flow;
+
+/* Flag to indicate 0302 txn (Online File Update) */
+INT  Txn_Type;
+
+/*****************************************************************************
+
+  Function:    PinnacleMsgHandler  
+
+  Description: This function will bring in a PTE message and determine where
+               it should be routed.
+  Author: 
+      unknown
+  Inputs:
+      p_msg_in - the incoming PTE message
+  Outputs:
+      None
+  Return values:
+      None
+  Modified by:
+      BGable      6/30/98
+******************************************************************************/
+void PinnacleMsgHandler( pPTE_MSG p_msg_in )
+{
+   pPTE_MSG_DATA  p_msg_data = NULL_PTR;
+   pPTE_MSG       p_cur_msg;
+   pPTE_MSG       p_msg_ins   = NULL_PTR;
+
+   pBYTE          p_data_data = NULL_PTR;
+   pBYTE          pCurrent;
+   BYTE           subtype1;
+   BYTE           net_consec_tmouts_ctr[4];
+   BYTE           active_txns_ctr[4];
+   BYTE           current_state[2];
+   BYTE           msgtype;
+   CHAR           err_mesg[512] = {0};
+   CHAR           Buff[512] = {0};
+   CHAR           ConnectionId[MAX_ORIG_INFO_SIZE+1] = {0} ;
+
+   AUTH_TX        auth_tx;
+   NCF01          ncf01_temp;
+
+   LONG           ret_code;
+   XINT           ReturnCode = 0 ;
+
+
+   p_cur_msg = p_msg_in;
+   ptestats_accumulate_msg_stats(p_msg_in);
+   Txn_Type = FINANCIAL;
+
+   msgtype = ptemsg_get_msg_type(p_cur_msg);
+   switch( msgtype )
+   {
+      case MT_AUTH_REQUEST: 
+          /* Request coming from the authorizer. */
+          start_time = time(NULL);
+          (void)process_incoming_message(p_msg_in);
+          break;
+
+      case MT_AUTH_RESPONSE: 
+          /* Response coming from the authorizer. */
+          start_time = time(NULL);
+          (void)process_incoming_message(p_msg_in);
+          break;
+
+      case MT_INCOMING: 
+          /* Reply or request from the external host */
+          start_time = time(NULL);
+ 	       (void)incoming_host_message(p_msg_in);
+          break;
+
+      case MT_TIMER_TIMEOUT: 
+          /* Reply about timeout of ptemsg */
+          (void)process_timeout_msg(p_msg_in);
+          break;
+
+      case MT_SYS_MONITOR:
+         start_time = time(NULL);
+         switch( ptemsg_get_msg_subtype1(p_cur_msg) )
+         {
+            case ST1_LOGON:
+                /* Request from Monitor to send LogOn */
+                memset (&auth_tx, 0, Auth_Tx_Size);
+                (void)perform_host_logon_request( LOGON_REQUEST,
+                                                  SOURCE_IS_OPERATOR, &auth_tx);
+               break;
+
+            case ST1_LOGOFF:
+                /* Request from Monitor to send LogOff */
+               memset (&auth_tx, 0, Auth_Tx_Size);
+               (void)perform_host_logon_request( LOGOFF_REQUEST,
+                                                 SOURCE_IS_OPERATOR, &auth_tx);
+               break;
+
+            case ST1_ECHOTEST:
+                /* Request from Monitor to send LogOn */
+                memset (&auth_tx, 0, Auth_Tx_Size);
+                (void)perform_host_logon_request( ECHO_REQUEST,
+                                                  SOURCE_IS_OPERATOR, &auth_tx);
+                break;
+
+            case ST1_NETWORK_QUERY:
+                /* Request from Monitor to send status information */
+                ReadGenericTable( SHARED_MEMORY_TBL, net_consec_tmouts_ctr, 
+                                  active_txns_ctr, current_state );
+                pCurrent = ptemsg_get_pte_msg_data_data(ptemsg_get_pte_msg_data(p_msg_in));
+                memset( &ncf01_temp, 0,        Ncf01_Size );
+                memcpy( &ncf01_temp, pCurrent, Ncf01_Size );
+                strcpy( ncf01_temp.status,     current_state );
+
+                p_msg_ins = ptemsg_build_msg( MT_SYS_MONITOR,
+                                              ST1_NETWORK_UPDATE, 
+                                              ST2_NONE,
+                                              applnk_que_name, 
+                                              application_que_name,
+                                              (pBYTE)&ncf01_temp,
+                                              Ncf01_Size, 
+                                              0 );
+
+ 	             memset (ConnectionId, 0, sizeof (ConnectionId)) ;
+ 	             ReturnCode = ReadMemMonitorTable (ConnectionId) ;
+ 	             if (ConnectionId[0] != 0)
+                {
+                   ptemsg_set_orig_comms_info   (p_msg_ins, ConnectionId) ;
+                   // Send message to get host specific data from data server. 
+                   ret_code = pteipc_send( p_msg_ins, applnk_que_name );
+                   if ( 0 > ret_code )
+                   {
+                      pteipc_get_errormsg( ret_code, err_mesg );
+                      sprintf(Buff,"Failed transmit to que: %s. %s",applnk_que_name,err_mesg);
+                      ncjcb2_log_message( 3, 3, Buff , "PinnacleMsgHandler" , 0 ,"");
+                      free( p_msg_ins );
+                   }
+                }
+                free( p_msg_ins );
+                break;
+
+            default:
+                break;
+         }
+         break;
+
+      case MT_SYSTEM_REQUEST: 
+         PRINT("MT_SYSTEM_REQUEST  \n" );
+         ptesystm_system_msg_handler(p_msg_in);
+		 process_encryption_flag( p_msg_in );
+         if ( ST1_SYS_PING == ptemsg_get_msg_subtype1(p_msg_in) )
+         {
+            if ( Tracing == TRACE_ON )
+            {
+               /* Flush the trace file buffer when service is pinged. */
+               if ( false == flush_file(ppTraceFile_fp) )
+               {
+                  Tracing = TRACE_OFF;
+                  sprintf( Buff,
+                    "%s: Unable to flush trace file buffer. Turning Trace off.",
+                     ServiceName );
+                   ncjcb2_log_message( 3, 1, Buff , "PinnacleMsgHandler" , 0 ,"");
+                  (void)close_trace_file( ppTraceFile_fp );
+               }
+            }
+
+            /* When pinged, display application version on Monitor. */
+            sprintf( Buff,
+                    "Pinged -> Network Controller Service: %s, version %s",
+                     ServiceName, Version );
+            ncjcb2_log_message( 3, 1, Buff , "PinnacleMsgHandler" , 0 ,"");
+         }
+         else if(ST1_LOAD_TO_REVERSAL_ATTEMPTS == ptemsg_get_msg_subtype1(p_msg_in) ||
+        		 ST1_LOAD_LATE_RESP_REVERSAL_ATTEMPTS == ptemsg_get_msg_subtype1(p_msg_in))
+         {
+        	 ncjcb2_read_TO_config_details_from_tf_ini();
+        	 send_trace_response(p_msg_in);
+        	 sprintf( Buff,
+        	          "rvrsl_attmpts_value_fr_timeout_jcb: %s, rvrsl_attmpts_value_fr_laterspns_jcb %s",
+					  rvrsl_attmpts_value_fr_timeout_jcb, rvrsl_attmpts_value_fr_laterspns_jcb );
+        	 ncjcb2_log_message( 1, 1, Buff, "PingMsgHandler" ,0,"");
+         }
+         break;
+
+      case MT_SYSTEM_REPLY: 
+         PRINT("MT_SYSTEM_REPLY  \n" );
+         free(p_msg_in);
+         break;
+
+      case MT_DB_REPLY:
+            if (PTEMSG_OK == ptemsg_get_result_code(p_msg_in))
+            {
+               hhutil_parse_db_ok(p_msg_in);
+            }
+            else
+            {
+               hhutil_parse_db_error(p_msg_in);
+            }
+          break;
+
+      case MT_TIMER_REPLY:
+         PRINT("MT_TIMER_REPLY  \n" );
+         if (PTEMSG_OK == ptemsg_get_result_code(p_msg_in))
+         {
+            subtype1 = ptemsg_get_msg_subtype1(p_msg_in);
+            if (ST1_TIMER_READ == subtype1)
+            {
+               (void)incoming_host_message_timer_reply(p_msg_in);
+            }
+         }
+         break;
+
+
+      case MT_NSP_TRANSLATE_PIN_RESPONSE:
+         // Response from a translate key
+         p_msg_data = ptemsg_get_pte_msg_data(p_msg_in);
+         p_data_data = ptemsg_get_pte_msg_data_data(p_msg_data);
+
+         memset( &auth_tx, 0x00,     Auth_Tx_Size );
+         memcpy( &auth_tx, p_data_data, Auth_Tx_Size );
+         (void)process_incoming_message_continued( &auth_tx );
+      break;
+
+      case MT_GET_STATS:
+         (void)send_transaction_statistics( p_msg_in );
+         break;
+
+      case MT_RESET_STATS:
+         (void)reset_transaction_statistics( p_msg_in );
+         break;
+
+      case MT_INCOMING_GUI:
+         /* GUI is initiating an 0302 message for JCB: Online File Update. */
+         (void)process_file_update_request( p_msg_in );
+         break;
+	 
+      default :
+         sprintf( err_mesg, "Unknown msg type received: %d", (INT)msgtype );
+         ncjcb2_log_message( 3, 2, Buff , "PinnacleMsgHandler" , 0 ,"");
+         break;
+   }  /* switch msg_type */
+
+} /* PinnacleMsgHandler */
+
+/*****************************************************************************
+
+  Function:    MainProcessor
+
+  Description: This function will start up and shutdown ncjcb, as well as
+               check for and bring in new PTE messages.
+  Author: 
+      unknown
+  Inputs:
+      None
+  Outputs:
+      None
+  Return values:
+      None
+  Modified by:
+      BGable      6/30/98
+******************************************************************************/
+void MainProcessor()
+{
+	pPTE_MSG	p_msg;
+	LONG		ret_code;
+	INT      	rc;
+	CHAR		ErrorMsg[512]={0};
+	CHAR		Buffer[512]={0};
+	CHAR     	err_msg[200];
+	AUTH_TX  	auth_tx;
+	time_t   	time_date;
+	BYTE     	echo_interval[4];
+
+
+
+	GetAppName( AppName );
+
+	GetAppName (cur_app_name);
+	GetXipcInstanceName( Buffer );
+	sprintf( Buffer,
+		   "Starting the Network Controller Service: %s, version %s",
+			ServiceName, Version );
+	ncjcb2_get_error_warning_file_name_path();
+	ncjcb2_log_message( 2, 1, Buffer , "MainProcessor" , 0 ,"");
+	printf( "%s\n", Buffer );
+
+
+    /********** MODIFY THIS CALL IF IT IS A SINGLE INSTANCE APP.. TF Phani ***************/
+#ifdef _DEBUG   
+   if( !pteipc_init_single_instance_app( AppName, "pte_ipc" ) ) 
+#else
+   if( !pteipc_init_multiple_instance_app( AppName, ServiceName,"pte_ipc"))
+#endif
+   {
+		ncjcb2_log_message( 2, 3, "Failed to create XIPC queues" , "MainProcessor" , 0 ,"");
+	
+	#ifdef _DEBUG
+      pteipc_shutdown_single_instance_app(); 
+	#else
+      pteipc_shutdown_multiple_instance_app();
+	#endif
+		MainProcessDone = 1;
+		return;
+	}
+
+   if (strlen(AppName) > (sizeof(ncf01_i.primary_key.network_id)-2) )
+	{
+      sprintf(Buffer,
+             "Error - name of the application must be %d characters or less",
+              (sizeof(ncf01_i.primary_key.network_id)-2));
+      ncjcb2_log_message( 2, 2, Buffer , "MainProcessor" , 0 ,"");
+
+	#ifdef _DEBUG
+      pteipc_shutdown_single_instance_app(); 
+	#else
+      pteipc_shutdown_multiple_instance_app();
+	#endif
+		MainProcessDone = 1;
+		return;
+	}
+
+   /* Calculate Data Structure sizes to save time during processing. */
+   Tlf01_Size   = sizeof(TLF01);
+   Ncf01_Size   = sizeof(NCF01);
+   Ncf30_Size   = sizeof(NCF30);
+   Crf01_Size   = sizeof(CRF01);
+   Auth_Tx_Size = sizeof(AUTH_TX);
+
+   /*  Create a table to be used for sahred memory between multiple
+       instances of this Network Control Module.  It contains three 
+       fields:  # of consecutive timeouts, # of active transactions, 
+       and the current state of the host.
+   */
+   memset(SHARED_MEMORY_TBL, 0, sizeof(SHARED_MEMORY_TBL));
+   strcpy(SHARED_MEMORY_TBL,cur_app_name);
+   strcat(SHARED_MEMORY_TBL,"Table");
+   ret_code = create_generic_table( SHARED_MEMORY_TBL);
+   if ( MEMACCESSERROR == ret_code )
+   {
+      // Table already exists.
+      PRINT ("Shared memory table already exists. \n");
+   }
+   else if ( 0 == ret_code )
+   {
+      /* Table was successfully created.  Initialize host counters and state. */
+      ret_code = WriteGenericTable( SHARED_MEMORY_TBL, "0", "0", OFFLINE );
+      if ( 0 != ret_code)
+      {
+         /* Error creating the table.  It must already exist. */
+         sprintf( Buffer, "Unable to write to shared memory table: %s.",
+                  SHARED_MEMORY_TBL );
+         ncjcb2_log_message( 2, 2, Buffer , "MainProcessor" , 0 ,"");
+      }
+   }
+   else
+   {
+         /* Error creating the table.   */
+         sprintf( Buffer, "Unable to create shared memory table: %s.",
+                  SHARED_MEMORY_TBL );
+         ncjcb2_log_message( 2, 2, Buffer , "MainProcessor" , 0 ,"");
+   }
+
+   /* Initialize transaction statistics */
+   (void)reset_stats( &Txn_Counts );
+
+   /* Determine if transaction tracing should be turned on. */
+   rc = get_trace_ini_info( AppName, DirPath, ErrorMsg );
+   if ( rc == 0 )
+   {
+      Tracing = TRACE_ON;
+
+      /* Open the transaction trace file. */
+      memset( TraceFile, 0x00, sizeof(TraceFile) );
+
+      pTraceFile_fp  = &TraceFile_fp;
+      ppTraceFile_fp = &pTraceFile_fp;
+
+      if (false == open_trace_file(AppName,DirPath,ppTraceFile_fp,TraceFile))
+      {
+         Tracing = TRACE_OFF;
+         sprintf( ErrorMsg,
+                 "Unable to open trace file %s. Tracing is off",
+                  TraceFile );
+         ncjcb2_log_message( 3, 1, ErrorMsg , "MainProcessor" , 0 ,"");
+      }
+      else
+    	  ncjcb2_log_message( 3, 1, "Tracing is turned ON" , "MainProcessor" , 0 ,"");
+   }
+   else
+   {
+      Tracing = TRACE_OFF;
+      if ( rc == -1 )
+      {
+         ncjcb2_log_message( 3, 1, ErrorMsg , "MainProcessor" , 0 ,"");
+      }
+      ncjcb2_log_message( 3, 1, "Tracing is turned off" , "MainProcessor" , 0 ,"");
+   }
+
+   memset(&ncf01_i, 0, Ncf01_Size);
+   strcpy(ncf01_i.primary_key.network_id, AppName);
+   ncf01_i.primary_key.network_type[0] = 'I';
+   if (hhutil_get_ncf01_cfg( &ncf01_i, err_msg) != PTEMSG_OK)
+   {
+      sprintf( Buffer,
+              "Unable to startup %s. Error on select of NCF01 issuer: %50s",
+               AppName, err_msg );
+      ncjcb2_log_message( 2, 2, Buffer , "MainProcessor" , 0 ,"");
+   }
+   else
+   {
+      memset(&ncf01_a, 0, Ncf01_Size);
+      strcpy(ncf01_a.primary_key.network_id, AppName);
+      ncf01_a.primary_key.network_type[0] = 'A';
+      if (hhutil_get_ncf01_cfg( &ncf01_a, err_msg) != PTEMSG_OK)
+      {
+         sprintf( Buffer,
+                 "Unable to startup %s Error on select of NCF01 acquirer: %50s",
+                  AppName, err_msg );
+         ncjcb2_log_message( 2, 2, Buffer , "MainProcessor" , 0 ,"");
+      }
+      strcpy(echo_interval, ncf01_i.echo_interval);
+      echo_timer_length = atoi(ncf01_i.echo_interval);
+
+      /* Initialize configurable counters. */
+      MaxActiveTxns     = atoi(ncf01_i.max_active_txns);
+      MaxConsecTimeouts = atoi(ncf01_i.max_consecutive_timeouts);
+
+      if (0 == strcmp(ncf01_i.auto_logon,"1"))
+      {
+         if (0 == strcmp( "L", ncf01_i.pad_char ) )
+         {
+            ret_code = WriteGenericTable( SHARED_MEMORY_TBL, "0", "0", ONLINE );
+         }
+
+         // set up a logon request to the host in auth_tx 
+         memset(&auth_tx, 0, Auth_Tx_Size);
+         perform_host_logon_request(LOGON_REQUEST, SOURCE_IS_OPERATOR, &auth_tx);
+      }
+   }
+   send_network_status_to_monitor();
+   ncjcb2_read_TO_config_details_from_tf_ini();
+   start_time = time(NULL);
+   while( !EndProcessSignalled )
+   {
+      /* You are blocked here waiting for a message on either app queue or
+         control que.  If there is no message on either que for 5 seconds,
+         the blocking call returns. */
+
+      /* The following line will be used to get messages from the queue.
+         For now the message is automatically created here, but this will
+         be removed. */
+      p_msg = pteipc_receive( application_que_name, control_que_name, 5, &ret_code ); 
+
+      if( p_msg != NULL_PTR )
+      {
+ 			PinnacleMsgHandler( p_msg );
+         free (p_msg);
+      }
+      else if( ret_code != QUE_ER_TIMEOUT ) 
+      {
+         pteipc_get_errormsg( ret_code, ErrorMsg );
+         sprintf( Buffer, "Error on pteipc_receive %s", ErrorMsg );
+         ncjcb2_log_message( 2, 2, Buffer , "MainProcessor" , 0 ,"");
+      }
+      time_date = time(NULL);
+
+
+#ifdef WIN32
+      if ( atoi(echo_interval) <= (INT)difftime(time_date, start_time))
+#else
+      if ( atol(echo_interval) <= difftime(time_date, start_time))
+#endif
+      {
+//         start_time = time(NULL);
+//         memset (&auth_tx, 0, Auth_Tx_Size);
+//         if (false == perform_host_logon_request(ECHO_REQUEST, SOURCE_IS_OPERATOR, &auth_tx))
+//         {
+    	  	  //ncjcb2_log_message(3, 1, "Error executing host Echo Test" , "MainProcessor" , 0 ,"");
+//         }
+      } 
+   }
+
+   /* Shutting down, need to change state before exiting Xipc. */
+   WriteGenericTable( SHARED_MEMORY_TBL, "0", "0", DOWN );
+   send_network_status_to_monitor();
+
+#ifdef _DEBUG
+      pteipc_shutdown_single_instance_app(); 
+#else
+      pteipc_shutdown_multiple_instance_app();
+#endif
+	MainProcessDone = 1;
+}
+
+
+
+/*****************************************************************************
+
+  Function:    EndProcess   
+
+  Description: This function will output a message to notify the user that ncjcb
+               is being shut down.
+  Author: 
+      unknown
+  Inputs:
+      None
+  Outputs:
+      None
+  Return values:
+      None
+  Modified by:
+      BGable      6/30/98
+******************************************************************************/
+void EndProcess()
+{
+   CHAR Buffer[100] = {0};
+
+   if ( Tracing == TRACE_ON )
+   {
+      if ( false == close_trace_file( ppTraceFile_fp ))
+      {
+         sprintf( Buffer, "Unable to close trace file %s", TraceFile );
+         ncjcb2_log_message( 3, 3, Buffer , "EndProcess" , 0 ,"");
+      }
+   }
+
+   sprintf( Buffer, "Shutting down the %s Service, version %s",
+            ServiceName, Version );
+   ncjcb2_log_message( 2, 1, Buffer , "EndProcess" , 0 ,"");
+   strcat( Buffer, "\n" );
+   PRINT( Buffer );
+}
+
+

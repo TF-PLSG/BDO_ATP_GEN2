@@ -1,0 +1,29 @@
+serverHost=192.168.1.143
+serverPort=2809
+connectionFactory=jms/inQueueConnectionFactory
+contextFactory=com.ibm.websphere.naming.WsnInitialContextFactory
+writeToQueue=jms/requestQueue
+readFromQueue=jms/responseQueue
+queueCheckDelay=2000
+msgLength=1023
+continueIfLibVersionGreater=true
+displayTransactionMsg=1
+
+#serverHost=172.22.52.109
+#serverPort=9810
+#connectionFactory=jms/queueConnectionFactory
+#contextFactory=com.ibm.websphere.naming.WsnInitialContextFactory
+#writeToQueue=jms/faiInputQ
+#readFromQueue=jms/faiOutputQ
+#queueCheckDelay=2000
+
+# FALCON LOGGING CONFIGURATION
+log4j.rootLogger=DEBUG, RollingAppender  
+log4j.appender.RollingAppender=org.apache.log4j.rolling.RollingFileAppender
+log4j.appender.RollingAppender.rollingPolicy=org.apache.log4j.rolling.TimeBasedRollingPolicy
+log4j.appender.RollingAppender.File=/home/nalina/ascendent/trace/
+log4j.appender.RollingAppender.rollingPolicy.ActiveFileName=/home/nalina/ascendent/trace/falcon.log
+log4j.appender.RollingAppender.rollingPolicy.FileNamePattern=/home/nalina/ascendent/trace/falcon.log.%d{yyyyMMdd}
+log4j.appender.RollingAppender.layout=org.apache.log4j.PatternLayout
+log4j.appender.RollingAppender.layout.ConversionPattern=%d [%t] %-5p (%F:%L) - %m%n
+log4j.appender.RollingAppender.Append=true

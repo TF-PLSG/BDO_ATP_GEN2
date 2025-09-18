@@ -1,0 +1,276 @@
+<?php
+
+/**
+ * batch.php
+ *
+ * batch application controller
+ *
+ * @package		MVC
+ * @author		Gopal Sikhawal
+ */
+
+
+class Tlf_Controller extends MVC_Controller
+{
+	function index()
+	{
+		$this->redirect('tlf/transaction');
+	}
+	function csv() {
+		if(isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
+			
+			$columns = $_POST['exp'];
+			$this->load->model('TLF_Model', 'tlf');
+			$type = isset($this->parameter[0])?$this->parameter[0]:false;
+			$card_num_mask = $_POST['card_num_mask'];
+			$_SESSION[$type]['UNMASK'] = $card_num_mask;
+			//var_dump($this);die();
+			$this->tlf->exportTransactionCsv($type, $columns);
+			
+		}
+	}
+	function transactioninfo() {
+		
+		ini_set('display_errors', 'off'); ini_set('display_startup_errors', 0); error_reporting(0);
+		if($this->authorize()) {
+			$transaction_id = isset($this->parameter[0])?$this->parameter[0]:false;
+			$system_date = isset($this->parameter[1])?$this->parameter[1]:false;
+			$this->load->model('TLF_Model', 'tlf');
+			$data = array();
+			if($transaction_id) 
+			{
+				$data = $this->tlf->getTransactionInfo($transaction_id, $system_date);
+				
+			
+				if(substr($data['HANDLER_QUEUE'],0,3) == 'dcp' ||
+				   substr($data['HANDLER_QUEUE'],0,3) == 'DCP' ||
+				   substr($data['HANDLER_QUEUE'],0,5) == 'VOICE'||
+				   substr($data['HANDLER_QUEUE'],0,5) == 'voice') 
+				   {
+						$data1 = $this->tlf->getMRAInfo($transaction_id, $system_date);
+				   }
+					else
+				   {
+					   $data1['TRANSACTION_SEND_TIME'] = ' ';
+				   }
+			}
+			$this->load->model('Transaction_Model', 'Tranx');
+			$data = $this->Tranx->process_data($data);
+			
+			
+			
+			
+			$this->view->assign('data', $data);
+			$this->view->assign('data1', $data1);
+			$this->view->display('tlf_transationinfo_view', 'ajax');
+		}
+	}
+	
+	function decrypt($encoded) {
+	$encoded = base64_decode($encoded);
+	  $decoded = "";
+	  for( $i = 0; $i < strlen($encoded); $i++ ) {
+		$b = ord($encoded[$i]);
+		$a = $b ^ 51;  // <-- must be same number used to encode the character
+		$decoded .= chr($a);
+	  }
+	  return $decoded;
+	}
+	function encrypt($str) {
+	  $encoded = "";
+	  for( $i = 0; $i < strlen($str); $i++ ) {
+		$b = ord($str[$i]);
+		$a = $b ^ 51;  // <-- must be same number used to encode the character
+		$encoded .= chr($a);
+	  }
+	  return base64_encode($encoded);
+	}
+	function transaction()
+	{
+		if($this->authorize()) {
+			$page = isset($this->parameter[0])?$this->parameter[0]:1;
+			$clear_filter = isset($this->parameter[0])?false:true;
+			$data = array();
+			$result = array();
+			$error = false;
+			$this->load->model('TLF_Model', 'tlf');
+			if(isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
+				$temp = $_POST['data'];
+				$data['TRANSACTION_ID'] = isset($temp['TRANSACTION_ID']) ? trim($temp['TRANSACTION_ID']) : false;
+				$data['TERMINAL_ID'] = isset($temp['TERMINAL_ID']) ? trim($temp['TERMINAL_ID']) : false;
+				$data['MERCHANT_ID'] = isset($temp['MERCHANT_ID']) ? trim($temp['MERCHANT_ID']) : false;
+				
+				$data['TRANSACTION_START_TIME'] = isset($temp['TRANSACTION_START_TIME']) ? trim($temp['TRANSACTION_START_TIME']) : false;
+				$data['TRANSACTION_END_TIME'] = isset($temp['TRANSACTION_END_TIME']) ? trim($temp['TRANSACTION_END_TIME']) : false;
+				
+				$data['CARD_NUM'] = isset($temp['CARD_NUM']) ? trim($temp['CARD_NUM']) : false;
+				if($data['CARD_NUM'] !== false) {
+					$data['CARD_NUM'] = $this->decrypt($data['CARD_NUM']);
+				}
+				
+				$data['AUTH_NUMBER'] = isset($temp['AUTH_NUMBER']) ? trim($temp['AUTH_NUMBER']) : false;
+				$data['REDEMPTION_AMOUNT'] = isset($temp['REDEMPTION_AMOUNT']) ? trim($temp['REDEMPTION_AMOUNT']) : false;
+				$data['SYSTEM_DATE_START'] = isset($temp['SYSTEM_DATE_START']) ? trim($temp['SYSTEM_DATE_START']) : false;
+				$data['SYSTEM_DATE_END'] = isset($temp['SYSTEM_DATE_END']) ? trim($temp['SYSTEM_DATE_END']) : false;
+				$data['UNMASK'] = isset($temp['UNMASK']) ? trim($temp['UNMASK']) : 0;
+				$_SESSION['search'] = $data;
+				//print_r($data);
+			} elseif($clear_filter) {
+				unset($_SESSION['search']);
+				$data = array();
+			} else {
+				$data = isset($_SESSION['search']) ? $_SESSION['search'] : array();
+			}
+			if(!empty($data)) {
+				$data = array_map('htmlspecialchars',$data);
+				
+			/*if(! is_numeric($data['MERCHANT_ID']) && $data['MERCHANT_ID'] != "") {
+				$error = 'Please enter correct Merchant ID.';
+				$data['MERCHANT_ID'] = '';
+			}
+			if(! is_numeric($data['AUTH_NUMBER']) && $data['AUTH_NUMBER'] != "") {
+				$error = 'Please enter correct Auth ID.';
+				$data['AUTH_NUMBER'] = '';
+			}
+			if(! is_numeric($data['TERMINAL_ID']) && $data['TERMINAL_ID'] != "") {
+				$error = 'Please enter correct Terminal ID.';
+				$data['TERMINAL_ID'] = '';
+			}		*/	
+				
+				
+				if(!isset($data['SYSTEM_DATE_START']) || !isset($data['SYSTEM_DATE_END']) || !$data['SYSTEM_DATE_START'] || !$data['SYSTEM_DATE_END']) 
+				{
+					$error = 'Please Select Transaction Start Date & Transaction End Date.';
+				}
+				if(!empty($data['AUTH_NUMBER'])) 
+				{
+					
+					if((empty($data['SYSTEM_DATE_START']) == True) && (empty($data['SYSTEM_DATE_END']) == True))
+					{
+						$error = 'Please Select Transaction Start Date & Transaction End Date.';
+					}
+				}
+				if($error === false && isset($data['SYSTEM_DATE_START']) && isset($data['SYSTEM_DATE_END'])) 
+				 {
+					if($data['SYSTEM_DATE_START'] != false && $data['SYSTEM_DATE_END'] != false) 
+					{
+						if(strtotime($data['SYSTEM_DATE_START']) > strtotime($data['SYSTEM_DATE_END'])) 
+						{
+							$error = 'Transaction End Date should be greater than Transaction Start Date.';
+						}
+					}
+				}
+				if($error === false) {
+					$result = $this->tlf->getAllTransactionLookUp($page, $data);
+					$_SESSION['transaction'] = $data;
+					//echo '<pre>';print_r($result);exit;
+					$result['page_number'] = ceil($result['Total']/$result['NUM_RESULT_PER_PAGE']);
+				}
+				/*if(!empty($data['CARD_NUM'])) {
+					$data['CARD_NUM']=$this->encrypt($data['CARD_NUM']);
+				}*/
+				if(isset($data['CARD_NUM'])){
+					$data['CARD_NUM']=$this->encrypt($data['CARD_NUM']);
+				}
+			}
+						
+			$this->view->assign('error', $error);
+			$this->view->assign('resultset', $result);
+			$expColumns = $this->tlf->getTLFExportColumns();
+			//$expColumns = $this->tlf->getMRAExportColumns();
+			$this->view->assign('expColumns', $expColumns);
+			$this->view->assign('data', $data);
+			$this->view->assign('page', $page);
+			$this->view->display('tlf_transation_view');
+		}
+	}
+	
+	function hstexport() {
+		//$this->load->model('TLF_Model', 'tlf');
+		//$data = $this->tlf->HstLookUp(array());
+		$header[] = array('internal' =>'unique_id', 'external'=>'Unique Id');
+		$header[] = array('internal' =>'file_name', 'external'=>'File Name');
+		$header[] = array('internal' =>'file_primary_key', 'external'=>'File Key');
+		$header[] = array('internal' =>'changed_by', 'external'=>'Modified By');
+		$header[] = array('internal' =>'date_modified', 'external'=>'Modified Date');
+		$header[] = array('internal' =>'field_tag', 'external'=>'Field');
+		$header[] = array('internal' =>'previous_data', 'external'=>'Previou Data');
+		$header[] = array('internal' =>'current_data', 'external'=>'Current Data');
+		$header[] = array('internal' =>'reserved', 'external'=>'Reserved');
+		$data = array(
+			0 => array(
+				'unique_id' => 'Ssdfsdf',
+				'file_name' => '4323454325',
+				'file_primary_key' => 'sdaf',
+				'changed_by' => '2435234',
+				'date_modified' => 'gsdgsdfg',
+				'field_tag' => '4352345',
+				'previous_data' => 'dsgdsfg',
+				'current_data' => 'sfgsdfg',
+				'reserved' => 'dfgsdfg',
+			)
+		);
+		ExportExcelSheet::exportExcel($data, $header);
+		exit;
+	}
+	function hstinfo() {
+		if($this->authorize() && isset($_SESSION['user']['ACTION_16']) && (substr($_SESSION['user']['ACTION_16'], 2, 1) == 1)) {
+		
+			$UNIQUE_ID = isset($this->parameter[0])?$this->parameter[0]:false;
+			$this->load->model('TLF_Model', 'tlf');
+			$data = array();
+			
+			if($UNIQUE_ID) {
+				$data = $this->tlf->getHstInfo($UNIQUE_ID);
+			}
+			//echo '<pre>';print_r($data);exit;
+			$this->view->assign('data', $data);
+			$this->view->display('tlf_hstinfo_view', 'ajax');
+		}
+	}
+	function hst()
+	{
+		if($this->authorize() && (substr($_SESSION['user']['ACTION_16'], 2, 1) == 1)) {
+			$page = isset($this->parameter[0])?$this->parameter[0]:1;
+			$clear_filter = isset($this->parameter[0])?false:true;
+			$data = array();
+			$result = array();
+			$error = false;
+			$this->load->model('TLF_Model', 'tlf');
+			if(isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
+				$temp = $_POST['data'];
+				$data['CHANGED_BY'] = isset($temp['CHANGED_BY']) ? trim($temp['CHANGED_BY']) : false;
+				//$data['FILE_NAME'] = isset($temp['FILE_NAME']) ? trim($temp['FILE_NAME']) : false;
+				$data['SYSTEM_DATE_START'] = isset($temp['SYSTEM_DATE_START']) ? trim($temp['SYSTEM_DATE_START']) : false;
+				//$data['SYSTEM_DATE_END'] = isset($temp['SYSTEM_DATE_END']) ? trim($temp['SYSTEM_DATE_END']) : false;
+				
+				$_SESSION['search'] = $data;
+			} elseif($clear_filter) {
+				unset($_SESSION['search']);
+				$data = array();
+			} else {
+				$data = isset($_SESSION['search']) ? $_SESSION['search'] : array();
+			}
+			if(!empty($data)) {
+				if((!isset($data['CHANGED_BY']) || !$data['CHANGED_BY']) && (!isset($data['SYSTEM_DATE_START']) || !$data['SYSTEM_DATE_START'])) {
+					$error = 'Please enter value for at least one search field.';
+				}
+				if($error === false) {
+					$result = $this->tlf->getAllHstLookUp($page, $data);
+					$result['page_number'] = ceil($result['Total']/$result['NUM_RESULT_PER_PAGE']);
+					$_SESSION['hst'] = $data;
+					
+				}
+			}
+			//echo '<pre>';print_r($result);exit;
+			$expColumns = $this->tlf->getHSTExportColumns();
+			$this->view->assign('expColumns', $expColumns);
+			$this->view->assign('data', $data);
+			$this->view->assign('result', $result);
+			$this->view->assign('error', $error);
+			$this->view->assign('page', $page);
+			$this->view->display('tlf_hst_view');
+		}
+	}
+}
+?>

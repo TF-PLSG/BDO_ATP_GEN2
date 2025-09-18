@@ -1,0 +1,28 @@
+LIBDIR = ../lib
+CFLAGS = -c -g -w -fPIC -I../include  -I$(XIPCROOT)/include -DXIPC -DFALSE=0 -DTRUE=1
+$(CC)=cc
+
+dynamiclib: xcom.o linklist.o mymalloc.o
+	$(CC) -shared -W1,soname,libxcom.so.1 -o $(LIBDIR)/libxcom.so.1.0.1 xcom.o linklist.o mymalloc.o
+	ln -sf $(LIBDIR)/libxcom.so.1.0.1 $(LIBDIR)/libxcom.so
+
+staticlib: xcom.o linklist.o mymalloc.o
+	ar rv $(LIBDIR)/libxcom.a xcom.o linklist.o mymalloc.o
+
+xcom.o: xcom.c
+	$(CC) $(CFLAGS) xcom.c
+
+linklist.o: linklist.c
+	$(CC) $(CFLAGS) linklist.c
+
+mymalloc.o: mymalloc.c
+	$(CC) $(CFLAGS) mymalloc.c
+
+clean:
+	-@rm -f *.o
+	-@rm -f $(LIBDIR)/libxcom.so
+	-@rm -f $(LIBDIR)/libxcom.so.1.0.1
+	-@rm -f $(LIBDIR)/libxcom.a
+
+empty:
+	-@rm *.[o,c,h]

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="description" content="">
+		<meta name="author" content="">
+
+		<title>ATP Web Application</title>
+
+		<!-- Bootstrap Core CSS -->
+		<link href="<?php echo WEBPATH; ?>css/bootstrap.min.css" rel="stylesheet">
+
+		<!-- Custom CSS -->
+		<link href="<?php echo WEBPATH; ?>css/style.css" rel="stylesheet">
+
+		<!-- Custom Fonts -->
+		<link href="<?php echo WEBPATH; ?>font-awesome-4.1.0/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+		
+		<!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+		<!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+		<!--[if lt IE 9]>
+			<script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+			<script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+		<![endif]-->
+	</head>
+
+	<body class="login-page">
+		<div id="wrapper">
+
+        <!-- Navigation -->
+        <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+            <!-- Brand and toggle get grouped for better mobile display -->
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-ex1-collapse">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="<?php echo PATHURL; ?>user/login"><img src="<?php echo WEBPATH; ?>images/bdo-logo.png" height="71px;" alt="BDO Unibank"/></a>
+            </div>
+        </nav>
+
+        <div id="page-wrapper">
+
+            <div class="container-fluid">
+
+                <!-- Page Heading -->
+                <div class="row">
+				<div class="col-sm-12 col-sm-6 white-background auth-left-container">
+					<img src="<?php echo WEBPATH; ?>images/login.png" alt="Login"/>
+				</div>
+                    <div class="col-sm-12 col-sm-6 auth-right-container">
+						<div class="login-form-border p-5">
+					<img src="<?php echo WEBPATH; ?>images/logo2.bmp" height="71px;" alt="BDO Unibank"/>
+						<form name="signinform" action="<?php echo PATHURL; ?>user/login" method="POST" class="form-signin" role="form">
+							<div class="signInWrap">
+								<?php if(isset($errors['is_error']) && $errors['is_error'] === true): ?>
+									<div class="alert alert-danger">
+									<?php unset($errors['is_error']); ?>
+									
+									<?php foreach($errors as $err): ?>
+									<p><?php echo $err; ?></p>
+									<?php endforeach; ?>
+									
+									</div>
+								<?php endif;
+								if(isset($data['UserName'])) {
+									$data['UserName'] = preg_replace("/[^a-zA-Z0-9]+/", "", $data['UserName']);
+								}
+								 ?>
+								<h2 class="form-signin-heading">Login</h2>
+								<p>Enter login credentials</p>
+								<input type="username" name="data[UserName]" id="UserName" class="form-control" placeholder="User Name" required="" autofocus="" value="<?php echo isset($data['UserName'])? $data['UserName']:'';?>">
+								<input type="password" name="data[Password]" id="Password" class="form-control" placeholder="Password" required=""  autocomplete="off">
+								<label class="checkbox">
+									<input type="checkbox" value="1" name="data[RememberMe]" <?php if(isset($data['RememberMe']) && $data['RememberMe'] == 1): ?> checked <?php endif; ?> > Remember me
+								</label>
+								<button class="btn btn-md btn-primary btn-block" type="submit">Sign in</button>
+							</div>
+						</form>
+									</div>
+                    </div>
+                </div>
+                <!-- /.row -->
+
+            </div>
+            <!-- /#page-wrapper -->
+        </div>
+		<footer>
+			<p>Version:  2.0.0</p>
+		</footer>
+        <!-- /#wrapper -->
+		<script type="text/javascript" src="<?php echo WEBPATH; ?>js/jquery-3.6.1.min.js"></script>
+		<script type="text/javascript" src="<?php echo WEBPATH; ?>js/bootstrap.min.js"></script>
+      
+	</body>
+
+</html>
+<!--script>
+$(function () {
+	$('#UserName, #Password').bind("cut copy paste",function(e) {
+          e.preventDefault();
+    });
+});
+</script-->
